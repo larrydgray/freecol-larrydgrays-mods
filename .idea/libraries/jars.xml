@@ -1,0 +1,11 @@
+<component name="libraryTable">
+  <library name="jars">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/build/jars/standalone-compiler.jar!/" />
+      <root url="jar://$PROJECT_DIR$/build/jars/jsmoothgen-ant.jar!/" />
+      <root url="jar://$PROJECT_DIR$/build/jars/jarbundler-core-3.3.0.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

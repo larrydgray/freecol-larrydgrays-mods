@@ -1,0 +1,15 @@
+<component name="libraryTable">
+  <library name="jars1">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/jars/cortado-0.6.0.jar!/" />
+      <root url="jar://$PROJECT_DIR$/jars/findbugs-annotations.jar!/" />
+      <root url="jar://$PROJECT_DIR$/jars/jogg-0.0.17.jar!/" />
+      <root url="jar://$PROJECT_DIR$/jars/miglayout-core-5.0.jar!/" />
+      <root url="jar://$PROJECT_DIR$/jars/jorbis-0.0.17.jar!/" />
+      <root url="jar://$PROJECT_DIR$/jars/miglayout-swing-5.0.jar!/" />
+      <root url="jar://$PROJECT_DIR$/jars/commons-cli-1.4.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
