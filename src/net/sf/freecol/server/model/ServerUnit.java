@@ -944,6 +944,11 @@ public class ServerUnit extends Unit implements TurnTaker {
     public void csRemove(See see, Location loc, ChangeSet cs) {
         IndianSettlement is = changeHomeIndianSettlement(null);
         if (is != null) cs.add(See.only(getOwner()), is);
+        logger.info("GHOSTBUG: server csRemove unit=" + getId()
+            + " type=" + getType().getSuffix()
+            + " owner=" + ((getOwner() == null) ? "null" : getOwner().getId())
+            + " loc=" + ((loc == null) ? "null" : loc.getId())
+            + " see=" + see);
         cs.addRemove(see, loc, this);
         this.dispose();
     }

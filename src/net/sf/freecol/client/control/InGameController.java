@@ -4721,6 +4721,10 @@ public final class InGameController extends FreeColClientHolder {
                 // Deselect the object if it is the current active unit.
                 Unit u = (Unit)fcgo;
                 updateUnit |= u == getGUI().getActiveUnit();
+                logger.info("GHOSTBUG: client removeHandler processing unit="
+                    + u.getId() + " owner=" + ((u.getOwner() == null) ? "null"
+                        : u.getOwner().getId())
+                    + " disposedBefore=" + u.isDisposed());
 
                 // Temporary hack until we have real containers.
                 if (u.getOwner() != null) u.getOwner().removeUnit(u);
