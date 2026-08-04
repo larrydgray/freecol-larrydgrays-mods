@@ -24,17 +24,23 @@ import java.awt.Image;
 import java.awt.event.ActionEvent;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JTextPane;
+import javax.swing.SwingConstants;
 import javax.swing.text.BadLocationException;
+import javax.swing.text.SimpleAttributeSet;
 import javax.swing.text.StyleConstants;
 import javax.swing.text.StyledDocument;
 
@@ -75,8 +81,26 @@ public final class ReportTurnPanel extends ReportPanel {
     /** Map message identifiers to text pane. */
     private final Hashtable<String, List<JComponent>> textPanesByMessage
         = new Hashtable<>();
+    /** All the components making up a message's row, keyed by message id. */
+    private final Hashtable<String, List<JComponent>> rowComponentsByMessage
+        = new Hashtable<>();
     /** The messages to display. */
     private final List<ModelMessage> messages = new ArrayList<>();
+
+    /**
+     * Message identifiers the player has deprioritized (greyed out) this
+     * turn.  Not persisted -- reset whenever a new turn's messages are
+     * loaded via setMessages().
+     */
+    private final Set<String> greyedMessageIds = new HashSet<>();
+    /**
+     * Message identifiers the player has dismissed (struck through and
+     * hidden) this turn.  Not persisted -- reset whenever a new turn's
+     * messages are loaded via setMessages().
+     */
+    private final Set<String> struckMessageIds = new HashSet<>();
+    /** Whether dismissed messages are currently shown (undo mode). */
+    private boolean showDismissed = false;
 
 
     /**
@@ -90,7 +114,10 @@ public final class ReportTurnPanel extends ReportPanel {
         super(freeColClient, "reportTurnAction");
 
         // Display Panel
-        reportPanel.setLayout(new MigLayout("wrap 4", "[center][550!]:push[][]", ""));
+        // hidemode 3 so a hidden (dismissed) row collapses completely
+        // instead of leaving a blank gap.
+        reportPanel.setLayout(new MigLayout("wrap 6, hidemode 3",
+            "[center][550!]:push[][][][]", ""));
         setMessages(messages);
     }
 
@@ -103,44 +130,125 @@ public final class ReportTurnPanel extends ReportPanel {
     public void setMessages(List<ModelMessage> messages) {
         reportPanel.removeAll();
         this.messages.clear();
+        rowComponentsByMessage.clear();
+        greyedMessageIds.clear();
+        struckMessageIds.clear();
+        showDismissed = false;
         if (messages != null) this.messages.addAll(messages);
         displayMessages();
     }
         
+    /**
+     * Does this message look urgent enough to float to the top of the
+     * report, ahead of the normal type/source grouping?
+     *
+     * @param message The {@code ModelMessage} to check.
+     * @return True if the rendered message text mentions starvation.
+     */
+    private boolean isUrgent(ModelMessage message) {
+        return Messages.message(message).toLowerCase(Locale.ROOT)
+            .contains("starving");
+    }
+
+    /**
+     * Add or remove a strikethrough style over all the text in a
+     * message's text pane, without disturbing its other styling
+     * (colours, embedded link buttons, etc).
+     *
+     * @param textPane The {@code JTextPane} to restyle.
+     * @param strike True to strike the text through.
+     */
+    private void setStrikeThrough(JTextPane textPane, boolean strike) {
+        StyledDocument doc = textPane.getStyledDocument();
+        SimpleAttributeSet attr = new SimpleAttributeSet();
+        StyleConstants.setStrikeThrough(attr, strike);
+        doc.setCharacterAttributes(0, doc.getLength(), attr, false);
+    }
+
     private void displayMessages() {
         final Game game = getFreeColClient().getGame();
         final ClientOptions co = getClientOptions();
         final int groupBy = co.getInteger(ClientOptions.MESSAGES_GROUP_BY);
 
-        // Sort if requested
+        // Pull urgent (starving) messages to the top, ahead of the
+        // normal group-by-type/source sort, which still applies to the
+        // remainder.
+        final List<ModelMessage> urgent = new ArrayList<>();
+        final List<ModelMessage> rest = new ArrayList<>();
+        for (ModelMessage m : this.messages) {
+            (isUrgent(m) ? urgent : rest).add(m);
+        }
         final Comparator<ModelMessage> comparator
             = co.getModelMessageComparator(game);
-        if (comparator != null) this.messages.sort(comparator);
+        if (comparator != null) rest.sort(comparator);
+        this.messages.clear();
+        this.messages.addAll(urgent);
+        this.messages.addAll(rest);
+
+        // Master toggle to reveal dismissed (struck-through) messages
+        // again, so a dismissal can always be undone.
+        JCheckBox showDismissedBox = new JCheckBox(
+            Messages.message("report.turn.showDismissed"));
+        Utility.localizeToolTip(showDismissedBox, "report.turn.showDismissed");
+        showDismissedBox.setSelected(showDismissed);
+        showDismissedBox.addActionListener((ActionEvent ae) -> {
+                showDismissed = showDismissedBox.isSelected();
+                for (String sid : struckMessageIds) {
+                    List<JComponent> row = rowComponentsByMessage.get(sid);
+                    if (row == null) continue;
+                    for (JComponent jc : row) jc.setVisible(showDismissed);
+                }
+                reportPanel.revalidate();
+                reportPanel.repaint();
+            });
+        reportPanel.add(showDismissedBox, "newline, span, wrap");
+
+        if (!urgent.isEmpty()) {
+            JLabel headline = Utility.localizedHeaderLabel(
+                StringTemplate.template("report.turn.urgent"),
+                SwingConstants.LEADING, Utility.FONTSPEC_SUBTITLE);
+            reportPanel.add(headline, "newline 20, skip, span");
+        }
 
         Object source = this;
         ModelMessage.MessageType type = null;
+        boolean inUrgentSection = true;
         for (ModelMessage message : this.messages) {
-            // Add headline if the grouping changed
-            switch (groupBy) {
-            case ClientOptions.MESSAGES_GROUP_BY_SOURCE:
-                FreeColGameObject messageSource = game.getMessageSource(message);
-                if (messageSource != source) {
-                    source = messageSource;
-                    reportPanel.add(getHeadline(messageSource), "newline 20, skip");
-                }
-                break;
-            case ClientOptions.MESSAGES_GROUP_BY_TYPE:
-                if (message.getMessageType() != type) {
-                    type = message.getMessageType();
-                    JLabel headline = Utility.localizedHeaderLabel(type,
-                        Utility.FONTSPEC_SUBTITLE);
-                    reportPanel.add(headline, "newline 20, skip, span");
-                }
-                break;
-            default:
-                break;
+            if (inUrgentSection && !urgent.contains(message)) {
+                // Entered the regular section; reset the grouping
+                // trackers so its first message gets its own headline
+                // rather than being suppressed by whatever the last
+                // urgent message happened to share a type/source with.
+                inUrgentSection = false;
+                source = this;
+                type = null;
             }
-            
+            // Add headline if the grouping changed (skipped inside the
+            // urgent section, which has its own single headline above).
+            if (!inUrgentSection) {
+                switch (groupBy) {
+                case ClientOptions.MESSAGES_GROUP_BY_SOURCE:
+                    FreeColGameObject messageSource = game.getMessageSource(message);
+                    if (messageSource != source) {
+                        source = messageSource;
+                        reportPanel.add(getHeadline(messageSource), "newline 20, skip");
+                    }
+                    break;
+                case ClientOptions.MESSAGES_GROUP_BY_TYPE:
+                    if (message.getMessageType() != type) {
+                        type = message.getMessageType();
+                        JLabel headline = Utility.localizedHeaderLabel(type,
+                            Utility.FONTSPEC_SUBTITLE);
+                        reportPanel.add(headline, "newline 20, skip, span");
+                    }
+                    break;
+                default:
+                    break;
+                }
+            }
+
+            final List<JComponent> rowComponents = new ArrayList<>();
+
             JComponent component = new JLabel();
             FreeColObject messageDisplay = game.getMessageDisplay(message);
             final ImageLibrary lib = getImageLibrary();
@@ -164,6 +272,7 @@ public final class ReportTurnPanel extends ReportPanel {
             }
 
             reportPanel.add(component, "newline");
+            rowComponents.add(component);
 
             final JTextPane textPane = Utility.getDefaultTextPane();
             try {
@@ -173,13 +282,17 @@ public final class ReportTurnPanel extends ReportPanel {
                 logger.log(Level.WARNING, "message insert fail", ble);
             }
             reportPanel.add(textPane);
+            rowComponents.add(textPane);
 
-            boolean ignore = false;
             final JComponent label = component;
+
+            // Ignore button (or a blank placeholder to keep the column
+            // grid regular across every row).
+            JComponent ignoreComponent;
             switch (message.getMessageType()) {
-            case WAREHOUSE_CAPACITY:
+            case WAREHOUSE_CAPACITY: {
                 JButton ignoreButton = new JButton("x");
-                Utility.localizeToolTip(ignoreButton, 
+                Utility.localizeToolTip(ignoreButton,
                     StringTemplate.copy("report.turn.ignore", message));
                 final ModelMessage m = message;
                 ignoreButton.addActionListener((ActionEvent ae) -> {
@@ -188,13 +301,16 @@ public final class ReportTurnPanel extends ReportPanel {
                         textPane.setEnabled(!flag);
                         label.setEnabled(!flag);
                     });
-                reportPanel.add(ignoreButton);
-                ignore = true;
-                break;
-            default:
+                ignoreComponent = ignoreButton;
                 break;
             }
-            
+            default:
+                ignoreComponent = new JLabel();
+                break;
+            }
+            reportPanel.add(ignoreComponent);
+            rowComponents.add(ignoreComponent);
+
             // Fill the message maps so that we can iterate through
             // them by message identifier in the ActionListeners.
             String id = message.getId();
@@ -208,9 +324,11 @@ public final class ReportTurnPanel extends ReportPanel {
                 labelsByMessage.put(id,
                     components = new ArrayList<JComponent>());
             components.add(label);
-            
-            // Add filter button if option present.
+
+            // Filter button (or a blank placeholder), if an option is
+            // present for this message's type.
             final String msgKey = message.getOptionName();
+            JComponent filterComponent;
             if (co.hasOption(msgKey, BooleanOption.class)) {
                 JButton filterButton = new JButton("X");
                 Utility.localizeToolTip(filterButton, StringTemplate
@@ -230,12 +348,47 @@ public final class ReportTurnPanel extends ReportPanel {
                             }
                         }
                     });
-                if (ignore) {
-                    reportPanel.add(filterButton);
-                } else {
-                    reportPanel.add(filterButton, "skip");
-                }
+                filterComponent = filterButton;
+            } else {
+                filterComponent = new JLabel();
             }
+            reportPanel.add(filterComponent);
+            rowComponents.add(filterComponent);
+
+            // Deprioritize (grey out) checkbox.
+            JCheckBox greyBox = new JCheckBox();
+            Utility.localizeToolTip(greyBox, "report.turn.deprioritize");
+            greyBox.setSelected(greyedMessageIds.contains(id));
+            greyBox.addActionListener((ActionEvent ae) -> {
+                    boolean flag = greyBox.isSelected();
+                    if (flag) greyedMessageIds.add(id);
+                    else greyedMessageIds.remove(id);
+                    label.setEnabled(!flag);
+                    textPane.setEnabled(!flag);
+                });
+            reportPanel.add(greyBox);
+            rowComponents.add(greyBox);
+
+            // Dismiss (strike through, hide) checkbox.
+            JCheckBox strikeBox = new JCheckBox();
+            Utility.localizeToolTip(strikeBox, "report.turn.dismiss");
+            strikeBox.setSelected(struckMessageIds.contains(id));
+            strikeBox.addActionListener((ActionEvent ae) -> {
+                    boolean flag = strikeBox.isSelected();
+                    setStrikeThrough(textPane, flag);
+                    if (flag) struckMessageIds.add(id);
+                    else struckMessageIds.remove(id);
+                    if (!showDismissed) {
+                        List<JComponent> row = rowComponentsByMessage.get(id);
+                        for (JComponent jc : row) jc.setVisible(!flag);
+                        reportPanel.revalidate();
+                        reportPanel.repaint();
+                    }
+                });
+            reportPanel.add(strikeBox, "wrap");
+            rowComponents.add(strikeBox);
+
+            rowComponentsByMessage.put(id, rowComponents);
         }
     }
 
