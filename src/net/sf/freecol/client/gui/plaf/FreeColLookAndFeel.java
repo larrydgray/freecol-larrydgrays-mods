@@ -105,6 +105,14 @@ public class FreeColLookAndFeel extends MetalLookAndFeel {
         public ColorUIResource getMenuDisabledForeground() {
             return getColor("color.disabledMenu.LookAndFeel");
         }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public ColorUIResource getMenuForeground() {
+            return getColor("color.menuForeground.LookAndFeel");
+        }
     };
         
     private static final String brightPanelUI
