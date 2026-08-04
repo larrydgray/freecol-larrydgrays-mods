@@ -126,11 +126,10 @@ public final class ReportTurnPanel extends ReportPanel {
                            List<ModelMessage> messages) {
         super(freeColClient, "reportTurnAction");
 
-        // Display Panel
-        // hidemode 3 so a hidden (dismissed) row collapses completely
-        // instead of leaving a blank gap.
-        reportPanel.setLayout(new MigLayout("wrap 6, hidemode 3",
-            "[center][550!]:push[][][][]", ""));
+        // Layout is (re)configured in displayMessages(), which depends
+        // on the "Enhanced Turn Report" option (LarryDGray's Mods) and
+        // so needs to be able to react if that option changes between
+        // turns.
         setMessages(messages);
     }
 
@@ -183,13 +182,28 @@ public final class ReportTurnPanel extends ReportPanel {
         final ClientOptions co = getClientOptions();
         final int groupBy = co.getInteger(ClientOptions.MESSAGES_GROUP_BY);
 
+        // LarryDGray's Mods: Enhanced Turn Report.  Off leaves the
+        // report exactly as upstream renders it -- no checkboxes, no
+        // starving-first sort, classic 4-column layout.
+        final boolean enhanced = co.getBoolean("model.option.enhancedTurnReport");
+        reportPanel.setLayout((enhanced)
+            // hidemode 3 so a hidden (dismissed) row collapses
+            // completely instead of leaving a blank gap.
+            ? new MigLayout("wrap 6, hidemode 3",
+                "[center][550!]:push[][][][]", "")
+            : new MigLayout("wrap 4", "[center][550!]:push[][]", ""));
+
         // Pull urgent (starving) messages to the top, ahead of the
         // normal group-by-type/source sort, which still applies to the
         // remainder.
         final List<ModelMessage> urgent = new ArrayList<>();
         final List<ModelMessage> rest = new ArrayList<>();
-        for (ModelMessage m : this.messages) {
-            (isUrgent(m) ? urgent : rest).add(m);
+        if (enhanced) {
+            for (ModelMessage m : this.messages) {
+                (isUrgent(m) ? urgent : rest).add(m);
+            }
+        } else {
+            rest.addAll(this.messages);
         }
         final Comparator<ModelMessage> comparator
             = co.getModelMessageComparator(game);
@@ -198,29 +212,31 @@ public final class ReportTurnPanel extends ReportPanel {
         this.messages.addAll(urgent);
         this.messages.addAll(rest);
 
-        // Master toggle to reveal dismissed (struck-through) messages
-        // again, so a dismissal can always be undone.
-        JCheckBox showDismissedBox = new JCheckBox(
-            Messages.message("report.turn.showDismissed"));
-        Utility.localizeToolTip(showDismissedBox, "report.turn.showDismissed");
-        showDismissedBox.setSelected(showDismissed);
-        showDismissedBox.addActionListener((ActionEvent ae) -> {
-                showDismissed = showDismissedBox.isSelected();
-                for (ModelMessage sm : struckMessages) {
-                    List<JComponent> row = rowComponentsByMessage.get(sm);
-                    if (row == null) continue;
-                    for (JComponent jc : row) jc.setVisible(showDismissed);
-                }
-                reportPanel.revalidate();
-                reportPanel.repaint();
-            });
-        reportPanel.add(showDismissedBox, "newline, span, wrap");
+        if (enhanced) {
+            // Master toggle to reveal dismissed (struck-through)
+            // messages again, so a dismissal can always be undone.
+            JCheckBox showDismissedBox = new JCheckBox(
+                Messages.message("report.turn.showDismissed"));
+            Utility.localizeToolTip(showDismissedBox, "report.turn.showDismissed");
+            showDismissedBox.setSelected(showDismissed);
+            showDismissedBox.addActionListener((ActionEvent ae) -> {
+                    showDismissed = showDismissedBox.isSelected();
+                    for (ModelMessage sm : struckMessages) {
+                        List<JComponent> row = rowComponentsByMessage.get(sm);
+                        if (row == null) continue;
+                        for (JComponent jc : row) jc.setVisible(showDismissed);
+                    }
+                    reportPanel.revalidate();
+                    reportPanel.repaint();
+                });
+            reportPanel.add(showDismissedBox, "newline, span, wrap");
 
-        if (!urgent.isEmpty()) {
-            JLabel headline = Utility.localizedHeaderLabel(
-                StringTemplate.template("report.turn.urgent"),
-                SwingConstants.LEADING, Utility.FONTSPEC_SUBTITLE);
-            reportPanel.add(headline, "newline 20, skip, span");
+            if (!urgent.isEmpty()) {
+                JLabel headline = Utility.localizedHeaderLabel(
+                    StringTemplate.template("report.turn.urgent"),
+                    SwingConstants.LEADING, Utility.FONTSPEC_SUBTITLE);
+                reportPanel.add(headline, "newline 20, skip, span");
+            }
         }
 
         Object source = this;
@@ -370,41 +386,43 @@ public final class ReportTurnPanel extends ReportPanel {
             } else {
                 filterComponent = new JLabel();
             }
-            reportPanel.add(filterComponent);
+            reportPanel.add(filterComponent, (enhanced) ? "" : "wrap");
             rowComponents.add(filterComponent);
 
-            // Deprioritize (grey out) checkbox.
-            JCheckBox greyBox = new JCheckBox();
-            Utility.localizeToolTip(greyBox, "report.turn.deprioritize");
-            greyBox.setSelected(greyedMessages.contains(message));
-            greyBox.addActionListener((ActionEvent ae) -> {
-                    boolean flag = greyBox.isSelected();
-                    if (flag) greyedMessages.add(message);
-                    else greyedMessages.remove(message);
-                    label.setEnabled(!flag);
-                    textPane.setEnabled(!flag);
-                });
-            reportPanel.add(greyBox);
-            rowComponents.add(greyBox);
+            if (enhanced) {
+                // Deprioritize (grey out) checkbox.
+                JCheckBox greyBox = new JCheckBox();
+                Utility.localizeToolTip(greyBox, "report.turn.deprioritize");
+                greyBox.setSelected(greyedMessages.contains(message));
+                greyBox.addActionListener((ActionEvent ae) -> {
+                        boolean flag = greyBox.isSelected();
+                        if (flag) greyedMessages.add(message);
+                        else greyedMessages.remove(message);
+                        label.setEnabled(!flag);
+                        textPane.setEnabled(!flag);
+                    });
+                reportPanel.add(greyBox);
+                rowComponents.add(greyBox);
 
-            // Dismiss (strike through, hide) checkbox.
-            JCheckBox strikeBox = new JCheckBox();
-            Utility.localizeToolTip(strikeBox, "report.turn.dismiss");
-            strikeBox.setSelected(struckMessages.contains(message));
-            strikeBox.addActionListener((ActionEvent ae) -> {
-                    boolean flag = strikeBox.isSelected();
-                    setStrikeThrough(textPane, flag);
-                    if (flag) struckMessages.add(message);
-                    else struckMessages.remove(message);
-                    if (!showDismissed) {
-                        List<JComponent> row = rowComponentsByMessage.get(message);
-                        for (JComponent jc : row) jc.setVisible(!flag);
-                        reportPanel.revalidate();
-                        reportPanel.repaint();
-                    }
-                });
-            reportPanel.add(strikeBox, "wrap");
-            rowComponents.add(strikeBox);
+                // Dismiss (strike through, hide) checkbox.
+                JCheckBox strikeBox = new JCheckBox();
+                Utility.localizeToolTip(strikeBox, "report.turn.dismiss");
+                strikeBox.setSelected(struckMessages.contains(message));
+                strikeBox.addActionListener((ActionEvent ae) -> {
+                        boolean flag = strikeBox.isSelected();
+                        setStrikeThrough(textPane, flag);
+                        if (flag) struckMessages.add(message);
+                        else struckMessages.remove(message);
+                        if (!showDismissed) {
+                            List<JComponent> row = rowComponentsByMessage.get(message);
+                            for (JComponent jc : row) jc.setVisible(!flag);
+                            reportPanel.revalidate();
+                            reportPanel.repaint();
+                        }
+                    });
+                reportPanel.add(strikeBox, "wrap");
+                rowComponents.add(strikeBox);
+            }
 
             rowComponentsByMessage.put(message, rowComponents);
         }

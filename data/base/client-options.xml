@@ -393,6 +393,14 @@
       </modListOption>
     </optionGroup>
 
+    <optionGroup id="clientOptions.larryDGraysMods">
+      <!-- Turn Report: per-line deprioritize/dismiss checkboxes, a
+           show-dismissed undo toggle, and sorting starvation warnings
+           to the top of the report. -->
+      <booleanOption id="model.option.enhancedTurnReport"
+                     defaultValue="true"/>
+    </optionGroup>
+
     <optionGroup id="clientOptions.etc" editable="false" visible="false">
       <!-- Placement options, set dynamically, not from the options dialogs. -->
     </optionGroup>
