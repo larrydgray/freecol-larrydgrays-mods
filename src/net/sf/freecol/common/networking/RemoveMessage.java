@@ -113,10 +113,6 @@ public class RemoveMessage extends AttributeMessage {
         final FreeColGameObject divert = getDivertObject(game);
         final List<FreeColGameObject> objects = getRemovals(game);
 
-        logger.info("GHOSTBUG: client received RemoveMessage requestedIds="
-            + getArrayAttributes() + " resolvedIds="
-            + transform(objects, alwaysTrue(), FreeColObject::getId));
-
         if (objects.isEmpty()) return;
 
         igc(freeColClient).removeHandler(objects, divert);
