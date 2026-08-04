@@ -19,6 +19,7 @@
 
 package net.sf.freecol.client.gui.menu;
 
+import java.awt.Color;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
@@ -338,6 +339,9 @@ public class InGameMenuBar extends FreeColMenuBar {
         
         final int rightSidePaddingInPx = 10;
         final int centerHeight = getHeight() - getInsets().bottom;
+        // Yellow instead of the default black for contrast against the
+        // status bar background.
+        g2d.setColor(new Color(255, 215, 0));
         g2d.drawString(text,
                 getWidth() - rightSidePaddingInPx - textWidth - getInsets().right,
                 (centerHeight - textHeight) / 2 + fm.getAscent());
