@@ -23,9 +23,10 @@ import java.awt.Font;
 import java.awt.Image;
 import java.awt.event.ActionEvent;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.Hashtable;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -81,24 +82,36 @@ public final class ReportTurnPanel extends ReportPanel {
     /** Map message identifiers to text pane. */
     private final Hashtable<String, List<JComponent>> textPanesByMessage
         = new Hashtable<>();
-    /** All the components making up a message's row, keyed by message id. */
-    private final Hashtable<String, List<JComponent>> rowComponentsByMessage
-        = new Hashtable<>();
+    /**
+     * All the components making up a message's row, keyed by message
+     * object identity.
+     *
+     * Note: ModelMessage.getId() returns the *shared* i18n template key
+     * (e.g. "model.building.notProducing"), not a unique per-instance
+     * id -- many distinct messages in the same report legitimately share
+     * one.  A String-keyed map here would silently alias unrelated rows
+     * together, so this is keyed by object identity instead.
+     */
+    private final IdentityHashMap<ModelMessage, List<JComponent>> rowComponentsByMessage
+        = new IdentityHashMap<>();
     /** The messages to display. */
     private final List<ModelMessage> messages = new ArrayList<>();
 
     /**
-     * Message identifiers the player has deprioritized (greyed out) this
-     * turn.  Not persisted -- reset whenever a new turn's messages are
-     * loaded via setMessages().
+     * Messages the player has deprioritized (greyed out) this turn.  Not
+     * persisted -- reset whenever a new turn's messages are loaded via
+     * setMessages().  Identity-keyed, see rowComponentsByMessage.
      */
-    private final Set<String> greyedMessageIds = new HashSet<>();
+    private final Set<ModelMessage> greyedMessages
+        = Collections.newSetFromMap(new IdentityHashMap<>());
     /**
-     * Message identifiers the player has dismissed (struck through and
-     * hidden) this turn.  Not persisted -- reset whenever a new turn's
-     * messages are loaded via setMessages().
+     * Messages the player has dismissed (struck through and hidden) this
+     * turn.  Not persisted -- reset whenever a new turn's messages are
+     * loaded via setMessages().  Identity-keyed, see
+     * rowComponentsByMessage.
      */
-    private final Set<String> struckMessageIds = new HashSet<>();
+    private final Set<ModelMessage> struckMessages
+        = Collections.newSetFromMap(new IdentityHashMap<>());
     /** Whether dismissed messages are currently shown (undo mode). */
     private boolean showDismissed = false;
 
@@ -131,8 +144,8 @@ public final class ReportTurnPanel extends ReportPanel {
         reportPanel.removeAll();
         this.messages.clear();
         rowComponentsByMessage.clear();
-        greyedMessageIds.clear();
-        struckMessageIds.clear();
+        greyedMessages.clear();
+        struckMessages.clear();
         showDismissed = false;
         if (messages != null) this.messages.addAll(messages);
         displayMessages();
@@ -193,8 +206,8 @@ public final class ReportTurnPanel extends ReportPanel {
         showDismissedBox.setSelected(showDismissed);
         showDismissedBox.addActionListener((ActionEvent ae) -> {
                 showDismissed = showDismissedBox.isSelected();
-                for (String sid : struckMessageIds) {
-                    List<JComponent> row = rowComponentsByMessage.get(sid);
+                for (ModelMessage sm : struckMessages) {
+                    List<JComponent> row = rowComponentsByMessage.get(sm);
                     if (row == null) continue;
                     for (JComponent jc : row) jc.setVisible(showDismissed);
                 }
@@ -212,17 +225,22 @@ public final class ReportTurnPanel extends ReportPanel {
 
         Object source = this;
         ModelMessage.MessageType type = null;
-        boolean inUrgentSection = true;
+        int index = 0;
+        // this.messages is exactly urgent followed by rest (see above),
+        // so a plain position check tells us which section we are in --
+        // avoids relying on ModelMessage.equals(), which is content-based
+        // and can consider distinct messages "equal".
         for (ModelMessage message : this.messages) {
-            if (inUrgentSection && !urgent.contains(message)) {
+            boolean inUrgentSection = index < urgent.size();
+            if (index == urgent.size()) {
                 // Entered the regular section; reset the grouping
                 // trackers so its first message gets its own headline
                 // rather than being suppressed by whatever the last
                 // urgent message happened to share a type/source with.
-                inUrgentSection = false;
                 source = this;
                 type = null;
             }
+            index++;
             // Add headline if the grouping changed (skipped inside the
             // urgent section, which has its own single headline above).
             if (!inUrgentSection) {
@@ -358,11 +376,11 @@ public final class ReportTurnPanel extends ReportPanel {
             // Deprioritize (grey out) checkbox.
             JCheckBox greyBox = new JCheckBox();
             Utility.localizeToolTip(greyBox, "report.turn.deprioritize");
-            greyBox.setSelected(greyedMessageIds.contains(id));
+            greyBox.setSelected(greyedMessages.contains(message));
             greyBox.addActionListener((ActionEvent ae) -> {
                     boolean flag = greyBox.isSelected();
-                    if (flag) greyedMessageIds.add(id);
-                    else greyedMessageIds.remove(id);
+                    if (flag) greyedMessages.add(message);
+                    else greyedMessages.remove(message);
                     label.setEnabled(!flag);
                     textPane.setEnabled(!flag);
                 });
@@ -372,14 +390,14 @@ public final class ReportTurnPanel extends ReportPanel {
             // Dismiss (strike through, hide) checkbox.
             JCheckBox strikeBox = new JCheckBox();
             Utility.localizeToolTip(strikeBox, "report.turn.dismiss");
-            strikeBox.setSelected(struckMessageIds.contains(id));
+            strikeBox.setSelected(struckMessages.contains(message));
             strikeBox.addActionListener((ActionEvent ae) -> {
                     boolean flag = strikeBox.isSelected();
                     setStrikeThrough(textPane, flag);
-                    if (flag) struckMessageIds.add(id);
-                    else struckMessageIds.remove(id);
+                    if (flag) struckMessages.add(message);
+                    else struckMessages.remove(message);
                     if (!showDismissed) {
-                        List<JComponent> row = rowComponentsByMessage.get(id);
+                        List<JComponent> row = rowComponentsByMessage.get(message);
                         for (JComponent jc : row) jc.setVisible(!flag);
                         reportPanel.revalidate();
                         reportPanel.repaint();
@@ -388,7 +406,7 @@ public final class ReportTurnPanel extends ReportPanel {
             reportPanel.add(strikeBox, "wrap");
             rowComponents.add(strikeBox);
 
-            rowComponentsByMessage.put(id, rowComponents);
+            rowComponentsByMessage.put(message, rowComponents);
         }
     }
 
