@@ -165,6 +165,17 @@ public class FreeColLookAndFeel extends MetalLookAndFeel {
     public UIDefaults getDefaults() {
         UIDefaults u = super.getDefaults();
 
+        // The theme's getMenuForeground() (gold) applies uniformly to the
+        // top-level menu bar buttons ("Game", "View", ...) *and* the
+        // dropdown items beneath them, but the dropdowns sit on a light
+        // background where gold has poor contrast.  Override just the
+        // dropdown item keys back to a dark, readable color.
+        ColorUIResource menuItemForeground
+            = new ColorUIResource(ImageLibrary.getColor("color.menuItemForeground.LookAndFeel"));
+        u.put("MenuItem.foreground", menuItemForeground);
+        u.put("CheckBoxMenuItem.foreground", menuItemForeground);
+        u.put("RadioButtonMenuItem.foreground", menuItemForeground);
+
         int offset = "FreeCol".length();
         for (Class<?> uiClass : uiClasses) {
             String name = uiClass.getName();
