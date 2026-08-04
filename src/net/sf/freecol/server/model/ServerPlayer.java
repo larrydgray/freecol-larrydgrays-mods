@@ -3036,17 +3036,13 @@ outer:  for (Effect effect : effects) {
             loser.setMovesLeft(0);
             loser.setState(Unit.UnitState.ACTIVE);
             cs.add(See.perhaps().always(loserPlayer), oldTile);
-            // GHOSTBUG fix: csChangeOwner() only notifies the new owner.
-            // Without this, the former owner's client keeps a stale copy of
-            // the unit (still theirs, still active), which keeps
-            // resurfacing it as needing orders even though the server has
-            // already reassigned it - the "ghost soldier" bug.
-            logger.info("GHOSTBUG: notifying former owner of capture, unit="
-                + loser.getId() + " formerOwner="
-                + ((loserPlayer == null) ? "null" : loserPlayer.getId())
-                + " newOwner=" + ((winnerPlayer == null) ? "null"
-                    : winnerPlayer.getId())
-                + " oldTile=" + ((oldTile == null) ? "null" : oldTile.getId()));
+            // csChangeOwner() only notifies the new owner (see
+            // exploreForUnit() call therein).  The former owner is never
+            // told the unit is gone, so its client retains a stale copy
+            // that keeps demanding orders each turn even though the
+            // server has already reassigned the unit - the "ghost unit"
+            // bug.  Explicitly tell the former owner to drop it, mirroring
+            // the See.only()/See.perhaps() split csSlaughterUnit() uses.
             cs.addRemove((oldTile.getSettlement() != null)
                 ? See.only(loserPlayer) : See.perhaps().always(loserPlayer),
                 oldTile, loser);//-vis(loserPlayer)
