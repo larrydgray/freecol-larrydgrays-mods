@@ -405,9 +405,10 @@
       <booleanOption id="model.option.showColonyStatToolbar"
                      defaultValue="true"/>
       <!-- Which stat is currently selected (ColonyStat ordinal), or
-           -1 for none.  Not really a "preference" in the usual sense
-           -- set via the tool bar buttons, not this dialog -- but
-           needs to be a real option to persist across turns/sessions. -->
+           -1 for none.  Not really a "preference" in the usual sense,
+           since it is set via the tool bar buttons rather than this
+           dialog, but needs to be a real option to persist across
+           turns/sessions. -->
       <integerOption id="model.option.colonyStatDisplay"
                      defaultValue="-1" minimumValue="-1" maximumValue="10"/>
     </optionGroup>
