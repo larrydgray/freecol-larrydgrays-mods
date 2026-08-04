@@ -692,12 +692,30 @@ public final class MapViewer extends FreeColClientHolder {
         // int yOffset = this.lib.getSettlementImage(settlement).getHeight() + 1;
         int yOffset = tileBounds.getHeight();
         switch (colonyLabels) {
-        case ClientOptions.COLONY_LABELS_CLASSIC:
-            BufferedImage img = this.lib.getStringImage(g2d, name, backgroundColor,
+        case ClientOptions.COLONY_LABELS_CLASSIC: {
+            // LarryDGray's Mods: append the selected colony stat, if
+            // any, to the name line -- Classic mode only draws one
+            // line, unlike Modern's stacked TextSpecifications.
+            String classicName = name;
+            if (settlement instanceof Colony
+                && settlement.getOwner() == player
+                && getClientOptions().getBoolean(ClientOptions.SHOW_COLONY_STAT_TOOLBAR)) {
+                int statOrdinal = getClientOptions()
+                    .getInteger(ClientOptions.COLONY_STAT_DISPLAY);
+                ColonyStat[] stats = ColonyStat.values();
+                if (statOrdinal >= 0 && statOrdinal < stats.length) {
+                    ColonyStat stat = stats[statOrdinal];
+                    Colony colony = (Colony) settlement;
+                    classicName = name + "  " + stat.getLetter() + ":"
+                        + stat.getValue(colony);
+                }
+            }
+            BufferedImage img = this.lib.getStringImage(g2d, classicName, backgroundColor,
                     mapViewerScaledUtils.getFontNormal());
             g2d.drawImage(img, rop, (tileBounds.getWidth() - img.getWidth())/2 + 1,
                           yOffset);
             break;
+        }
 
         case ClientOptions.COLONY_LABELS_MODERN:
         default:
