@@ -272,6 +272,19 @@ public class ClientOptions extends OptionGroup {
     public static final String MINIMAP_TOGGLE_FOG_OF_WAR
         = "model.option.miniMapToggleFogOfWar";
 
+    // clientOptions.larryDGraysMods
+
+    /** Whether to show the colony stat tool bar at all. */
+    public static final String SHOW_COLONY_STAT_TOOLBAR
+        = "model.option.showColonyStatToolbar";
+
+    /**
+     * Which net.sf.freecol.client.gui.mapviewer.ColonyStat is currently
+     * selected for display under colony names, by ordinal; -1 for none.
+     */
+    public static final String COLONY_STAT_DISPLAY
+        = "model.option.colonyStatDisplay";
+
     /** Whether to draw the borders on the minimap. */
     public static final String MINIMAP_TOGGLE_BORDERS
         = "model.option.miniMapToggleBorders";

@@ -23,7 +23,6 @@ import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import javax.swing.JButton;
 import javax.swing.JPanel;
@@ -140,13 +139,18 @@ public final class ClassicMapControls extends MapControls {
      */
     @Override
     public List<Component> getComponentsToAdd(Dimension newSize) {
-        if (getGame() == null || this.panel.isShowing()) {
-            return Collections.<Component>emptyList();
+        List<Component> ret = new ArrayList<>();
+        if (getGame() == null) return ret;
+
+        if (!this.panel.isShowing()) {
+            int width = (int)this.panel.getPreferredSize().getWidth();
+            this.panel.setSize(width, newSize.height);
+            this.panel.setLocation(newSize.width - width, 0);
+            ret.addAll(this.componentList);
         }
-        int width = (int)this.panel.getPreferredSize().getWidth();
-        this.panel.setSize(width, newSize.height);
-        this.panel.setLocation(newSize.width - width, 0);
-        return this.componentList;
+
+        addColonyStatToolBarIfNeeded(ret, newSize);
+        return ret;
     }
 
     /**
@@ -154,7 +158,9 @@ public final class ClassicMapControls extends MapControls {
      */
     @Override
     public List<Component> getComponentsPresent() {
-        return (this.panel.isShowing()) ? this.componentList
-            : Collections.<Component>emptyList();
+        List<Component> ret = new ArrayList<>();
+        if (this.panel.isShowing()) ret.addAll(this.componentList);
+        addColonyStatToolBarIfPresent(ret);
+        return ret;
     }
 }

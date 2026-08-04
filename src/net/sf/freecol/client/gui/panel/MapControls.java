@@ -33,6 +33,7 @@ import net.sf.freecol.client.FreeColClient;
 import net.sf.freecol.client.control.FreeColClientHolder;
 import net.sf.freecol.client.gui.GUI;
 import net.sf.freecol.client.gui.action.ActionManager;
+import net.sf.freecol.client.gui.mapviewer.ColonyStatToolBar;
 import net.sf.freecol.common.model.Tile;
 import net.sf.freecol.common.model.Unit;
 import net.sf.freecol.common.util.Introspector;
@@ -64,6 +65,12 @@ public abstract class MapControls extends FreeColClientHolder {
     /** The buttons to control unit actions. */
     protected final List<UnitButton> unitButtons = new ArrayList<>();
 
+    /**
+     * LarryDGray's Mods: colony stat tool bar, always positioned at the
+     * top of the map regardless of corner/classic map controls style.
+     */
+    protected final ColonyStatToolBar colonyStatToolBar;
+
 
     /**
      * The basic constructor.
@@ -87,6 +94,9 @@ public abstract class MapControls extends FreeColClientHolder {
         this.miniMapToggleFogOfWarButton = miniButtons.remove(0);
         this.miniMapZoomOutButton = miniButtons.remove(0);
         this.miniMapZoomInButton = miniButtons.remove(0);
+
+        this.colonyStatToolBar = new ColonyStatToolBar(freeColClient);
+        this.colonyStatToolBar.setFocusable(false);
     }
 
 
@@ -110,6 +120,38 @@ public abstract class MapControls extends FreeColClientHolder {
         final ActionManager am = getFreeColClient().getActionManager();
         this.unitButtons.addAll(am.makeUnitActionButtons(getSpecification()));
         return true;
+    }
+
+    /**
+     * LarryDGray's Mods: position the colony stat tool bar centered at
+     * the top of the map (just below the menu bar) and add it to the
+     * given component list, if the "Colony Stat Tool Bar" option is on
+     * and it is not already showing.
+     *
+     * Positioned independently of corner/classic map controls style,
+     * since it always belongs at the top regardless.
+     *
+     * @param ret The {@code List} of components to add to.
+     * @param size The {@code Dimension} of the canvas.
+     */
+    protected void addColonyStatToolBarIfNeeded(List<Component> ret, Dimension size) {
+        if (!getClientOptions().getBoolean(ClientOptions.SHOW_COLONY_STAT_TOOLBAR)
+            || this.colonyStatToolBar.isShowing()) return;
+        final int width = (int)this.colonyStatToolBar.getPreferredSize().getWidth();
+        final int height = (int)this.colonyStatToolBar.getPreferredSize().getHeight();
+        this.colonyStatToolBar.setSize(width, height);
+        this.colonyStatToolBar.setLocation((size.width - width) / 2, GAP);
+        ret.add(this.colonyStatToolBar);
+    }
+
+    /**
+     * LarryDGray's Mods: add the colony stat tool bar to the given
+     * component list if it is currently showing.
+     *
+     * @param ret The {@code List} of components to add to.
+     */
+    protected void addColonyStatToolBarIfPresent(List<Component> ret) {
+        if (this.colonyStatToolBar.isShowing()) ret.add(this.colonyStatToolBar);
     }
 
 

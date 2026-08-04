@@ -224,7 +224,9 @@ public final class CornerMapControls extends MapControls {
             this.compassRose.setLocation(cw - this.compassRose.getWidth() - 20, 20);
             ret.add(this.compassRose);
         }
-        
+
+        addColonyStatToolBarIfNeeded(ret, newSize);
+
         ret.addAll(this.unitButtons.stream().filter(b -> !b.isShowing()).collect(Collectors.toList()));
 
         if (!this.unitButtons.isEmpty() && !this.getFreeColClient().isMapEditor()) {
@@ -293,6 +295,7 @@ public final class CornerMapControls extends MapControls {
         final boolean rose = getClientOptions()
             .getBoolean(ClientOptions.DISPLAY_COMPASS_ROSE);
         if (rose && this.compassRose.isShowing()) ret.add(this.compassRose);
+        addColonyStatToolBarIfPresent(ret);
         for (UnitButton ub : this.unitButtons) {
             if (ub.isShowing()) ret.add(ub);
         }

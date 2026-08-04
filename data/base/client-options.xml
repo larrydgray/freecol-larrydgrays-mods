@@ -399,6 +399,17 @@
            to the top of the report. -->
       <booleanOption id="model.option.enhancedTurnReport"
                      defaultValue="true"/>
+      <!-- Colony stat tool bar: a row of toggle buttons letting the
+           player pick one warehouse-goods or unit-type count to show
+           under every owned colony's name on the map. -->
+      <booleanOption id="model.option.showColonyStatToolbar"
+                     defaultValue="true"/>
+      <!-- Which stat is currently selected (ColonyStat ordinal), or
+           -1 for none.  Not really a "preference" in the usual sense
+           -- set via the tool bar buttons, not this dialog -- but
+           needs to be a real option to persist across turns/sessions. -->
+      <integerOption id="model.option.colonyStatDisplay"
+                     defaultValue="-1" minimumValue="-1" maximumValue="10"/>
     </optionGroup>
 
     <optionGroup id="clientOptions.etc" editable="false" visible="false">

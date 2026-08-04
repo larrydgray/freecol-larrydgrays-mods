@@ -704,19 +704,38 @@ public final class MapViewer extends FreeColClientHolder {
             backgroundColor = new Color(backgroundColor.getRed(),
                                         backgroundColor.getGreen(),
                                         backgroundColor.getBlue(), 128);
-            TextSpecification[] specs = new TextSpecification[1];
+            // LarryDGray's Mods: extra label lines beyond the name --
+            // "currently building" (existing) and the selected colony
+            // stat (new), both owned-colony-only since this is
+            // information the player wouldn't otherwise see at a
+            // glance for settlements they don't own.
+            List<TextSpecification> extraSpecs = new ArrayList<>();
             if (settlement instanceof Colony
                 && settlement.getOwner() == player) {
                 Colony colony = (Colony) settlement;
                 BuildableType buildable = colony.getCurrentlyBuilding();
                 if (buildable != null && mapViewerScaledUtils.getFontProduction() != null) {
-                    specs = new TextSpecification[2];
                     String t = Messages.getName(buildable) + " " +
                         Turn.getTurnsText(colony.getTurnsToComplete(buildable));
-                    specs[1] = new TextSpecification(t, mapViewerScaledUtils.getFontProduction());
+                    extraSpecs.add(new TextSpecification(t, mapViewerScaledUtils.getFontProduction()));
+                }
+                if (getClientOptions().getBoolean(ClientOptions.SHOW_COLONY_STAT_TOOLBAR)
+                    && mapViewerScaledUtils.getFontProduction() != null) {
+                    int statOrdinal = getClientOptions()
+                        .getInteger(ClientOptions.COLONY_STAT_DISPLAY);
+                    ColonyStat[] stats = ColonyStat.values();
+                    if (statOrdinal >= 0 && statOrdinal < stats.length) {
+                        ColonyStat stat = stats[statOrdinal];
+                        String t = stat.getLetter() + ": " + stat.getValue(colony);
+                        extraSpecs.add(new TextSpecification(t, mapViewerScaledUtils.getFontProduction()));
+                    }
                 }
             }
+            TextSpecification[] specs = new TextSpecification[1 + extraSpecs.size()];
             specs[0] = new TextSpecification(name, mapViewerScaledUtils.getFontNormal());
+            for (int i = 0; i < extraSpecs.size(); i++) {
+                specs[i + 1] = extraSpecs.get(i);
+            }
 
             BufferedImage nameImage = createLabel(g2d, specs, backgroundColor);
             int spacing = this.lib.scaleInt(3);
