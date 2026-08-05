@@ -185,14 +185,16 @@ public final class ReportTurnPanel extends ReportPanel {
      * report, ahead of the normal type/source grouping?
      *
      * @param message The {@code ModelMessage} to check.
-     * @return True if the rendered message text mentions starvation --
-     *     either the warning ("is starving") or an actual death
-     *     ("has starved to death", "the last colonist ... has
-     *     starved").
+     * @return True if the rendered message text mentions starvation or
+     *     an impending food shortage -- the current-state warning
+     *     ("is starving"), an actual death ("has starved to death",
+     *     "the last colonist ... has starved"), or the predictive
+     *     warning ("Famine feared ... N turns of food left").
      */
     private boolean isUrgent(ModelMessage message) {
         String text = Messages.message(message).toLowerCase(Locale.ROOT);
-        return text.contains("starving") || text.contains("starved");
+        return text.contains("starving") || text.contains("starved")
+            || text.contains("famine");
     }
 
     /**
