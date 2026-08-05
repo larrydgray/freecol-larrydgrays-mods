@@ -185,11 +185,14 @@ public final class ReportTurnPanel extends ReportPanel {
      * report, ahead of the normal type/source grouping?
      *
      * @param message The {@code ModelMessage} to check.
-     * @return True if the rendered message text mentions starvation.
+     * @return True if the rendered message text mentions starvation --
+     *     either the warning ("is starving") or an actual death
+     *     ("has starved to death", "the last colonist ... has
+     *     starved").
      */
     private boolean isUrgent(ModelMessage message) {
-        return Messages.message(message).toLowerCase(Locale.ROOT)
-            .contains("starving");
+        String text = Messages.message(message).toLowerCase(Locale.ROOT);
+        return text.contains("starving") || text.contains("starved");
     }
 
     /**
@@ -353,9 +356,13 @@ public final class ReportTurnPanel extends ReportPanel {
             // LarryDGray's Mods: auto-grey shortage messages the first
             // time they are seen this turn, then leave the player's own
             // later choice alone (do not re-force it on every reopen).
+            // Never auto-grey an urgent (starving) message, even if its
+            // wording happens to overlap with shortage phrasing -- it
+            // must stay visually prominent, not just first in position.
             if (enhanced
                 && co.getBoolean("model.option.greyShortagesByDefault")
                 && !autoGreyedShortages.contains(message)
+                && !isUrgent(message)
                 && isShortage(message)) {
                 autoGreyedShortages.add(message);
                 greyedMessages.add(message);

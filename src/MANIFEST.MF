@@ -4,7 +4,7 @@ Created-By: FreeCol Team
 Main-Class: net.sf.freecol.FreeCol
 Product-Name: FreeCol
 Package-Title: FreeCol
-Package-Version: c8351f9
+Package-Version: 4d313c7
 Package-Vendor: FreeCol Team
 Class-Path: jars/miglayout-swing-5.0.jar jars/miglayout-core-5.0.jar j
  ars/commons-cli-1.4.jar jars/cortado-0.6.0.jar jars/jogg-0.0.17.jar j
