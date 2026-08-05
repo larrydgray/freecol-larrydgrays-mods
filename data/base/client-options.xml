@@ -411,6 +411,10 @@
            turns/sessions. -->
       <integerOption id="model.option.colonyStatDisplay"
                      defaultValue="-1" minimumValue="-1" maximumValue="10"/>
+      <!-- Turn Report: automatically grey out goods shortage messages
+           the first time each is seen in a turn. -->
+      <booleanOption id="model.option.greyShortagesByDefault"
+                     defaultValue="true"/>
     </optionGroup>
 
     <optionGroup id="clientOptions.etc" editable="false" visible="false">

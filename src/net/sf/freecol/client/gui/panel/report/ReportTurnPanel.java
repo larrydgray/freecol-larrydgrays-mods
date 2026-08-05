@@ -124,6 +124,14 @@ public final class ReportTurnPanel extends ReportPanel {
      * Static for the same reason as greyedMessages.
      */
     private static boolean showDismissed = false;
+    /**
+     * Messages already auto-greyed as a shortage this turn, so the
+     * "grey shortages by default" option only applies once per message
+     * and does not fight a later manual un-grey.  Static for the same
+     * reason as greyedMessages.
+     */
+    private static final Set<ModelMessage> autoGreyedShortages
+        = Collections.newSetFromMap(new IdentityHashMap<>());
 
     /**
      * Clear all persistent per-turn state (deprioritized/dismissed
@@ -134,6 +142,7 @@ public final class ReportTurnPanel extends ReportPanel {
         greyedMessages.clear();
         struckMessages.clear();
         showDismissed = false;
+        autoGreyedShortages.clear();
     }
 
 
@@ -341,6 +350,17 @@ public final class ReportTurnPanel extends ReportPanel {
 
             final JComponent label = component;
 
+            // LarryDGray's Mods: auto-grey shortage messages the first
+            // time they are seen this turn, then leave the player's own
+            // later choice alone (do not re-force it on every reopen).
+            if (enhanced
+                && co.getBoolean("model.option.greyShortagesByDefault")
+                && !autoGreyedShortages.contains(message)
+                && isShortage(message)) {
+                autoGreyedShortages.add(message);
+                greyedMessages.add(message);
+            }
+
             // Ignore button (or a blank placeholder to keep the column
             // grid regular across every row).  LarryDGray's Mods: the
             // grey/strike checkboxes below replace this when enabled.
@@ -411,9 +431,18 @@ public final class ReportTurnPanel extends ReportPanel {
 
             if (enhanced) {
                 // Deprioritize (grey out) checkbox.
+                final boolean isGreyed = greyedMessages.contains(message);
                 JCheckBox greyBox = new JCheckBox();
                 Utility.localizeToolTip(greyBox, "report.turn.deprioritize");
-                greyBox.setSelected(greyedMessages.contains(message));
+                greyBox.setSelected(isGreyed);
+                if (isGreyed) {
+                    // setSelected() above does not fire the listener, so
+                    // the dimming has to be (re-)applied explicitly --
+                    // needed both for state restored on reopen and for
+                    // the auto-greyed-shortages case above.
+                    label.setEnabled(false);
+                    textPane.setEnabled(false);
+                }
                 greyBox.addActionListener((ActionEvent ae) -> {
                         boolean flag = greyBox.isSelected();
                         if (flag) greyedMessages.add(message);
@@ -425,9 +454,11 @@ public final class ReportTurnPanel extends ReportPanel {
                 rowComponents.add(greyBox);
 
                 // Dismiss (strike through, hide) checkbox.
+                final boolean isStruck = struckMessages.contains(message);
                 JCheckBox strikeBox = new JCheckBox();
                 Utility.localizeToolTip(strikeBox, "report.turn.dismiss");
-                strikeBox.setSelected(struckMessages.contains(message));
+                strikeBox.setSelected(isStruck);
+                if (isStruck) setStrikeThrough(textPane, true);
                 strikeBox.addActionListener((ActionEvent ae) -> {
                         boolean flag = strikeBox.isSelected();
                         setStrikeThrough(textPane, flag);
@@ -442,10 +473,28 @@ public final class ReportTurnPanel extends ReportPanel {
                     });
                 reportPanel.add(strikeBox, "wrap");
                 rowComponents.add(strikeBox);
+
+                if (isStruck && !showDismissed) {
+                    // Same reopen-restoration issue as the grey case --
+                    // hide the whole row now that it is fully built.
+                    for (JComponent jc : rowComponents) jc.setVisible(false);
+                }
             }
 
             rowComponentsByMessage.put(message, rowComponents);
         }
+    }
+
+    /**
+     * Does this message report a goods shortage (production reduced or
+     * stopped, or goods missing for a build)?
+     *
+     * @param message The {@code ModelMessage} to check.
+     * @return True if the rendered message text reports a shortage.
+     */
+    private boolean isShortage(ModelMessage message) {
+        String text = Messages.message(message).toLowerCase(Locale.ROOT);
+        return text.contains("shortage") || text.contains("missing");
     }
 
     private JComponent getHeadline(FreeColGameObject source) {
