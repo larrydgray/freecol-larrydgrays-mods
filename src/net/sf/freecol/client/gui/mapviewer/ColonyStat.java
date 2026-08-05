@@ -228,9 +228,12 @@ public enum ColonyStat {
     }
 
     /**
-     * Count colonists of a given unit type currently working in the
-     * colony (assigned to a building or tile) -- not garrisoned units
-     * on the colony's tile.
+     * Count colonists of a given unit type present at the colony,
+     * whether actually working (assigned to a building or tile, via
+     * colony.getUnitList()) or just standing idle on the colony's tile
+     * ("Outside Colony", via colony.getTile().getUnitList()).  A unit
+     * is only ever in one of those two lists at a time, so this cannot
+     * double-count.
      *
      * @param colony The {@code Colony} to check.
      * @param unitTypeId The expert unit type identifier.
@@ -239,6 +242,9 @@ public enum ColonyStat {
     private static int countWorkers(Colony colony, String unitTypeId) {
         int count = 0;
         for (Unit u : colony.getUnitList()) {
+            if (unitTypeId.equals(u.getType().getId())) count++;
+        }
+        for (Unit u : colony.getTile().getUnitList()) {
             if (unitTypeId.equals(u.getType().getId())) count++;
         }
         return count;
