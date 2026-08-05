@@ -56,6 +56,7 @@ import net.sf.freecol.client.gui.DialogHandler;
 import net.sf.freecol.client.gui.GUI;
 import net.sf.freecol.client.gui.option.FreeColActionUI;
 import net.sf.freecol.client.gui.panel.FreeColPanel;
+import net.sf.freecol.client.gui.panel.report.ReportTurnPanel;
 import net.sf.freecol.common.FreeColException;
 import net.sf.freecol.common.debug.DebugUtils;
 import net.sf.freecol.common.debug.FreeColDebugger;
@@ -1155,6 +1156,7 @@ public final class InGameController extends FreeColClientHolder {
 
         // Clear outdated turn report messages.
         turnReportMessages.clear();
+        ReportTurnPanel.resetPersistentState();
 
         // Inform the server of end of turn.
         askServer().endTurn();

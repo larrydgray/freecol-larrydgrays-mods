@@ -98,22 +98,43 @@ public final class ReportTurnPanel extends ReportPanel {
     private final List<ModelMessage> messages = new ArrayList<>();
 
     /**
-     * Messages the player has deprioritized (greyed out) this turn.  Not
-     * persisted -- reset whenever a new turn's messages are loaded via
-     * setMessages().  Identity-keyed, see rowComponentsByMessage.
-     */
-    private final Set<ModelMessage> greyedMessages
-        = Collections.newSetFromMap(new IdentityHashMap<>());
-    /**
-     * Messages the player has dismissed (struck through and hidden) this
-     * turn.  Not persisted -- reset whenever a new turn's messages are
-     * loaded via setMessages().  Identity-keyed, see
+     * Messages the player has deprioritized (greyed out) this turn.
+     *
+     * Static, not instance state: closing and reopening the Turn Report
+     * within the same turn destroys and recreates this panel (see
+     * Widgets.showReportTurnPanel()), but InGameController keeps
+     * reusing the *same* turnReportMessages list and ModelMessage
+     * objects until End Turn, so this needs to survive panel
+     * recreation to avoid making the player redo every dismissal each
+     * time they reopen the report.  Cleared explicitly by
+     * resetPersistentState(), called from InGameController alongside
+     * turnReportMessages.clear().  Identity-keyed, see
      * rowComponentsByMessage.
      */
-    private final Set<ModelMessage> struckMessages
+    private static final Set<ModelMessage> greyedMessages
         = Collections.newSetFromMap(new IdentityHashMap<>());
-    /** Whether dismissed messages are currently shown (undo mode). */
-    private boolean showDismissed = false;
+    /**
+     * Messages the player has dismissed (struck through and hidden)
+     * this turn.  Static for the same reason as greyedMessages.
+     */
+    private static final Set<ModelMessage> struckMessages
+        = Collections.newSetFromMap(new IdentityHashMap<>());
+    /**
+     * Whether dismissed messages are currently shown (undo mode).
+     * Static for the same reason as greyedMessages.
+     */
+    private static boolean showDismissed = false;
+
+    /**
+     * Clear all persistent per-turn state (deprioritized/dismissed
+     * messages, show-dismissed toggle).  Called from InGameController
+     * when the turn's messages are cleared at End Turn.
+     */
+    public static void resetPersistentState() {
+        greyedMessages.clear();
+        struckMessages.clear();
+        showDismissed = false;
+    }
 
 
     /**
@@ -143,9 +164,9 @@ public final class ReportTurnPanel extends ReportPanel {
         reportPanel.removeAll();
         this.messages.clear();
         rowComponentsByMessage.clear();
-        greyedMessages.clear();
-        struckMessages.clear();
-        showDismissed = false;
+        // greyedMessages/struckMessages/showDismissed are intentionally
+        // NOT reset here -- they are static and persist across panel
+        // recreation within the same turn; see their field comments.
         if (messages != null) this.messages.addAll(messages);
         displayMessages();
     }
