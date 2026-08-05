@@ -408,9 +408,12 @@
            -1 for none.  Not really a "preference" in the usual sense,
            since it is set via the tool bar buttons rather than this
            dialog, but needs to be a real option to persist across
-           turns/sessions. -->
+           turns/sessions.  IMPORTANT: maximumValue must equal (number
+           of ColonyStat enum entries minus 1), or setInteger() will
+           silently clamp any higher ordinal back down to this max.
+           Bump it whenever a ColonyStat is added. -->
       <integerOption id="model.option.colonyStatDisplay"
-                     defaultValue="-1" minimumValue="-1" maximumValue="10"/>
+                     defaultValue="-1" minimumValue="-1" maximumValue="19"/>
       <!-- Turn Report: automatically grey out goods shortage messages
            the first time each is seen in a turn. -->
       <booleanOption id="model.option.greyShortagesByDefault"
