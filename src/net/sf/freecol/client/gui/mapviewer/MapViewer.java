@@ -693,10 +693,15 @@ public final class MapViewer extends FreeColClientHolder {
         int yOffset = tileBounds.getHeight();
         switch (colonyLabels) {
         case ClientOptions.COLONY_LABELS_CLASSIC: {
-            // LarryDGray's Mods: append the selected colony stat, if
-            // any, to the name line -- Classic mode only draws one
-            // line, unlike Modern's stacked TextSpecifications.
-            String classicName = name;
+            BufferedImage img = this.lib.getStringImage(g2d, name, backgroundColor,
+                    mapViewerScaledUtils.getFontNormal());
+            g2d.drawImage(img, rop, (tileBounds.getWidth() - img.getWidth())/2 + 1,
+                          yOffset);
+
+            // LarryDGray's Mods: draw the selected colony stat, if any,
+            // on its own line below the name, in a fixed gold color
+            // rather than the name's nation color -- nation colors are
+            // not reliably readable against every terrain.
             if (settlement instanceof Colony
                 && settlement.getOwner() == player
                 && getClientOptions().getBoolean(ClientOptions.SHOW_COLONY_STAT_TOOLBAR)) {
@@ -706,14 +711,14 @@ public final class MapViewer extends FreeColClientHolder {
                 if (statOrdinal >= 0 && statOrdinal < stats.length) {
                     ColonyStat stat = stats[statOrdinal];
                     Colony colony = (Colony) settlement;
-                    classicName = name + "  " + stat.getLetter() + ":"
-                        + stat.getValue(colony);
+                    String statText = stat.getLetter() + ":" + stat.getValue(colony);
+                    BufferedImage statImg = this.lib.getStringImage(g2d, statText,
+                        new Color(255, 215, 0), mapViewerScaledUtils.getFontNormal());
+                    g2d.drawImage(statImg, rop,
+                        (tileBounds.getWidth() - statImg.getWidth())/2 + 1,
+                        yOffset + img.getHeight());
                 }
             }
-            BufferedImage img = this.lib.getStringImage(g2d, classicName, backgroundColor,
-                    mapViewerScaledUtils.getFontNormal());
-            g2d.drawImage(img, rop, (tileBounds.getWidth() - img.getWidth())/2 + 1,
-                          yOffset);
             break;
         }
 
