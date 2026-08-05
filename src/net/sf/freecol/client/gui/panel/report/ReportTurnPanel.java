@@ -342,10 +342,11 @@ public final class ReportTurnPanel extends ReportPanel {
             final JComponent label = component;
 
             // Ignore button (or a blank placeholder to keep the column
-            // grid regular across every row).
+            // grid regular across every row).  LarryDGray's Mods: the
+            // grey/strike checkboxes below replace this when enabled.
             JComponent ignoreComponent;
-            switch (message.getMessageType()) {
-            case WAREHOUSE_CAPACITY: {
+            if (!enhanced && message.getMessageType()
+                    == ModelMessage.MessageType.WAREHOUSE_CAPACITY) {
                 JButton ignoreButton = new JButton("x");
                 Utility.localizeToolTip(ignoreButton,
                     StringTemplate.copy("report.turn.ignore", message));
@@ -357,11 +358,8 @@ public final class ReportTurnPanel extends ReportPanel {
                         label.setEnabled(!flag);
                     });
                 ignoreComponent = ignoreButton;
-                break;
-            }
-            default:
+            } else {
                 ignoreComponent = new JLabel();
-                break;
             }
             reportPanel.add(ignoreComponent);
             rowComponents.add(ignoreComponent);
@@ -381,10 +379,11 @@ public final class ReportTurnPanel extends ReportPanel {
             components.add(label);
 
             // Filter button (or a blank placeholder), if an option is
-            // present for this message's type.
+            // present for this message's type.  LarryDGray's Mods: the
+            // grey/strike checkboxes below replace this when enabled.
             final String msgKey = message.getOptionName();
             JComponent filterComponent;
-            if (co.hasOption(msgKey, BooleanOption.class)) {
+            if (!enhanced && co.hasOption(msgKey, BooleanOption.class)) {
                 JButton filterButton = new JButton("X");
                 Utility.localizeToolTip(filterButton, StringTemplate
                     .template("report.turn.filter")
