@@ -22,6 +22,7 @@ package net.sf.freecol.client.gui.mapviewer;
 import java.awt.FlowLayout;
 import java.awt.event.ActionEvent;
 
+import javax.swing.BoxLayout;
 import javax.swing.ButtonGroup;
 import javax.swing.JPanel;
 import javax.swing.JToggleButton;
@@ -32,11 +33,12 @@ import net.sf.freecol.common.i18n.Messages;
 
 
 /**
- * LarryDGray's Mods: a row of square toggle buttons, one per
- * {@link ColonyStat}, letting the player pick a single warehouse-goods
- * or unit-type count to display under every owned colony's name on the
- * map.  Mutually exclusive (including an explicit "off" button), like
- * a set of radio buttons.  Selection persists via
+ * LarryDGray's Mods: two rows of square toggle buttons, one per
+ * {@link ColonyStat}, letting the player pick a single warehouse-goods,
+ * garrison-unit, or working-colonist-profession count to display under
+ * every owned colony's name on the map.  Mutually exclusive across
+ * both rows (including an explicit "off" button), like a set of radio
+ * buttons.  Selection persists via
  * {@link ClientOptions#COLONY_STAT_DISPLAY}.
  */
 public class ColonyStatToolBar extends JPanel {
@@ -52,12 +54,17 @@ public class ColonyStatToolBar extends JPanel {
     public ColonyStatToolBar(FreeColClient freeColClient) {
         this.freeColClient = freeColClient;
 
-        setLayout(new FlowLayout(FlowLayout.LEFT, 2, 2));
+        setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         setOpaque(true);
 
         final int current = freeColClient.getClientOptions()
             .getInteger(ClientOptions.COLONY_STAT_DISPLAY);
         final ButtonGroup group = new ButtonGroup();
+
+        final JPanel row1 = new JPanel(new FlowLayout(FlowLayout.LEFT, 2, 2));
+        row1.setOpaque(false);
+        final JPanel row2 = new JPanel(new FlowLayout(FlowLayout.LEFT, 2, 2));
+        row2.setOpaque(false);
 
         final JToggleButton offButton = new JToggleButton(
             Messages.message("colonyStatToolBar.off"));
@@ -65,21 +72,22 @@ public class ColonyStatToolBar extends JPanel {
         offButton.setSelected(current < 0);
         offButton.addActionListener((ActionEvent ae) -> select(-1));
         group.add(offButton);
-        add(offButton);
+        row1.add(offButton);
 
         for (ColonyStat stat : ColonyStat.values()) {
             final int ordinal = stat.ordinal();
-            final JToggleButton button = new JToggleButton(
-                String.valueOf(stat.getLetter()));
+            final JToggleButton button = new JToggleButton(stat.getLetter());
             button.setToolTipText(Messages.message(
                 "colonyStatToolBar." + stat.name().toLowerCase()
                     + ".shortDescription"));
             button.setSelected(current == ordinal);
             button.addActionListener((ActionEvent ae) -> select(ordinal));
             group.add(button);
-            add(button);
+            (stat.isSecondRow() ? row2 : row1).add(button);
         }
 
+        add(row1);
+        add(row2);
         setSize(getPreferredSize());
     }
 

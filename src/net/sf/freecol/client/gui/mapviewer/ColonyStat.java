@@ -28,103 +28,178 @@ import net.sf.freecol.common.model.Unit;
 
 
 /**
- * LarryDGray's Mods: a single warehouse-goods or unit-type count that
- * can be displayed under a colony's name on the map, one at a time,
- * selected via the colony stat toolbar.
+ * LarryDGray's Mods: a single warehouse-goods, garrison-unit, or
+ * working-colonist-profession count that can be displayed under a
+ * colony's name on the map, one at a time, selected via the colony
+ * stat toolbar.
  *
- * Letter codes are placeholders -- icons may replace them later.
+ * Codes are letter placeholders -- icons may replace them later. Row 1
+ * is garrison units and warehouse goods; row 2 (isSecondRow() true) is
+ * working colonist professions, shown on a second toolbar row.
  */
 public enum ColonyStat {
 
-    SOLDIERS('S') {
+    // Row 1: garrison units (on the colony's tile, not working in it)
+    // and warehouse goods.
+    SOLDIERS("S", false) {
         @Override
         public int getValue(Colony colony) {
-            return countUnits(colony, u -> !u.isNaval() && u.getRole() != null
+            return countTileUnits(colony, u -> !u.isNaval() && u.getRole() != null
                 && "model.role.soldier".equals(u.getRole().getId()));
         }
     },
-    DRAGOONS('D') {
+    DRAGOONS("D", false) {
         @Override
         public int getValue(Colony colony) {
-            return countUnits(colony, u -> !u.isNaval() && u.getRole() != null
+            return countTileUnits(colony, u -> !u.isNaval() && u.getRole() != null
                 && "model.role.dragoon".equals(u.getRole().getId()));
         }
     },
-    SHIPS('P') {
+    SHIPS("P", false) {
         @Override
         public int getValue(Colony colony) {
-            return countUnits(colony, Unit::isNaval);
+            return countTileUnits(colony, Unit::isNaval);
         }
     },
-    WAGON_TRAINS('W') {
+    WAGON_TRAINS("W", false) {
         @Override
         public int getValue(Colony colony) {
-            return countUnits(colony,
+            return countTileUnits(colony,
                 u -> "model.unit.wagonTrain".equals(u.getType().getId()));
         }
     },
-    ARTILLERY('A') {
+    ARTILLERY("A", false) {
         @Override
         public int getValue(Colony colony) {
-            return countUnits(colony, u -> {
+            return countTileUnits(colony, u -> {
                 String id = u.getType().getId();
                 return "model.unit.artillery".equals(id)
                     || "model.unit.damagedArtillery".equals(id);
             });
         }
     },
-    FOOD('F') {
+    FOOD("F", false) {
         @Override
         public int getValue(Colony colony) {
             return getGoodsCount(colony, "model.goods.food");
         }
     },
-    LUMBER('L') {
+    LUMBER("L", false) {
         @Override
         public int getValue(Colony colony) {
             return getGoodsCount(colony, "model.goods.lumber");
         }
     },
-    ORE('O') {
+    ORE("O", false) {
         @Override
         public int getValue(Colony colony) {
             return getGoodsCount(colony, "model.goods.ore");
         }
     },
-    TOOLS('T') {
+    TOOLS("T", false) {
         @Override
         public int getValue(Colony colony) {
             return getGoodsCount(colony, "model.goods.tools");
         }
     },
-    MUSKETS('M') {
+    MUSKETS("M", false) {
         @Override
         public int getValue(Colony colony) {
             return getGoodsCount(colony, "model.goods.muskets");
         }
     },
-    HORSES('H') {
+    HORSES("H", false) {
         @Override
         public int getValue(Colony colony) {
             return getGoodsCount(colony, "model.goods.horses");
         }
+    },
+
+    // Row 2: working colonist professions (expert unit types currently
+    // assigned to a building or tile in the colony).
+    FARMERS("Fm", true) {
+        @Override
+        public int getValue(Colony colony) {
+            return countWorkers(colony, "model.unit.expertFarmer");
+        }
+    },
+    FISHERMEN("Fi", true) {
+        @Override
+        public int getValue(Colony colony) {
+            return countWorkers(colony, "model.unit.expertFisherman");
+        }
+    },
+    LUMBERJACKS("Lj", true) {
+        @Override
+        public int getValue(Colony colony) {
+            return countWorkers(colony, "model.unit.expertLumberJack");
+        }
+    },
+    ORE_MINERS("Om", true) {
+        @Override
+        public int getValue(Colony colony) {
+            return countWorkers(colony, "model.unit.expertOreMiner");
+        }
+    },
+    SILVER_MINERS("Sm", true) {
+        @Override
+        public int getValue(Colony colony) {
+            return countWorkers(colony, "model.unit.expertSilverMiner");
+        }
+    },
+    CARPENTERS("Cp", true) {
+        @Override
+        public int getValue(Colony colony) {
+            return countWorkers(colony, "model.unit.masterCarpenter");
+        }
+    },
+    BLACKSMITHS("Bs", true) {
+        @Override
+        public int getValue(Colony colony) {
+            return countWorkers(colony, "model.unit.masterBlacksmith");
+        }
+    },
+    PREACHERS("Pr", true) {
+        @Override
+        public int getValue(Colony colony) {
+            return countWorkers(colony, "model.unit.firebrandPreacher");
+        }
+    },
+    STATESMEN("St", true) {
+        @Override
+        public int getValue(Colony colony) {
+            return countWorkers(colony, "model.unit.elderStatesman");
+        }
     };
 
 
-    private final char letter;
+    private final String code;
+    private final boolean secondRow;
 
-    ColonyStat(char letter) {
-        this.letter = letter;
+    ColonyStat(String code, boolean secondRow) {
+        this.code = code;
+        this.secondRow = secondRow;
     }
 
     /**
-     * Get the placeholder letter shown on this stat's toolbar button
-     * and label prefix.
+     * Get the placeholder letter code shown on this stat's toolbar
+     * button and label prefix.
      *
-     * @return The letter.
+     * @return The code.
      */
-    public char getLetter() {
-        return this.letter;
+    public String getLetter() {
+        return this.code;
+    }
+
+    /**
+     * Does this stat belong on the toolbar's second row (working
+     * colonist professions), rather than the first (garrison units and
+     * warehouse goods)?
+     *
+     * @return True if this is a second-row stat.
+     */
+    public boolean isSecondRow() {
+        return this.secondRow;
     }
 
     /**
@@ -144,10 +219,27 @@ public enum ColonyStat {
      * @param filter The {@code Predicate} units must match.
      * @return The count.
      */
-    private static int countUnits(Colony colony, Predicate<Unit> filter) {
+    private static int countTileUnits(Colony colony, Predicate<Unit> filter) {
         int count = 0;
         for (Unit u : colony.getTile().getUnitList()) {
             if (filter.test(u)) count++;
+        }
+        return count;
+    }
+
+    /**
+     * Count colonists of a given unit type currently working in the
+     * colony (assigned to a building or tile) -- not garrisoned units
+     * on the colony's tile.
+     *
+     * @param colony The {@code Colony} to check.
+     * @param unitTypeId The expert unit type identifier.
+     * @return The count.
+     */
+    private static int countWorkers(Colony colony, String unitTypeId) {
+        int count = 0;
+        for (Unit u : colony.getUnitList()) {
+            if (unitTypeId.equals(u.getType().getId())) count++;
         }
         return count;
     }
