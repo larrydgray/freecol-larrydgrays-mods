@@ -61,15 +61,28 @@ Ways you can contribute:
 See [doc/developer.tex](doc/developer.tex) for more details on contributing to the FreeCol project.
 
 
-## Building
+## Building and Running
 
-Build the latest version of the code by running:
+Requires a JDK (11+) and Apache Ant.
+
+Build (always do a full clean build - incremental `ant compile` alone
+can leave stale class files behind):
 
 ```sh
-ant
+ant clean && ant package
 ```
 
-Requires Java 11, Ant, and Java SDK to build.
+This produces `FreeCol.jar` in the repo root. Run it directly:
+
+```sh
+java -jar FreeCol.jar
+```
+
+Or build and launch in one step:
+
+```sh
+ant run
+```
 
 
 ## License
