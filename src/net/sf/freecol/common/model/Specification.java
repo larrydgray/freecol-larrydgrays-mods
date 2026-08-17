@@ -814,6 +814,38 @@ public final class Specification implements OptionContainer {
             a.setValue(customsOnCoast);
         }
 
+        // LarryDGray's Mods: ships also require cloth (sailcloth) to
+        // build, on top of the vanilla hammers and tools, if enabled.
+        boolean hasClothOption
+            = hasOption(GameOptions.SHIPS_REQUIRE_CLOTH, BooleanOption.class);
+        logger.info("LarryDGray's Mods: ships-require-cloth clean() pass"
+            + " (" + why + "), hasOption=" + hasClothOption);
+        if (hasClothOption) {
+            boolean shipsRequireCloth
+                = getBoolean(GameOptions.SHIPS_REQUIRE_CLOTH);
+            GoodsType clothType = getGoodsType("model.goods.cloth");
+            logger.info("LarryDGray's Mods: shipsRequireCloth=" + shipsRequireCloth
+                + " clothType=" + clothType);
+            Map<String, Integer> shipCloth = new HashMap<>();
+            shipCloth.put("model.unit.caravel", 20);
+            shipCloth.put("model.unit.merchantman", 30);
+            shipCloth.put("model.unit.galleon", 40);
+            shipCloth.put("model.unit.privateer", 40);
+            shipCloth.put("model.unit.frigate", 80);
+            shipCloth.put("model.unit.manOWar", 120);
+            for (Map.Entry<String, Integer> e : shipCloth.entrySet()) {
+                UnitType ut = getUnitType(e.getKey());
+                List<AbstractGoods> req = new ArrayList<>(ut.getRequiredGoodsList());
+                removeInPlace(req, ag -> ag.getType() == clothType);
+                if (shipsRequireCloth) {
+                    req.add(new AbstractGoods(clothType, e.getValue()));
+                }
+                ut.setRequiredGoods(req);
+                logger.info("LarryDGray's Mods: " + e.getKey()
+                    + " requiredGoods now = " + ut.getRequiredGoodsList());
+            }
+        }
+
         StringBuilder sb = new StringBuilder(1024);
         sb.append("Specification clean following ").append(why)
             .append(" complete, starting year=").append(Turn.getStartingYear())
@@ -1225,11 +1257,15 @@ public final class Specification implements OptionContainer {
      */
     public boolean updateGameAndMapOptions() {
         boolean ret = false;
-        /*
+        // LarryDGray's Mods: re-enabled 2026-08-17 - this was dead,
+        // commented-out code (auto-save already worked via
+        // OptionsDialog.actionPerformed(), but auto-reload on next
+        // launch never ran), which is why Larry saw Game Options and
+        // Map Generator Options never actually restoring themselves.
         String gtag = GameOptions.TAG;
         File gof = FreeColDirectories
             .getOptionsFile(FreeColDirectories.GAME_OPTIONS_FILE_NAME);
-        OptionGroup gog = (!gof.exists()) ? null
+        OptionGroup gog = (gof == null || !gof.exists()) ? null
             : OptionGroup.loadOptionGroup(gof, gtag, this);
         if (gog != null) {
             gog = mergeGroup(gog);
@@ -1237,12 +1273,12 @@ public final class Specification implements OptionContainer {
         } else {
             gog = getOptionGroup(gtag);
         }
-        gog.save(gof, null, true);
-        
+        if (gof != null) gog.save(gof, null, true);
+
         String mtag = MapGeneratorOptions.TAG;
         File mof = FreeColDirectories
             .getOptionsFile(FreeColDirectories.MAP_GENERATOR_OPTIONS_FILE_NAME);
-        OptionGroup mog = (!mof.exists()) ? null
+        OptionGroup mog = (mof == null || !mof.exists()) ? null
             : OptionGroup.loadOptionGroup(mof, mtag, this);
         if (mog != null) {
             mog = mergeGroup(mog);
@@ -1250,8 +1286,7 @@ public final class Specification implements OptionContainer {
         } else {
             mog = getOptionGroup(mtag);
         }
-        mog.save(mof, null, true);
-        */
+        if (mof != null) mog.save(mof, null, true);
         return ret;
     }
 

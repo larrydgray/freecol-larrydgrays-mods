@@ -22,7 +22,11 @@ package net.sf.freecol.client.gui.panel.report;
 import static net.sf.freecol.common.util.CollectionUtils.transform;
 
 import java.awt.Color;
+import java.awt.Cursor;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 
 import javax.swing.JButton;
@@ -31,6 +35,7 @@ import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
 
 import net.miginfocom.swing.MigLayout;
+import net.sf.freecol.client.ClientOptions;
 import net.sf.freecol.client.FreeColClient;
 import net.sf.freecol.client.gui.ImageLibrary;
 import net.sf.freecol.client.gui.label.MarketLabel;
@@ -55,7 +60,13 @@ import net.sf.freecol.common.model.Unit;
  */
 public final class ReportTradePanel extends ReportPanel {
 
-    private final List<Colony> colonies;
+    private List<Colony> colonies;
+
+    /** LarryDGray's Mods: the goods column last clicked to sort by,
+     *  and whether the second click (sort by total on hand instead
+     *  of production) has happened for it. */
+    private GoodsType lastSortColumn = null;
+    private boolean sortByTotal = false;
 
 
     /**
@@ -66,10 +77,55 @@ public final class ReportTradePanel extends ReportPanel {
     public ReportTradePanel(FreeColClient freeColClient) {
         super(freeColClient, "reportTradeAction");
 
+        this.colonies = getMyPlayer().getColonyList();
+        buildPanel(freeColClient, null);
+    }
+
+    /**
+     * LarryDGray's Mods: handle a click on a goods column header.
+     * The first click on a column sorts by net production
+     * (highest first); clicking the same column again toggles to
+     * sorting by total goods on hand instead; clicking a different
+     * column starts over at production for the new column.
+     *
+     * @param freeColClient The {@code FreeColClient} for the game.
+     * @param goodsType The {@code GoodsType} whose column was clicked.
+     */
+    private void sortColumnClicked(FreeColClient freeColClient,
+                                   GoodsType goodsType) {
+        this.sortByTotal = (goodsType == this.lastSortColumn)
+            && !this.sortByTotal;
+        this.lastSortColumn = goodsType;
+        buildPanel(freeColClient, goodsType);
+    }
+
+    /**
+     * LarryDGray's Mods: (re)builds the whole report, optionally
+     * sorting the colonies by net production (or, on a second click,
+     * total on hand) of one goods type, highest first, so clicking a
+     * column header shows at a glance which colonies lead in that
+     * good.
+     *
+     * @param freeColClient The {@code FreeColClient} for the game.
+     * @param sortBy The {@code GoodsType} to sort colonies by, or
+     *     null to leave the current order unchanged.
+     */
+    private void buildPanel(FreeColClient freeColClient, GoodsType sortBy) {
+        if (sortBy != null) {
+            // Break ties by name so that repeated clicks always give a
+            // clean, deterministic order instead of leftover order from
+            // whichever column was sorted previously.
+            Comparator<Colony> byValue = (this.sortByTotal)
+                ? Comparator.comparingInt(
+                    (Colony c) -> c.getGoodsCount(sortBy))
+                : Comparator.comparingInt(
+                    (Colony c) -> c.getNetProductionOf(sortBy));
+            this.colonies.sort(byValue.reversed()
+                .thenComparing(Colony::getName));
+        }
+
         final Player player = getMyPlayer();
         Color warnColor = ImageLibrary.getColor("color.report.trade.warn");
-
-        this.colonies = player.getColonyList();
 
         JPanel goodsHeader = new MigPanel("ReportPanelUI");
         goodsHeader.setBorder(new EmptyBorder(20, 20, 0, 20));
@@ -128,8 +184,24 @@ public final class ReportTradePanel extends ReportPanel {
             int sales = player.getSales(goodsType);
             int beforeTaxes = player.getIncomeBeforeTaxes(goodsType);
             int afterTaxes = player.getIncomeAfterTaxes(goodsType);
-            goodsHeader.add(new MarketLabel(freeColClient, goodsType, market)
-                .addBorder());
+            MarketLabel marketLabel = new MarketLabel(freeColClient, goodsType, market)
+                .addBorder();
+            // LarryDGray's Mods: click a column header to sort the
+            // colonies below by net production of that good (click
+            // again to sort by total on hand instead), highest first.
+            if (freeColClient.getClientOptions()
+                    .getBoolean(ClientOptions.ENABLE_TRADE_ADVISOR_SORT)) {
+                marketLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+                marketLabel.setToolTipText(
+                    Messages.message("report.trade.sortByProduction"));
+                marketLabel.addMouseListener(new MouseAdapter() {
+                    @Override
+                    public void mouseClicked(MouseEvent e) {
+                        sortColumnClicked(freeColClient, goodsType);
+                    }
+                });
+            }
+            goodsHeader.add(marketLabel);
 
             jl = createNumberLabel(sales);
             jl.setBorder(Utility.getTopCellBorder());

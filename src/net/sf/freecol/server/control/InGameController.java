@@ -1331,6 +1331,7 @@ public final class InGameController extends Controller {
                             FreeColGameObject defender,
                             List<CombatEffectType> crs) {
         ChangeSet cs = new ChangeSet();
+        csDisperseArmadaUnderAttack(defender, cs);
         try {
             attackerPlayer.csCombat(attacker, defender, crs, random, cs);
         } catch (IllegalStateException e) {
@@ -1339,6 +1340,90 @@ public final class InGameController extends Controller {
         }
         getGame().sendToOthers(attackerPlayer, cs);
         return cs;
+    }
+
+    /**
+     * LarryDGray's Mods: bombard an undefended coastal settlement.
+     * There is no armed unit or ship to fight, so the town itself
+     * takes damage instead -- a building, a citizen, warehouse
+     * goods, or production, picked at random via the Disaster
+     * system.
+     *
+     * @param attackerPlayer The attacking {@code ServerPlayer}.
+     * @param ship The attacking {@code Unit}.
+     * @param colony The {@code Colony} being bombarded.
+     * @return A {@code ChangeSet} encapsulating this action.
+     */
+    public ChangeSet bombardUndefendedSettlement(ServerPlayer attackerPlayer,
+                                                 Unit ship, Colony colony) {
+        final Specification spec = getGame().getSpecification();
+        final Disaster disaster = spec.getDisaster("model.disaster.navalBombardment");
+        if (disaster == null) {
+            // LarryDGray's Mods: this ruleset does not (yet) define
+            // the disaster -- most likely a save from before this
+            // feature was added, which embeds its own frozen copy of
+            // the specification.  Fail cleanly rather than crash.
+            logger.warning("model.disaster.navalBombardment not found in"
+                + " specification -- is this an old save?");
+            return attackerPlayer.clientError(StringTemplate
+                .template("model.unit.noBombardTarget")
+                .addName("%settlement%", colony.getName()));
+        }
+
+        ChangeSet cs = new ChangeSet();
+        ship.setMovesLeft(0);
+        cs.addPartial(See.only(attackerPlayer), ship,
+            "movesLeft", String.valueOf(ship.getMovesLeft()));
+
+        final ServerPlayer colonyOwner = (ServerPlayer)colony.getOwner();
+        List<ModelMessage> messages = colonyOwner.csApplyDisaster(random,
+            colony, disaster, cs);
+        for (ModelMessage mm : messages) cs.addMessage(colonyOwner, mm);
+
+        cs.addMessage(attackerPlayer,
+            new ModelMessage(ModelMessage.MessageType.COMBAT_RESULT,
+                             "model.unit.bombardedSettlement", ship)
+                .addStringTemplate("%settlement%",
+                    colony.getLocationLabelFor(attackerPlayer))
+                .addStringTemplate("%unit%", ship.getLabel()));
+
+        getGame().sendToOthers(attackerPlayer, cs);
+        return cs;
+    }
+
+    /**
+     * LarryDGray's Mods: if the defender is an armada flagship (a
+     * ship currently carrying other ships), disperse its escorted
+     * ships onto its own tile before combat resolves.  This is done
+     * unconditionally on any attack, win or lose, so combat always
+     * lands on a single standalone ship rather than a nested fleet.
+     *
+     * @param defender The {@code FreeColGameObject} about to be
+     *     attacked.
+     * @param cs The {@code ChangeSet} to update.
+     */
+    private void csDisperseArmadaUnderAttack(FreeColGameObject defender,
+                                             ChangeSet cs) {
+        if (!(defender instanceof Unit)) return;
+        final Unit flagship = (Unit)defender;
+        if (!flagship.isNaval()) return;
+        final List<Unit> escorts = transform(flagship.getUnitList(),
+                                             Unit::isNaval);
+        if (escorts.isEmpty()) return;
+
+        final ServerPlayer owner = (ServerPlayer)flagship.getOwner();
+        final Location location = flagship.getLocation();
+        for (Unit escort : escorts) {
+            ServerUnit serverEscort = (ServerUnit)escort;
+            Set<Tile> newTiles = (location.getTile() == null) ? null
+                : owner.collectNewTiles(location.getTile(),
+                                        serverEscort.getLineOfSight());
+            serverEscort.setLocation(location);
+            serverEscort.setMovesLeft(0);
+            if (newTiles != null) owner.csSeeNewTiles(newTiles, cs);
+        }
+        owner.invalidateCanSeeTiles();
+        cs.add(See.perhaps(), (FreeColGameObject)location);
     }
 
 
@@ -1943,10 +2028,8 @@ public final class InGameController extends Controller {
      */
     public ChangeSet disembarkUnit(ServerPlayer serverPlayer,
                                    ServerUnit serverUnit) {
-        if (serverUnit.isNaval()) {
-            return serverPlayer.clientError("Naval unit " + serverUnit.getId()
-                + " can not disembark.");
-        }
+        // LarryDGray's Mods: naval units may now be embarked as
+        // armada cargo, so they must be allowed to disembark too.
         Unit carrier = serverUnit.getCarrier();
         if (carrier == null) {
             return serverPlayer.clientError("Unit " + serverUnit.getId()
@@ -1984,9 +2067,11 @@ public final class InGameController extends Controller {
      */
     public ChangeSet embarkUnit(ServerPlayer serverPlayer,
                                 ServerUnit serverUnit, Unit carrier) {
-        if (serverUnit.isNaval()) {
+        // LarryDGray's Mods: a ship may now embark onto another ship
+        // as armada cargo, but never onto a non-naval carrier.
+        if (serverUnit.isNaval() && !carrier.isNaval()) {
             return serverPlayer.clientError("Naval unit " + serverUnit.getId()
-                + " can not embark.");
+                + " can not embark on non-naval carrier " + carrier.getId());
         }
         UnitLocation.NoAddReason reason = carrier.getNoAddReason(serverUnit);
         if (reason != UnitLocation.NoAddReason.NONE) {
@@ -2384,18 +2469,42 @@ public final class InGameController extends Controller {
         boolean compatible = false;
         if (ourColony != null) {
             ds = DiplomacySession.findContactSession(otherUnit, ourColony);
-            if (ds == null) return serverPlayer.clientError(err
-                + ourColony.getId() + " and " + otherUnit.getId());
+            if (ds == null) {
+                // LarryDGray's Mods: European first contact sends the
+                // same shared session to both sides independently, so
+                // the other side may have already completed it via
+                // their own response by the time ours arrives here -
+                // a legitimate race, not a protocol error. Only treat
+                // it as an error if contact genuinely never happened.
+                if (serverPlayer.getStance(otherUnit.getOwner())
+                        != Stance.UNCONTACTED) {
+                    return new ChangeSet();
+                }
+                return serverPlayer.clientError(err
+                    + ourColony.getId() + " and " + otherUnit.getId());
+            }
             compatible = ds.isCompatible(ourColony, otherUnit);
         } else if (otherUnit != null) {
             ds = DiplomacySession.findContactSession(ourUnit, otherUnit);
-            if (ds == null) return serverPlayer.clientError(err
-                + ourUnit.getId() + " and " + otherUnit.getId());
+            if (ds == null) {
+                if (serverPlayer.getStance(otherUnit.getOwner())
+                        != Stance.UNCONTACTED) {
+                    return new ChangeSet();
+                }
+                return serverPlayer.clientError(err
+                    + ourUnit.getId() + " and " + otherUnit.getId());
+            }
             compatible = ds.isCompatible(ourUnit, otherUnit);
         } else {
             ds = DiplomacySession.findContactSession(ourUnit, otherColony);
-            if (ds == null) return serverPlayer.clientError(err
-                + ourUnit.getId() + " and " + otherColony.getId());
+            if (ds == null) {
+                if (serverPlayer.getStance(otherColony.getOwner())
+                        != Stance.UNCONTACTED) {
+                    return new ChangeSet();
+                }
+                return serverPlayer.clientError(err
+                    + ourUnit.getId() + " and " + otherColony.getId());
+            }
             compatible = ds.isCompatible(ourUnit, otherColony);
         }
         logger.info("Continuing " + ((compatible) ? "" : "in")

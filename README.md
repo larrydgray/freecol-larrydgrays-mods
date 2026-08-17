@@ -1,5 +1,7 @@
 # FreeCol - Colonization Strategy Game
 
+> **This is a personal modded fork.** See [README_MODS.md](README_MODS.md) for the list of gameplay/UI mods and bug fixes added on top of stock FreeCol.
+
 <!-- [![Coverity Scan Build Status](https://img.shields.io/coverity/scan/13524.svg)](https://scan.coverity.com/projects/freecol-freecol) -->
 [![Weekly Downloads](https://img.shields.io/sourceforge/dw/freecol.svg)](https://sourceforge.net/projects/freecol/)
 [![Total Downloads](https://img.shields.io/sourceforge/dt/freecol.svg)](https://sourceforge.net/projects/freecol/)

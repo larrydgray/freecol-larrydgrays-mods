@@ -2365,6 +2365,17 @@ public class Unit extends GoodsLocation
                 return MoveType.MOVE_NO_ACCESS_LAND;
             } else if (settlement.getOwner() == getOwner()) {
                 return MoveType.MOVE;
+            } else if (isOffensiveUnit()) {
+                // LarryDGray's Mods: a combat-capable ship may bombard
+                // an enemy coastal settlement, checked before trade so
+                // an armed warship attacks rather than automatically
+                // trading.  Whether there is actually a valid target
+                // (armed defender or docked ship) can only be
+                // determined server-side, since the attacking client
+                // is deliberately not shown what is inside an enemy
+                // settlement -- see Tile.getDefendingUnit() and
+                // AttackMessage's null-defender rejection.
+                return MoveType.ATTACK_SETTLEMENT;
             } else if (isTradingUnit()) {
                 return getTradeMoveType(settlement);
             } else {
@@ -3528,7 +3539,7 @@ public class Unit extends GoodsLocation
      */
     public boolean couldCarry(Unit u) {
         return canCarryUnits()
-            && getCargoCapacity() >= u.getSpaceTaken();
+            && getEmbarkCeiling(u) >= u.getSpaceTaken();
     }
 
     /**
@@ -3549,7 +3560,7 @@ public class Unit extends GoodsLocation
      */
     public boolean couldCarry(Goods g) {
         return canCarryGoods()
-            && getCargoCapacity() >= g.getSpaceTaken();
+            && getBaseCargoCapacity() >= g.getSpaceTaken();
     }
 
     /**
@@ -3570,13 +3581,69 @@ public class Unit extends GoodsLocation
         return getSpaceLeft() > 0;
     }
 
+    /** LarryDGray's Mods: capacity granted to a land carrier (e.g. a
+     *  wagon train) while it is actively serving as a caravan
+     *  leader, i.e. currently carrying at least one unit passenger. */
+    private static final int CARAVAN_CAPACITY = 12;
+
+    /** LarryDGray's Mods: capacity granted to a ship while it is
+     *  actively serving as an armada flagship, i.e. currently
+     *  carrying at least one other (naval) ship as a passenger. */
+    private static final int ARMADA_CAPACITY = 300;
+
     /**
-     * Gets the total space this unit has to carry cargo.
+     * Gets this unit's base cargo capacity, ignoring any caravan or
+     * armada boost.  This is the ceiling that always applies to
+     * goods, and to ordinary (non-naval) passengers on a ship, even
+     * while that ship is boosted to escort other ships.
+     *
+     * @return The base cargo space.
+     */
+    private int getBaseCargoCapacity() {
+        return (int)apply(this.type.getSpace(), getGame().getTurn(),
+                           Modifier.CARGO_CAPACITY, this.type);
+    }
+
+    /**
+     * Gets the total space this unit has to carry unit passengers.
+     * A land carrier (e.g. a wagon train) gets its normal base
+     * capacity when not currently acting as a caravan, but the full
+     * caravan capacity while it holds at least one unit passenger.
+     * A ship similarly gets the much larger armada capacity while it
+     * holds at least one other ship as a passenger.
      *
      * @return The total space.
      */
     public int getCargoCapacity() {
-        return this.type.getSpace();
+        int capacity = getBaseCargoCapacity();
+        if (canCarryUnits() && !getUnitList().isEmpty()) {
+            if (!isNaval()) {
+                capacity = Math.max(capacity, CARAVAN_CAPACITY);
+            } else if (any(getUnitList(), Unit::isNaval)) {
+                capacity = Math.max(capacity, ARMADA_CAPACITY);
+            }
+        }
+        return capacity;
+    }
+
+    /**
+     * LarryDGray's Mods: gets the capacity ceiling that applies when
+     * considering whether a specific candidate unit could be
+     * embarked, bypassing the bootstrap problem where a would-be
+     * armada flagship's normal (or even caravan) capacity is far too
+     * small to ever accept the first escorted ship.  A ship escorting
+     * other ships uses the armada capacity for naval candidates only;
+     * its ordinary (goods-like) passenger capacity is unaffected.
+     *
+     * @param candidate The {@code Unit} being considered as cargo.
+     * @return The applicable capacity ceiling.
+     */
+    private int getEmbarkCeiling(Unit candidate) {
+        if (isNaval()) {
+            return (candidate.isNaval()) ? ARMADA_CAPACITY
+                : getBaseCargoCapacity();
+        }
+        return getCargoCapacity();
     }
 
     /**
@@ -3640,7 +3707,12 @@ public class Unit extends GoodsLocation
      */
     public int getLoadableAmount(GoodsType type) {
         if (!canCarryGoods()) return 0;
-        int result = getSpaceLeft() * GoodsContainer.CARGO_SIZE;
+        // Goods are always capped by the base capacity, even when a
+        // land carrier is currently boosted to caravan capacity for
+        // unit passengers.
+        int goodsSpaceLeft = Math.max(0,
+            getBaseCargoCapacity() - getCargoSpaceTaken());
+        int result = goodsSpaceLeft * GoodsContainer.CARGO_SIZE;
         int count = getGoodsCount(type) % GoodsContainer.CARGO_SIZE;
         if (count != 0) result += GoodsContainer.CARGO_SIZE - count;
         return result;
@@ -4385,7 +4457,9 @@ public class Unit extends GoodsLocation
     @Override
     public int getSpaceTaken() {
         // We do not have to consider what this unit is carrying
-        // because carriers can not be put onto carriers.  Yet.
+        // because a carried carrier's own cargo does not add to the
+        // space it takes up in its parent's hold (LarryDGray's Mods:
+        // this is now used deliberately by the armada mechanic).
         return this.type.getSpaceTaken();
     }
 
@@ -4397,9 +4471,11 @@ public class Unit extends GoodsLocation
         if (locatable == this) {
             return NoAddReason.ALREADY_PRESENT;
         } else if (locatable instanceof Unit) {
+            Unit u = (Unit)locatable;
+            int ceiling = getEmbarkCeiling(u);
             return (!canCarryUnits())
                 ? NoAddReason.WRONG_TYPE
-                : (locatable.getSpaceTaken() > getSpaceLeft())
+                : (u.getSpaceTaken() > ceiling - getCargoSpaceTaken())
                 ? NoAddReason.CAPACITY_EXCEEDED
                 : super.getNoAddReason(locatable);
         } else if (locatable instanceof Goods) {

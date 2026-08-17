@@ -916,6 +916,77 @@
         <scope ability-id="model.ability.person"/>
       </effect>
     </disaster>
+    <!-- LarryDGray's Mods: naval bombardment of an undefended
+         settlement, with no armed unit or ship to fight, so the
+         town itself takes one of these effects instead.
+         Deliberately excludes lossOfMoney/damagedUnit (those fit a
+         raid or a naval encounter, not a bombardment of empty
+         streets). -->
+    <disaster id="model.disaster.navalBombardment" effects="ONE"
+              natural="false">
+      <effect id="model.disaster.effect.lossOfGoods" probability="25"/>
+      <effect id="model.disaster.effect.lossOfBuilding" probability="25"/>
+      <effect id="model.disaster.effect.lossOfUnit" probability="25">
+        <scope ability-id="model.ability.person"/>
+      </effect>
+      <effect id="model.disaster.effect.lossOfTileProduction"
+              probability="12">
+        <modifier id="model.goods.grain"
+                  type="percentage" value="-50"
+                  duration="3" temporary="true"/>
+        <modifier id="model.goods.sugar"
+                  type="percentage" value="-50"
+                  duration="3" temporary="true"/>
+        <modifier id="model.goods.tobacco"
+                  type="percentage" value="-50"
+                  duration="3" temporary="true"/>
+        <modifier id="model.goods.cotton"
+                  type="percentage" value="-50"
+                  duration="3" temporary="true"/>
+        <modifier id="model.goods.furs"
+                  type="percentage" value="-50"
+                  duration="3" temporary="true"/>
+        <modifier id="model.goods.lumber"
+                  type="percentage" value="-50"
+                  duration="3" temporary="true"/>
+        <modifier id="model.goods.ore"
+                  type="percentage" value="-50"
+                  duration="3" temporary="true"/>
+        <modifier id="model.goods.silver"
+                  type="percentage" value="-50"
+                  duration="3" temporary="true"/>
+      </effect>
+      <effect id="model.disaster.effect.lossOfBuildingProduction"
+              probability="13">
+        <modifier id="model.goods.rum"
+                  type="percentage" value="-50"
+                  duration="3" temporary="true"/>
+        <modifier id="model.goods.cigars"
+                  type="percentage" value="-50"
+                  duration="3" temporary="true"/>
+        <modifier id="model.goods.cloth"
+                  type="percentage" value="-50"
+                  duration="3" temporary="true"/>
+        <modifier id="model.goods.coats"
+                  type="percentage" value="-50"
+                  duration="3" temporary="true"/>
+        <modifier id="model.goods.tools"
+                  type="percentage" value="-50"
+                  duration="3" temporary="true"/>
+        <modifier id="model.goods.muskets"
+                  type="percentage" value="-50"
+                  duration="3" temporary="true"/>
+        <modifier id="model.goods.bells"
+                  type="percentage" value="-50"
+                  duration="3" temporary="true"/>
+        <modifier id="model.goods.hammers"
+                  type="percentage" value="-50"
+                  duration="3" temporary="true"/>
+        <modifier id="model.goods.crosses"
+                  type="percentage" value="-50"
+                  duration="3" temporary="true"/>
+      </effect>
+    </disaster>
     <disaster id="model.disaster.conquest" natural="false" effects="ALL">
       <effect id="model.disaster.effect.lossOfMoney"/>
       <effect id="model.disaster.effect.damagedUnit">
@@ -978,6 +1049,8 @@
                value="true"/>
       <ability id="model.ability.spyOnColony"
                value="true"/>
+      <ability id="model.ability.carryUnits"
+               value="true"/>
       <modifier id="model.modifier.defence" index="30"
                 type="additive" value="1"/>
       <modifier id="model.modifier.offence" index="30"
@@ -986,6 +1059,8 @@
                 type="additive" value="1"/>
       <modifier id="model.modifier.movementBonus"
                 type="additive" value="9"/>
+      <modifier id="model.modifier.cargoCapacity"
+                type="additive" value="12"/>
     </role>
 
     <role id="model.role.soldier"
@@ -1007,10 +1082,14 @@
                value="true"/>
       <ability id="model.ability.demandTribute"
                value="true"/>
+      <ability id="model.ability.carryUnits"
+               value="true"/>
       <modifier id="model.modifier.defence" index="30"
                 type="additive" value="1"/>
       <modifier id="model.modifier.offence" index="30"
                 type="additive" value="2"/>
+      <modifier id="model.modifier.cargoCapacity"
+                type="additive" value="12"/>
     </role>
 
     <role id="model.role.dragoon" downgrade="model.role.soldier"
@@ -1036,12 +1115,16 @@
                value="true"/>
       <ability id="model.ability.mounted"
                value="true"/>
+      <ability id="model.ability.carryUnits"
+               value="true"/>
       <modifier id="model.modifier.defence" index="30"
                 type="additive" value="2"/>
       <modifier id="model.modifier.offence" index="30"
                 type="additive" value="3"/>
       <modifier id="model.modifier.movementBonus"
                 type="additive" value="9"/>
+      <modifier id="model.modifier.cargoCapacity"
+                type="additive" value="12"/>
     </role>
 
     <role id="model.role.pioneer"
@@ -2218,6 +2301,8 @@
         <right-hand-side operand-type="settlements" scope-level="player" />
       </limit>
       <ability id="model.ability.carryGoods"
+               value="true"/>
+      <ability id="model.ability.carryUnits"
                value="true"/>
       <ability id="model.ability.canBeCaptured"
                value="true"/>
@@ -4744,6 +4829,43 @@
         <!-- The number of seasons in the year. -->
         <integerOption id="model.option.seasons"
                        value="2" minimumValue="2" maximumValue="366" />
+      </optionGroup>
+      <optionGroup id="gameOptions.larryDGraysMods">
+        <!-- LarryDGray's Mods: can artillery capture an undefended
+             settlement by walking in, or does it just bombard the
+             town (goods/building/population loss) like a ship does? -->
+        <booleanOption id="model.option.artilleryBombardment"
+                       defaultValue="true"/>
+        <!-- LarryDGray's Mods: does a land attacker get an offensive
+             bonus when backed up by artillery or an armed ship on
+             its own tile? -->
+        <booleanOption id="model.option.artillerySupportBonus"
+                       defaultValue="true"/>
+        <!-- LarryDGray's Mods: size of the artillery support bonus
+             above, as a percentage. Only has an effect while the
+             checkbox above is on. -->
+        <integerOption id="model.option.artillerySupportBonusValue"
+                       defaultValue="50" minimumValue="0" maximumValue="200"/>
+        <!-- LarryDGray's Mods: does the artillery support bonus also
+             apply when the attacker is itself artillery, backed up
+             by a second cannon on the same tile? Off by default,
+             since the bonus is meant for infantry/cavalry backed by
+             artillery, not artillery backing up artillery. -->
+        <booleanOption id="model.option.artillerySupportsArtillery"
+                       defaultValue="false"/>
+        <!-- LarryDGray's Mods: size of the coastal defence bonus (a
+             settlement defending with artillery or an armed ship
+             present, against any attacker), as a percentage.
+             Percentage modifiers apply sequentially in FreeCol, not
+             additively, so this compounds hard on top of Stockade,
+             Colony, and Fortified bonuses, hence being adjustable
+             here rather than a fixed 100. -->
+        <integerOption id="model.option.coastalDefenceBonusValue"
+                       defaultValue="50" minimumValue="0" maximumValue="200"/>
+        <!-- LarryDGray's Mods: ships also require cloth (sailcloth)
+             to build, in addition to the vanilla hammers and tools. -->
+        <booleanOption id="model.option.shipsRequireCloth"
+                       defaultValue="true"/>
       </optionGroup>
     </optionGroup>
 

@@ -223,6 +223,52 @@ public final class TilePopup extends JPopupMenu {
             add(activateAllItem);
         }
 
+        if (tile.getUnitCount() > 1 && player.owns(firstUnit)
+            && igc.canFormCaravan(tile)) {
+            JMenuItem formCaravanItem = Utility.localizedMenuItem(
+                StringTemplate.template("formCaravan"));
+            formCaravanItem.addActionListener((ActionEvent ae) -> {
+                    igc.formCaravan(tile);
+                });
+            add(formCaravanItem);
+        }
+
+        if (player.owns(firstUnit) && igc.canDisperseCaravan(tile)) {
+            JMenuItem disperseCaravanItem = Utility.localizedMenuItem(
+                StringTemplate.template("disperseCaravan"));
+            disperseCaravanItem.addActionListener((ActionEvent ae) -> {
+                    igc.disperseCaravan(tile);
+                });
+            add(disperseCaravanItem);
+        }
+
+        if (player.owns(firstUnit) && igc.canSendFleet(tile)) {
+            JMenuItem sendFleetItem = Utility.localizedMenuItem(
+                StringTemplate.template("sendFleet"));
+            sendFleetItem.addActionListener((ActionEvent ae) -> {
+                    igc.sendFleet(tile);
+                });
+            add(sendFleetItem);
+        }
+
+        if (player.owns(firstUnit) && igc.canFormArmada(tile)) {
+            JMenuItem formArmadaItem = Utility.localizedMenuItem(
+                StringTemplate.template("formArmada"));
+            formArmadaItem.addActionListener((ActionEvent ae) -> {
+                    igc.formArmada(tile);
+                });
+            add(formArmadaItem);
+        }
+
+        if (player.owns(firstUnit) && igc.canDisperseArmada(tile)) {
+            JMenuItem disperseArmadaItem = Utility.localizedMenuItem(
+                StringTemplate.template("disperseArmada"));
+            disperseArmadaItem.addActionListener((ActionEvent ae) -> {
+                    igc.disperseArmada(tile);
+                });
+            add(disperseArmadaItem);
+        }
+
         if (FreeColDebugger.isInDebugMode(FreeColDebugger.DebugMode.MENUS)
             && freeColClient.getFreeColServer() != null) {
             addDebugItems(freeColClient, tile);

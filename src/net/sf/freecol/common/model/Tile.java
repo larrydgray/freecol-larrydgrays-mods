@@ -61,6 +61,8 @@ import net.sf.freecol.common.io.FreeColXMLWriter;
 import net.sf.freecol.common.model.Constants.IntegrityType;
 import net.sf.freecol.common.model.production.TileProductionCalculator;
 import net.sf.freecol.common.model.production.WorkerAssignment;
+import net.sf.freecol.common.option.BooleanOption;
+import net.sf.freecol.common.option.GameOptions;
 import net.sf.freecol.common.util.LogBuilder;
 import net.sf.freecol.common.util.RandomChoice;
 
@@ -2183,8 +2185,34 @@ public final class Tile extends UnitLocation implements Named, Ownable {
         Unit defender = null;
         double defenderPower = -1.0, power;
 
+        // LarryDGray's Mods: a naval attacker bombarding a coastal
+        // settlement may target a docked ship or an armed land unit;
+        // artillery bombarding any settlement (if enabled) may only
+        // target an armed land unit, never a docked ship (a cannon
+        // does not fight a ship the way another ship would -- that is
+        // the separate, existing Fort/Fortress auto-bombard-ships
+        // mechanic) -- and neither ever targets an unarmed colonist,
+        // as bombarding an undefended settlement is not yet
+        // supported.  The attacking client is deliberately not shown
+        // what is actually present here, so this determination can
+        // only be made server-side, at the point of resolving the
+        // attack.
+        final boolean navalAttacker = attacker != null && attacker.isNaval();
+        final boolean bombardment = isLand() && attacker != null
+            && (navalAttacker
+                || (attacker.hasAbility(Ability.BOMBARD)
+                    // LarryDGray's Mods: a continued save from before
+                    // this option existed won't have it in its frozen
+                    // ruleset -- treat as off rather than crash.
+                    && getSpecification().hasOption(
+                        GameOptions.ARTILLERY_BOMBARDMENT, BooleanOption.class)
+                    && getSpecification().getBoolean(
+                        GameOptions.ARTILLERY_BOMBARDMENT)));
+
         // Check the units on the tile...
-        for (Unit u : transform(getUnits(), u -> isLand() != u.isNaval())) {
+        for (Unit u : transform(getUnits(), u -> (bombardment)
+                ? ((navalAttacker && u.isNaval()) || u.isDefensiveUnit())
+                : (isLand() != u.isNaval()))) {
             // On land, ships are normally docked in port and
             // cannot defend.  Except if beached (see below).
             // On ocean tiles, land units behave as ship cargo and
@@ -2196,7 +2224,12 @@ public final class Tile extends UnitLocation implements Named, Ownable {
             }
         }
 
-        // ...then a settlement defender if any...
+        // ...then a settlement defender if any -- for a bombardment,
+        // only accept a settlement-interior worker if they would
+        // actually put up a fight (already armed, or
+        // eligible to auto-equip from stored muskets, e.g. Paul
+        // Revere): a genuinely unarmed civilian with nothing to grab
+        // remains an invalid target for now...
         if ((defender == null || !defender.isDefensiveUnit())
             && hasSettlement()) {
             Unit u = null;
@@ -2212,7 +2245,8 @@ public final class Tile extends UnitLocation implements Named, Ownable {
             // This routine can be called on the client for the pre-combat
             // popup where enemy settlement defenders are not visible,
             // thus u == null is valid.
-            if (u != null) {
+            if (u != null && (!bombardment
+                    || u.isDefensiveUnit() || u.getAutomaticRole() != null)) {
                 power = cm.getDefencePower(attacker, u);
                 if (Unit.betterDefender(defender, defenderPower, u, power)) {
                     defender = u;
@@ -2223,8 +2257,13 @@ public final class Tile extends UnitLocation implements Named, Ownable {
 
         // ...finally, if we have failed to find a valid defender
         // for a land tile, allow a beached naval unit to defend (and
-        // lose) as a last resort.
-        if (defender == null && isLand()) defender = getFirstUnit();
+        // lose) as a last resort.  LarryDGray's Mods: never for a
+        // bombardment -- an undefended settlement (no armed unit, no
+        // ship) must remain an invalid target, not fall back to
+        // whatever unit happens to be first on the tile.
+        if (defender == null && isLand() && !bombardment) {
+            defender = getFirstUnit();
+        }
 
         return defender;
     }

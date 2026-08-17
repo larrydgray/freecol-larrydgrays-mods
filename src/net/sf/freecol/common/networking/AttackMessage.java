@@ -22,11 +22,16 @@ package net.sf.freecol.common.networking;
 import javax.xml.stream.XMLStreamException;
 
 import net.sf.freecol.common.io.FreeColXMLReader;
+import net.sf.freecol.common.model.Ability;
+import net.sf.freecol.common.model.Colony;
 import net.sf.freecol.common.model.Game;
 import net.sf.freecol.common.model.Direction;
+import net.sf.freecol.common.model.StringTemplate;
 import net.sf.freecol.common.model.Tile;
 import net.sf.freecol.common.model.Unit;
 import net.sf.freecol.common.model.Unit.MoveType;
+import net.sf.freecol.common.option.BooleanOption;
+import net.sf.freecol.common.option.GameOptions;
 import net.sf.freecol.server.FreeColServer;
 import net.sf.freecol.server.model.ServerPlayer;
 
@@ -124,6 +129,31 @@ public class AttackMessage extends AttributeMessage {
 
         Unit defender = tile.getDefendingUnit(unit);
         if (defender == null) {
+            // LarryDGray's Mods: a naval attacker, or (if enabled)
+            // artillery, bombarding an undefended colony (no armed
+            // unit, no docked ship) hits the town itself instead of
+            // being rejected or capturing it outright.
+            final boolean bombardment = unit.isNaval()
+                || (unit.hasAbility(Ability.BOMBARD)
+                    // LarryDGray's Mods: a continued save from before
+                    // this option existed won't have it in its frozen
+                    // ruleset -- treat as off rather than crash.
+                    && unit.getSpecification().hasOption(
+                        GameOptions.ARTILLERY_BOMBARDMENT, BooleanOption.class)
+                    && unit.getSpecification()
+                        .getBoolean(GameOptions.ARTILLERY_BOMBARDMENT));
+            if (bombardment && tile.getColony() != null
+                && tile.getColony().getUnitCount() > 0) {
+                return igc(freeColServer).bombardUndefendedSettlement(
+                    serverPlayer, unit, tile.getColony());
+            } else if (bombardment && tile.hasSettlement()) {
+                // No population to bombard either (or a native
+                // settlement, not yet supported) -- a clean, expected
+                // message rather than a raw technical error.
+                return serverPlayer.clientError(StringTemplate
+                    .template("model.unit.noBombardTarget")
+                    .addName("%settlement%", tile.getSettlement().getName()));
+            }
             return serverPlayer.clientError("Could not find defender"
                 + " in tile: " + tile.getId()
                 + " from: " + unit.getLocation().getId());

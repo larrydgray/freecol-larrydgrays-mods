@@ -285,6 +285,59 @@ public class ClientOptions extends OptionGroup {
     public static final String COLONY_STAT_DISPLAY
         = "model.option.colonyStatDisplay";
 
+    /** Whether to show the always-on key-building letter badges
+     *  (Custom House, schoolhouse chain, church chain) under colony
+     *  names on the map. */
+    public static final String SHOW_BUILDING_BADGES
+        = "model.option.showBuildingBadges";
+
+    /** Whether clicking a Trade Advisor goods column header sorts
+     *  the colonies below by production/total of that good. */
+    public static final String ENABLE_TRADE_ADVISOR_SORT
+        = "model.option.enableTradeAdvisorSort";
+
+    /** Whether a colonist-starved message names the unit type that
+     *  starved, rather than just the colony. */
+    public static final String SHOW_STARVED_UNIT_TYPE
+        = "model.option.showStarvedUnitType";
+
+    /** Whether the unit right-click menu (Change work, Activate unit,
+     *  Fortify, etc.) uses single-word labels instead of full phrases. */
+    public static final String CONDENSED_UNIT_MENU
+        = "model.option.condensedUnitMenu";
+
+    /**
+     * LarryDGray's Mods: read-only "Status" mirrors of the real game
+     * options, synced live from the current game each time the
+     * client logs in, so the Preferences panel reflects what's
+     * actually active in this save (game options themselves can only
+     * be set at New Game time, not edited here).
+     */
+    public static final String STATUS_ARTILLERY_BOMBARDMENT
+        = "model.option.statusArtilleryBombardment";
+    public static final String STATUS_ARTILLERY_SUPPORT_BONUS
+        = "model.option.statusArtillerySupportBonus";
+    public static final String STATUS_ARTILLERY_SUPPORT_BONUS_VALUE
+        = "model.option.statusArtillerySupportBonusValue";
+    public static final String STATUS_ARTILLERY_SUPPORTS_ARTILLERY
+        = "model.option.statusArtillerySupportsArtillery";
+    public static final String STATUS_COASTAL_DEFENCE_BONUS_VALUE
+        = "model.option.statusCoastalDefenceBonusValue";
+    public static final String STATUS_SHIPS_REQUIRE_CLOTH
+        = "model.option.statusShipsRequireCloth";
+
+    /** Whether to automatically reload the last saved New Game nation
+     *  setup (availability/colors) when the Start Game screen opens. */
+    public static final String AUTOLOAD_NEW_GAME_SETTINGS
+        = "model.option.autoloadNewGameSettings";
+
+    /** LarryDGray's Mods: which nation the host player themselves
+     *  picked to play as, saved/restored alongside the nation
+     *  availability setup. Internal bookkeeping, not shown in the
+     *  Preferences UI. */
+    public static final String LAST_SELECTED_NATION_ID
+        = "model.option.lastSelectedNationId";
+
     /** Whether to draw the borders on the minimap. */
     public static final String MINIMAP_TOGGLE_BORDERS
         = "model.option.miniMapToggleBorders";

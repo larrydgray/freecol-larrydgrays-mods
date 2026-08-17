@@ -25,6 +25,8 @@ import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.File;
+import java.util.Map;
 import java.util.logging.Logger;
 
 import javax.swing.AbstractAction;
@@ -36,12 +38,17 @@ import javax.swing.JTextField;
 import javax.swing.ScrollPaneConstants;
 
 import net.miginfocom.swing.MigLayout;
+import net.sf.freecol.client.ClientOptions;
 import net.sf.freecol.client.FreeColClient;
+import net.sf.freecol.client.control.PreGameController;
 import net.sf.freecol.client.gui.FontLibrary;
 import net.sf.freecol.client.gui.GUI;
 import net.sf.freecol.client.gui.panel.FreeColButton.ButtonStyle;
 import net.sf.freecol.common.i18n.Messages;
+import net.sf.freecol.common.io.FreeColDirectories;
+import net.sf.freecol.common.io.FreeColXMLReader;
 import net.sf.freecol.common.model.Game.LogoutReason;
+import net.sf.freecol.common.model.Nation;
 import net.sf.freecol.common.model.NationOptions;
 import net.sf.freecol.common.model.NationOptions.NationState;
 import net.sf.freecol.common.model.Specification;
@@ -66,6 +73,10 @@ public final class StartGamePanel extends FreeColPanel {
     private JTextArea chatArea;
 
     private JButton start, cancel, gameOptions, mapGeneratorOptions;
+
+    /** LarryDGray's Mods: nation setup save/load/reset/autoload. */
+    private JButton saveSettings, loadSettings, resetDefaults;
+    private JCheckBox autoloadBox;
 
     private PlayersTable table;
 
@@ -128,6 +139,57 @@ public final class StartGamePanel extends FreeColPanel {
     };
 
     /**
+     * LarryDGray's Mods: save the current nation availability/color
+     * setup, and which nation the host player themselves picked, so
+     * it can all be restored later.
+     */
+    private final ActionListener saveSettingsCmd = ae -> {
+        File file = FreeColDirectories
+            .getOptionsFile(FreeColDirectories.NATION_OPTIONS_FILE_NAME);
+        if (file != null && getGame().getNationOptions().save(file, null, true)) {
+            final ClientOptions co = getFreeColClient().getClientOptions();
+            final Nation myNation = getMyPlayer().getNation();
+            co.setString(ClientOptions.LAST_SELECTED_NATION_ID,
+                (myNation == null) ? "" : myNation.getId());
+            co.save(FreeColDirectories.getClientOptionsFile(), null, true);
+            getGUI().showInformationPanel("startGamePanel.settingsSaved");
+        }
+    };
+
+    /**
+     * LarryDGray's Mods: reset nation availability back to the
+     * game's built-in defaults.
+     */
+    private final ActionListener resetDefaultsCmd = ae -> {
+        applyNationOptions(new NationOptions(getSpecification()));
+    };
+
+    /**
+     * LarryDGray's Mods: manually (re)load the saved nation setup,
+     * regardless of the autoload checkbox - a reliable fallback.
+     */
+    private final ActionListener loadSettingsCmd = ae -> {
+        if (loadSavedNationOptions()) {
+            getGUI().showInformationPanel("startGamePanel.settingsLoaded");
+        } else {
+            getGUI().showInformationPanel("startGamePanel.noSettingsSaved");
+        }
+    };
+
+    /**
+     * LarryDGray's Mods: persist the autoload checkbox's own state
+     * immediately - client options are normally only written to disk
+     * when the Preferences dialog is closed via OK, which would never
+     * happen just from toggling this checkbox, so force a save here.
+     */
+    private final ActionListener autoloadBoxCmd = ae -> {
+        final ClientOptions co = getFreeColClient().getClientOptions();
+        co.setBoolean(ClientOptions.AUTOLOAD_NEW_GAME_SETTINGS,
+            autoloadBox.isSelected());
+        co.save(FreeColDirectories.getClientOptionsFile(), null, true);
+    };
+
+    /**
      * Create the panel from which to start a game.
      *
      * @param freeColClient The {@code FreeColClient} for the game.
@@ -141,11 +203,24 @@ public final class StartGamePanel extends FreeColPanel {
         removeAll();
         this.singlePlayerGame = singlePlayer;
 
-        if (singlePlayer || getMyPlayer().isAdmin()) {
+        // LarryDGray's Mods: single-player or the multiplayer host -
+        // whoever actually controls this screen's settings.
+        final boolean isHost = singlePlayer || getMyPlayer().isAdmin();
+
+        if (isHost) {
             getSpecification().updateGameAndMapOptions();
         }
 
         NationOptions nationOptions = getGame().getNationOptions();
+
+        // LarryDGray's Mods: autoload the last saved nation setup, if
+        // the option is on and a save exists, before the table reads
+        // nationOptions.
+        if (isHost && getClientOptions()
+                .getBoolean(ClientOptions.AUTOLOAD_NEW_GAME_SETTINGS)) {
+            loadSavedNationOptions();
+        }
+
         cancel = Utility.localizedButton("cancel");
         JScrollPane chatScroll = null, tableScroll;
         table = new PlayersTable(getFreeColClient(), nationOptions,
@@ -158,6 +233,16 @@ public final class StartGamePanel extends FreeColPanel {
 
         mapGeneratorOptions = Utility.localizedButton(Messages
             .nameKey(MapGeneratorOptions.TAG));
+
+        // LarryDGray's Mods: save/reset/autoload the nation setup.
+        // Shown for whoever actually controls this screen - single
+        // player, or the multiplayer host/admin.
+        saveSettings = Utility.localizedButton("startGamePanel.saveSettings");
+        loadSettings = Utility.localizedButton("startGamePanel.loadSettings");
+        resetDefaults = Utility.localizedButton("startGamePanel.resetDefaults");
+        autoloadBox = new JCheckBox(Messages.message("startGamePanel.autoload"));
+        autoloadBox.setSelected(getClientOptions()
+            .getBoolean(ClientOptions.AUTOLOAD_NEW_GAME_SETTINGS));
 
         readyBox = new JCheckBox(Messages.message("startGamePanel.iAmReady"));
 
@@ -198,6 +283,12 @@ public final class StartGamePanel extends FreeColPanel {
         }
         add(mapGeneratorOptions, "newline, split 2, growx, top, sg");
         add(gameOptions, "growx, top, sg");
+        if (isHost) {
+            add(saveSettings, "newline, split 4, growx, top, sg 2");
+            add(loadSettings, "growx, top, sg 2");
+            add(resetDefaults, "growx, top, sg 2");
+            add(autoloadBox, "growx, top");
+        }
         add(readyBox, "newline, span, split 3");
         add(start, "tag ok");
         add(cancel, "tag cancel");
@@ -215,6 +306,12 @@ public final class StartGamePanel extends FreeColPanel {
         readyBox.addActionListener(readyBoxCmd);
         gameOptions.addActionListener(gameOptionsCmd);
         mapGeneratorOptions.addActionListener(mapGeneratorOptionsCmd);
+        if (isHost) {
+            saveSettings.addActionListener(saveSettingsCmd);
+            loadSettings.addActionListener(loadSettingsCmd);
+            resetDefaults.addActionListener(resetDefaultsCmd);
+            autoloadBox.addActionListener(autoloadBoxCmd);
+        }
 
         setEscapeAction(new AbstractAction() {
             @Override
@@ -276,6 +373,68 @@ public final class StartGamePanel extends FreeColPanel {
         if (table != null) table.update();
     }
 
+    /**
+     * LarryDGray's Mods: apply a nation availability setup (loaded or
+     * default) via the proper networked path, so the server and other
+     * players stay in sync rather than just mutating local state.
+     *
+     * @param source The {@code NationOptions} to copy availability from.
+     */
+    private void applyNationOptions(NationOptions source) {
+        final PreGameController pgc = getFreeColClient().getPreGameController();
+        for (Map.Entry<Nation, NationState> e
+                : source.getNations().entrySet()) {
+            pgc.setAvailable(e.getKey(), e.getValue());
+        }
+        refreshPlayersTable();
+    }
+
+    /**
+     * LarryDGray's Mods: load the saved nation setup file, if any,
+     * and apply it. Shared by the autoload-on-open check and the
+     * explicit Load Settings button.
+     *
+     * @return True if a saved file existed and was applied.
+     */
+    private boolean loadSavedNationOptions() {
+        File savedFile = FreeColDirectories
+            .getOptionsFile(FreeColDirectories.NATION_OPTIONS_FILE_NAME);
+        if (savedFile == null || !savedFile.exists()) return false;
+        try (FreeColXMLReader xr = new FreeColXMLReader(savedFile)) {
+            xr.nextTag();
+            NationOptions loaded = new NationOptions(xr, getSpecification());
+
+            // LarryDGray's Mods: restore "my" nation BEFORE applying
+            // the rest of the saved availability snapshot. The saved
+            // snapshot has my own nation marked NOT_AVAILABLE (since
+            // I had it when I saved), and the server refuses to
+            // select a nation that isn't currently AVAILABLE - so
+            // this has to happen first, while my nation is still at
+            // its natural default availability, not after.
+            String nationId = getClientOptions()
+                .getString(ClientOptions.LAST_SELECTED_NATION_ID);
+            if (nationId != null && !nationId.isEmpty()) {
+                Nation myNation = getSpecification().getNation(nationId);
+                if (myNation != null && myNation != getMyPlayer().getNation()) {
+                    final PreGameController pgc = getFreeColClient().getPreGameController();
+                    pgc.setNation(myNation);
+                    // LarryDGray's Mods: setNation() only changes the
+                    // flag/name - the nation TYPE (bonuses, starting
+                    // units/ship) is a separate field that has to be
+                    // set explicitly too, same as PlayersTable's
+                    // normal "Select" button does.
+                    pgc.setNationType(myNation.getType());
+                }
+            }
+
+            applyNationOptions(loaded);
+            return true;
+        } catch (Exception ex) {
+            logger.warning("Failed to load saved nation settings: " + ex);
+            return false;
+        }
+    }
+
 
     // Override Component
 
@@ -293,6 +452,10 @@ public final class StartGamePanel extends FreeColPanel {
         gameOptions.removeActionListener(gameOptionsCmd);
         mapGeneratorOptions.removeActionListener(mapGeneratorOptionsCmd);
         if (chat != null) chat.removeActionListener(chatCmd);
+        if (saveSettings != null) saveSettings.removeActionListener(saveSettingsCmd);
+        if (loadSettings != null) loadSettings.removeActionListener(loadSettingsCmd);
+        if (resetDefaults != null) resetDefaults.removeActionListener(resetDefaultsCmd);
+        if (autoloadBox != null) autoloadBox.removeActionListener(autoloadBoxCmd);
     }
 
     /**

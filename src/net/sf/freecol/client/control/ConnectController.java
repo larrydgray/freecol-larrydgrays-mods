@@ -443,7 +443,7 @@ public final class ConnectController extends FreeColClientHolder {
         getGUI().refreshGuiUsingClientOptions();
 
         fcc.setFreeColServer(fcs);
-        fcc.setSinglePlayer(true);
+        fcc.setSinglePlayer(singlePlayer);
         return requestLogin(FreeCol.getName(), null, fcs.getHost(), fcs.getPort());
     }
 

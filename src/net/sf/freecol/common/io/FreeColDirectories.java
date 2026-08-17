@@ -130,6 +130,10 @@ public class FreeColDirectories {
 
     public static final String GAME_OPTIONS_FILE_NAME = "game_options.xml";
 
+    /** LarryDGray's Mods: saved nation availability/color setup from
+     *  the New Game screen. */
+    public static final String NATION_OPTIONS_FILE_NAME = "nation_options.xml";
+
     public static final String MAP_FILE_NAME = "my_map.fsg";
 
     public static final String MAP_EDITOR_FILE_NAME = "my_map.fsm";

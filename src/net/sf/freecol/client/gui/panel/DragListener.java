@@ -35,7 +35,6 @@ import net.sf.freecol.client.gui.label.AbstractGoodsLabel;
 import net.sf.freecol.client.gui.label.GoodsTypeLabel;
 import net.sf.freecol.client.gui.label.UnitLabel;
 import net.sf.freecol.common.model.Unit;
-import net.sf.freecol.common.util.OSUtils;
 
 
 /**
@@ -63,9 +62,6 @@ public final class DragListener extends MouseAdapter {
      * height allowed
      */
     private static final boolean small = windowHeight < maxWindowHeight;
-
-    /** Enable windows workaround. */
-    private final boolean windows = OSUtils.onWindows();
 
     /** The enclosing client. */
     private final FreeColClient freeColClient;
@@ -124,8 +120,7 @@ public final class DragListener extends MouseAdapter {
             smaller screens such as netbooks.
             */
             final GUI gui = this.freeColClient.getGUI();
-            if ((gui.isWindowed() && windows)
-                || (small && !gui.isWindowed())) {
+            if (small && !gui.isWindowed()) {
                 gui.showPopupMenu(menu, menu.getLocation().x, 0);
             } else {
                 menu.show(comp, e.getX(), e.getY());

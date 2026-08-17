@@ -55,6 +55,10 @@ public class Modifier extends Feature {
         = "model.modifier.artilleryAgainstRaid";
     public static final String ARTILLERY_IN_THE_OPEN
         = "model.modifier.artilleryInTheOpen";
+    /** LarryDGray's Mods: bonus for a land attacker backed up by
+     *  artillery or an armed ship present on its own tile. */
+    public static final String ARTILLERY_SUPPORT_BONUS
+        = "model.modifier.artillerySupportBonus";
     public static final String ATTACK_BONUS
         = "model.modifier.attackBonus";
     public static final String BIG_MOVEMENT_PENALTY
@@ -67,8 +71,14 @@ public class Modifier extends Feature {
         = "model.modifier.breedingFactor";
     public static final String BUILDING_PRICE_BONUS
         = "model.modifier.buildingPriceBonus";
+    public static final String CARGO_CAPACITY
+        = "model.modifier.cargoCapacity";
     public static final String CARGO_PENALTY
         = "model.modifier.cargoPenalty";
+    /** LarryDGray's Mods: bonus for a settlement with artillery or an
+     *  armed ship present when defending against a naval bombardment. */
+    public static final String COASTAL_DEFENCE_BONUS
+        = "model.modifier.coastalDefenceBonus";
     public static final String COLONY_GOODS_PARTY
         = "model.modifier.colonyGoodsParty";
     public static final String CONSUME_ONLY_SURPLUS_PRODUCTION

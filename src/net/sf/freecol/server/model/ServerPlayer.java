@@ -482,7 +482,6 @@ public class ServerPlayer extends Player implements TurnTaker {
             if (unit.isCarrier()) {
                 if (unit.hasGoodsCargo()) hasGoods = true;
                 hasCarrier = true;
-                continue;
             }
 
             // Must be able to found new colony or capture units

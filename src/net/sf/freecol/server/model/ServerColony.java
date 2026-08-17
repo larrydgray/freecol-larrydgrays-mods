@@ -771,6 +771,10 @@ public class ServerColony extends Colony implements TurnTaker {
                     if (getUnitCount() > 1) {
                         Unit victim = getRandomMember(logger, "Starver",
                                                       getUnits(), random);
+                        // LarryDGray's Mods: capture the victim's label
+                        // before removal so a client option can opt
+                        // into naming the unit type in the message.
+                        StringTemplate victimLabel = victim.getLabel();
                         ((ServerUnit)victim).csRemove(See.only(owner), null,
                             cs);//-vis: safe, all within colony
 
@@ -778,7 +782,8 @@ public class ServerColony extends Colony implements TurnTaker {
                             new ModelMessage(MessageType.UNIT_LOST,
                                              "model.colony.colonistStarved",
                                              this)
-                                .addName("%colony%", getName()));
+                                .addName("%colony%", getName())
+                                .addStringTemplate("%unit%", victimLabel));
                     } else { // Its dead, Jim.
                         cs.addMessage(owner,
                             new ModelMessage(MessageType.UNIT_LOST,

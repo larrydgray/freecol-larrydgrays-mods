@@ -23,6 +23,7 @@ import static net.sf.freecol.common.model.Constants.INFINITY;
 import static net.sf.freecol.common.model.Constants.STEAL_LAND;
 import static net.sf.freecol.common.util.CollectionUtils.allSame;
 import static net.sf.freecol.common.util.CollectionUtils.alwaysTrue;
+import static net.sf.freecol.common.util.CollectionUtils.any;
 import static net.sf.freecol.common.util.CollectionUtils.find;
 import static net.sf.freecol.common.util.CollectionUtils.none;
 import static net.sf.freecol.common.util.CollectionUtils.removeInPlace;
@@ -995,6 +996,14 @@ public final class InGameController extends FreeColClientHolder {
             try {
                 if ((key == null || co.getBoolean(key))
                     && !continueIgnoreMessage(m.getIgnoredMessageKey(), thisTurn)) {
+                    // LarryDGray's Mods: opt into naming the unit type
+                    // in a colonist-starved message. Single choke
+                    // point for both the turn report and the popup,
+                    // since both are fed from this same list.
+                    if ("model.colony.colonistStarved".equals(m.getId())
+                        && co.getBoolean(ClientOptions.SHOW_STARVED_UNIT_TYPE)) {
+                        m.setId("model.colony.colonistStarvedNamed");
+                    }
                     messages.add(m);
                 }
             } catch (RuntimeException rte) {
@@ -1644,7 +1653,8 @@ public final class InGameController extends FreeColClientHolder {
     private boolean moveAutoload(Unit carrier, List<Unit> embark) {
         boolean update = false;
         for (Unit u : embark) {
-            if (!carrier.couldCarry(u)) continue;
+            if (u.canCarryUnits() || u.canCarryGoods()
+                || !carrier.couldCarry(u)) continue;
             update |= askEmbark(u, carrier);
             if (u.getLocation() != carrier) {
                 changeState(u, UnitState.SKIPPED);
@@ -1653,6 +1663,259 @@ public final class InGameController extends FreeColClientHolder {
         if (update) updateGUI(null, false);
         // Boarding might have consumed the carrier moves.
         return carrier.couldMove();
+    }
+
+    /** LarryDGray's Mods: caravan leader rank, highest first. */
+    private static final List<String> CARAVAN_LEADER_ROLES
+        = List.of("model.role.dragoon", "model.role.soldier",
+                  "model.role.scout");
+
+    /**
+     * LarryDGray's Mods: the expert unit type for each caravan
+     * leader role, which outranks a non-expert unit wearing the
+     * same role (e.g. a Seasoned Scout over a colonist-as-scout).
+     *
+     * @param roleId The role identifier.
+     * @return The expert unit type identifier, or null if none.
+     */
+    private static String caravanExpertUnitType(String roleId) {
+        switch (roleId) {
+        case "model.role.dragoon": case "model.role.soldier":
+            return "model.unit.veteranSoldier";
+        case "model.role.scout":
+            return "model.unit.seasonedScout";
+        default:
+            return null;
+        }
+    }
+
+    /**
+     * LarryDGray's Mods: find the unit on a tile that should lead a
+     * caravan, by fixed rank: dragoon &gt; soldier &gt; scout &gt;
+     * wagon train.  Within a rank, a unit of that role's expert type
+     * outranks a non-expert wearing the same role; otherwise the
+     * first eligible unit found is used.
+     *
+     * @param units The candidate {@code Unit}s.
+     * @return The leader, or null if none is eligible.
+     */
+    private static Unit findCaravanLeader(List<Unit> units) {
+        for (String roleId : CARAVAN_LEADER_ROLES) {
+            List<Unit> inRole = transform(units,
+                x -> roleId.equals(x.getRole().getId()));
+            if (inRole.isEmpty()) continue;
+            final String expertType = caravanExpertUnitType(roleId);
+            Unit expert = find(inRole,
+                x -> expertType.equals(x.getType().getId()));
+            return (expert != null) ? expert : inRole.get(0);
+        }
+        return find(units,
+            x -> "model.unit.wagonTrain".equals(x.getType().getId()));
+    }
+
+    /**
+     * LarryDGray's Mods: is there an eligible caravan leader on this
+     * tile?
+     *
+     * @param tile The {@code Tile} to check.
+     * @return True if a caravan could be formed here.
+     */
+    public boolean canFormCaravan(Tile tile) {
+        return tile != null && findCaravanLeader(tile.getUnitList()) != null;
+    }
+
+    /**
+     * LarryDGray's Mods: form a caravan out of the units on a tile.
+     * The highest-ranked eligible unit becomes the leader/carrier,
+     * and all other non-carrier units on the tile board it.
+     *
+     * @param tile The {@code Tile} whose units should be combined.
+     * @return True if at least one unit boarded the leader.
+     */
+    public boolean formCaravan(Tile tile) {
+        if (tile == null || !requireOurTurn()) return false;
+        final List<Unit> units = tile.getUnitList();
+        final Unit leader = findCaravanLeader(units);
+        if (leader == null || !leader.canCarryUnits()) return false;
+
+        boolean update = false;
+        if (leader.getTradeRoute() != null) {
+            // A caravan leader (typically a wagon train) must not
+            // keep running its old trade route while carrying
+            // passengers -- clear it so the player has full manual
+            // control of the caravan's movement.
+            update |= askAssignTradeRoute(leader, null);
+        }
+
+        for (Unit u : units) {
+            if (u == leader || u.canCarryUnits() || u.canCarryGoods()
+                || u.canCarryTreasure() || !leader.couldCarry(u)) {
+                continue;
+            }
+            update |= askEmbark(u, leader);
+        }
+        if (update) updateGUI(null, false);
+        return update;
+    }
+
+    /**
+     * LarryDGray's Mods: find a non-naval carrier on a tile that is
+     * currently holding unit passengers (an active caravan leader).
+     *
+     * @param units The candidate {@code Unit}s.
+     * @return The caravan leader, or null if none is eligible.
+     */
+    private static Unit findActiveCaravan(List<Unit> units) {
+        return find(units, u -> !u.isNaval() && u.canCarryUnits()
+            && !u.getUnitList().isEmpty());
+    }
+
+    /**
+     * LarryDGray's Mods: is there a caravan on this tile that could
+     * be dispersed (a non-naval carrier currently holding unit
+     * passengers)?
+     *
+     * @param tile The {@code Tile} to check.
+     * @return True if a caravan could be dispersed here.
+     */
+    public boolean canDisperseCaravan(Tile tile) {
+        return tile != null && findActiveCaravan(tile.getUnitList()) != null;
+    }
+
+    /**
+     * LarryDGray's Mods: disperse a caravan on a tile, disembarking
+     * every unit passenger from its non-naval carrier leader.  The
+     * leader itself is left in place, simply empty.
+     *
+     * @param tile The {@code Tile} whose caravan should be dispersed.
+     * @return True if at least one passenger disembarked.
+     */
+    public boolean disperseCaravan(Tile tile) {
+        if (tile == null || !requireOurTurn()) return false;
+        final Unit leader = findActiveCaravan(tile.getUnitList());
+        if (leader == null) return false;
+
+        boolean update = false;
+        for (Unit u : new ArrayList<>(leader.getUnitList())) {
+            update |= leaveShip(u);
+        }
+        return update;
+    }
+
+    /** LarryDGray's Mods: armada flagship rank, highest first, by
+     *  defence strength. */
+    private static final List<String> ARMADA_LEADER_TYPES = List.of(
+        "model.unit.manOWar", "model.unit.frigate", "model.unit.galleon",
+        "model.unit.privateer", "model.unit.merchantman",
+        "model.unit.caravel");
+
+    /**
+     * LarryDGray's Mods: find the ship on a tile that should lead an
+     * armada, by fixed rank (toughest defender first).
+     *
+     * @param units The candidate {@code Unit}s.
+     * @return The leader, or null if none is eligible.
+     */
+    private static Unit findArmadaLeader(List<Unit> units) {
+        for (String typeId : ARMADA_LEADER_TYPES) {
+            Unit u = find(units, x -> x.isNaval()
+                && typeId.equals(x.getType().getId()));
+            if (u != null) return u;
+        }
+        return null;
+    }
+
+    /**
+     * LarryDGray's Mods: is there more than one of the player's own
+     * ships on this tile, so that "Form armada" would do something?
+     *
+     * @param tile The {@code Tile} to check.
+     * @return True if an armada could be formed here.
+     */
+    public boolean canFormArmada(Tile tile) {
+        if (tile == null) return false;
+        int navalCount = 0;
+        for (Unit u : tile.getUnitList()) {
+            if (u.isNaval() && ++navalCount > 1) break;
+        }
+        return navalCount > 1 && findArmadaLeader(tile.getUnitList()) != null;
+    }
+
+    /**
+     * LarryDGray's Mods: form an armada out of the ships on a tile.
+     * The toughest eligible ship becomes the flagship, and every
+     * other ship on the tile boards it as an escort.  Any trade
+     * routes on the flagship or its escorts are cleared first.
+     *
+     * @param tile The {@code Tile} whose ships should be combined.
+     * @return True if at least one ship boarded the flagship.
+     */
+    public boolean formArmada(Tile tile) {
+        if (tile == null || !requireOurTurn()) return false;
+        final List<Unit> units = tile.getUnitList();
+        final Unit leader = findArmadaLeader(units);
+        if (leader == null || !leader.canCarryUnits()) return false;
+
+        boolean update = false;
+        if (leader.getTradeRoute() != null) {
+            update |= askAssignTradeRoute(leader, null);
+        }
+
+        for (Unit u : units) {
+            if (u == leader || !u.isNaval() || !leader.couldCarry(u)) {
+                continue;
+            }
+            if (u.getTradeRoute() != null) {
+                update |= askAssignTradeRoute(u, null);
+            }
+            update |= askEmbark(u, leader);
+        }
+        if (update) updateGUI(null, false);
+        return update;
+    }
+
+    /**
+     * LarryDGray's Mods: find a ship on a tile that is currently
+     * escorting at least one other ship (an active armada flagship).
+     *
+     * @param units The candidate {@code Unit}s.
+     * @return The flagship, or null if none is eligible.
+     */
+    private static Unit findActiveArmada(List<Unit> units) {
+        return find(units, u -> u.isNaval()
+            && any(u.getUnitList(), Unit::isNaval));
+    }
+
+    /**
+     * LarryDGray's Mods: is there an armada on this tile that could
+     * be dispersed?
+     *
+     * @param tile The {@code Tile} to check.
+     * @return True if an armada could be dispersed here.
+     */
+    public boolean canDisperseArmada(Tile tile) {
+        return tile != null && findActiveArmada(tile.getUnitList()) != null;
+    }
+
+    /**
+     * LarryDGray's Mods: disperse an armada on a tile, disembarking
+     * every escorted ship from its flagship.  Ordinary (non-naval)
+     * cargo the flagship may also be carrying is left aboard.
+     *
+     * @param tile The {@code Tile} whose armada should be dispersed.
+     * @return True if at least one escort disembarked.
+     */
+    public boolean disperseArmada(Tile tile) {
+        if (tile == null || !requireOurTurn()) return false;
+        final Unit leader = findActiveArmada(tile.getUnitList());
+        if (leader == null) return false;
+
+        boolean update = false;
+        for (Unit u : new ArrayList<>(leader.getUnitList())) {
+            if (!u.isNaval()) continue;
+            update |= leaveShip(u);
+        }
+        return update;
     }
 
     /**
@@ -4884,6 +5147,19 @@ public final class InGameController extends FreeColClientHolder {
         Location destination = getGUI().showSelectDestinationDialog(unit);
         if (destination == null) return false;
 
+        boolean ret = setDestinationAndMove(unit, destination);
+        if (ret) updateGUI(null, false);
+        return ret;
+    }
+
+    /**
+     * Sets a unit's destination and starts it moving towards it.
+     *
+     * @param unit The {@code Unit} to send.
+     * @param destination The {@code Location} to send it to.
+     * @return True if the destination change succeeds.
+     */
+    private boolean setDestinationAndMove(Unit unit, Location destination) {
         UnitWas unitWas = new UnitWas(unit);
         boolean ret = askSetDestination(unit, destination);
         if (ret) {
@@ -4902,9 +5178,57 @@ public final class InGameController extends FreeColClientHolder {
                 }
             }
             fireChanges(unitWas);
-            updateGUI(null, false);
         }
         return ret;
+    }
+
+    /**
+     * LarryDGray's Mods: is there more than one of the player's own
+     * ships on this tile, so that "Send fleet" would do something?
+     *
+     * @param tile The {@code Tile} to check.
+     * @return True if a fleet could be sent from here.
+     */
+    public boolean canSendFleet(Tile tile) {
+        if (tile == null) return false;
+        final Player player = getMyPlayer();
+        int count = 0;
+        for (Unit u : tile.getUnitList()) {
+            if (u.isNaval() && player.owns(u) && ++count > 1) return true;
+        }
+        return false;
+    }
+
+    /**
+     * LarryDGray's Mods: send every owned ship on a tile to one
+     * destination, chosen once via the normal destination dialog.
+     * Each ship still sails under its own moves and can still fight
+     * independently -- this is a bulk order, not a merged unit.
+     *
+     * @param tile The {@code Tile} whose ships should be sent.
+     * @return True if at least one ship was given the destination.
+     */
+    public boolean sendFleet(Tile tile) {
+        if (tile == null || !requireOurTurn()) return false;
+        final Player player = getMyPlayer();
+        final List<Unit> ships = transform(tile.getUnitList(),
+            u -> u.isNaval() && player.owns(u));
+        if (ships.size() < 2) return false;
+
+        final Unit flagship = ships.get(0);
+        if (!getGUI().confirmClearTradeRoute(flagship)) return false;
+        Location destination = getGUI().showSelectDestinationDialog(flagship);
+        if (destination == null) return false;
+
+        boolean update = false;
+        for (Unit ship : ships) {
+            if (ship != flagship && !getGUI().confirmClearTradeRoute(ship)) {
+                continue;
+            }
+            update |= setDestinationAndMove(ship, destination);
+        }
+        if (update) updateGUI(null, false);
+        return update;
     }
 
     /**

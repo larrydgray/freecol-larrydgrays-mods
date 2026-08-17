@@ -217,6 +217,56 @@ public class GameOptions {
     //Unused at the moment
     // public static final String HAMMER_PRICE = "hammerPrice";
 
+    /** LarryDGray's Mods game option group. */
+    public static final String GAMEOPTIONS_LARRY_D_GRAYS_MODS
+        = "gameOptions.larryDGraysMods";
+
+    /**
+     * LarryDGray's Mods: can artillery capture an undefended
+     * settlement by walking in, or does it bombard the town instead,
+     * like a ship does?
+     */
+    public static final String ARTILLERY_BOMBARDMENT
+        = "model.option.artilleryBombardment";
+
+    /**
+     * LarryDGray's Mods: does a land attacker get an offensive bonus
+     * when backed up by artillery or an armed ship on its own tile?
+     */
+    public static final String ARTILLERY_SUPPORT_BONUS
+        = "model.option.artillerySupportBonus";
+
+    /**
+     * LarryDGray's Mods: size of the artillery support bonus above,
+     * as a percentage.
+     */
+    public static final String ARTILLERY_SUPPORT_BONUS_VALUE
+        = "model.option.artillerySupportBonusValue";
+
+    /**
+     * LarryDGray's Mods: does the artillery support bonus above also
+     * apply when the attacker is itself artillery (backed up by a
+     * second cannon on the same tile), or only for non-artillery
+     * land attackers?
+     */
+    public static final String ARTILLERY_SUPPORTS_ARTILLERY
+        = "model.option.artillerySupportsArtillery";
+
+    /**
+     * LarryDGray's Mods: size of the coastal defence bonus (a
+     * settlement defending with artillery or an armed ship present),
+     * as a percentage.
+     */
+    public static final String COASTAL_DEFENCE_BONUS_VALUE
+        = "model.option.coastalDefenceBonusValue";
+
+    /**
+     * LarryDGray's Mods: do ships also require cloth (sailcloth) to
+     * build, in addition to the vanilla hammers and tools?
+     */
+    public static final String SHIPS_REQUIRE_CLOTH
+        = "model.option.shipsRequireCloth";
+
 
     /** Victory conditions game option group. */
     public static final String GAMEOPTIONS_VICTORY_CONDITIONS

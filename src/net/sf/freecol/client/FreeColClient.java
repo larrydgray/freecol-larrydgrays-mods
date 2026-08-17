@@ -57,6 +57,9 @@ import net.sf.freecol.common.model.Specification;
 import net.sf.freecol.common.model.StringTemplate;
 import net.sf.freecol.common.model.Unit;
 import net.sf.freecol.common.networking.MessageHandler;
+import net.sf.freecol.common.option.BooleanOption;
+import net.sf.freecol.common.option.GameOptions;
+import net.sf.freecol.common.option.IntegerOption;
 import net.sf.freecol.common.networking.ServerAPI;
 import net.sf.freecol.common.resources.ResourceManager;
 import net.sf.freecol.server.FreeColServer;
@@ -927,10 +930,53 @@ public final class FreeColClient {
         setMyPlayer(player);
         setSinglePlayer(single);
         addSpecificationActions(game.getSpecification());
+        syncModStatusOptions(game.getSpecification());
         if (player != null) {
             final ClientOptions co = getClientOptions();
             player.setColonyComparator(co.getColonyComparator());
-        }        
+        }
+    }
+
+    /**
+     * LarryDGray's Mods: mirror the current game's actual game-option
+     * values into the read-only "Status" client options, so the
+     * Preferences panel reflects what's really active in this save.
+     * Game options can only be set at New Game time, not from the
+     * in-game Options menu, so this is the only way to see them once
+     * a game is running. hasOption-guarded so a continued save from
+     * before an option existed just leaves that status entry at its
+     * default rather than throwing.
+     *
+     * @param spec The {@code Specification} of the game just entered.
+     */
+    private void syncModStatusOptions(Specification spec) {
+        final ClientOptions co = getClientOptions();
+        syncStatusBoolean(co, spec, GameOptions.ARTILLERY_BOMBARDMENT,
+            ClientOptions.STATUS_ARTILLERY_BOMBARDMENT);
+        syncStatusBoolean(co, spec, GameOptions.ARTILLERY_SUPPORT_BONUS,
+            ClientOptions.STATUS_ARTILLERY_SUPPORT_BONUS);
+        syncStatusInteger(co, spec, GameOptions.ARTILLERY_SUPPORT_BONUS_VALUE,
+            ClientOptions.STATUS_ARTILLERY_SUPPORT_BONUS_VALUE);
+        syncStatusBoolean(co, spec, GameOptions.ARTILLERY_SUPPORTS_ARTILLERY,
+            ClientOptions.STATUS_ARTILLERY_SUPPORTS_ARTILLERY);
+        syncStatusInteger(co, spec, GameOptions.COASTAL_DEFENCE_BONUS_VALUE,
+            ClientOptions.STATUS_COASTAL_DEFENCE_BONUS_VALUE);
+        syncStatusBoolean(co, spec, GameOptions.SHIPS_REQUIRE_CLOTH,
+            ClientOptions.STATUS_SHIPS_REQUIRE_CLOTH);
+    }
+
+    private void syncStatusBoolean(ClientOptions co, Specification spec,
+                                   String gameOptionId, String statusOptionId) {
+        if (spec.hasOption(gameOptionId, BooleanOption.class)) {
+            co.setBoolean(statusOptionId, spec.getBoolean(gameOptionId));
+        }
+    }
+
+    private void syncStatusInteger(ClientOptions co, Specification spec,
+                                   String gameOptionId, String statusOptionId) {
+        if (spec.hasOption(gameOptionId, IntegerOption.class)) {
+            co.setInteger(statusOptionId, spec.getInteger(gameOptionId));
+        }
     }
 
     /**

@@ -697,26 +697,40 @@ public final class MapViewer extends FreeColClientHolder {
                     mapViewerScaledUtils.getFontNormal());
             g2d.drawImage(img, rop, (tileBounds.getWidth() - img.getWidth())/2 + 1,
                           yOffset);
+            int nextY = yOffset + img.getHeight();
 
-            // LarryDGray's Mods: draw the selected colony stat, if any,
-            // on its own line below the name, in a fixed gold color
-            // rather than the name's nation color -- nation colors are
-            // not reliably readable against every terrain.
+            // LarryDGray's Mods: draw the selected colony stat, and/or
+            // the always-on key-building badges, each on their own
+            // line below the name, in a fixed gold color rather than
+            // the name's nation color -- nation colors are not
+            // reliably readable against every terrain.
             if (settlement instanceof Colony
-                && settlement.getOwner() == player
-                && getClientOptions().getBoolean(ClientOptions.SHOW_COLONY_STAT_TOOLBAR)) {
-                int statOrdinal = getClientOptions()
-                    .getInteger(ClientOptions.COLONY_STAT_DISPLAY);
-                ColonyStat[] stats = ColonyStat.values();
-                if (statOrdinal >= 0 && statOrdinal < stats.length) {
-                    ColonyStat stat = stats[statOrdinal];
-                    Colony colony = (Colony) settlement;
-                    String statText = stat.getLetter() + ":" + stat.getValue(colony);
-                    BufferedImage statImg = this.lib.getStringImage(g2d, statText,
-                        new Color(255, 215, 0), mapViewerScaledUtils.getFontNormal());
-                    g2d.drawImage(statImg, rop,
-                        (tileBounds.getWidth() - statImg.getWidth())/2 + 1,
-                        yOffset + img.getHeight());
+                && settlement.getOwner() == player) {
+                Colony colony = (Colony) settlement;
+                if (getClientOptions().getBoolean(ClientOptions.SHOW_COLONY_STAT_TOOLBAR)) {
+                    int statOrdinal = getClientOptions()
+                        .getInteger(ClientOptions.COLONY_STAT_DISPLAY);
+                    ColonyStat[] stats = ColonyStat.values();
+                    if (statOrdinal >= 0 && statOrdinal < stats.length) {
+                        ColonyStat stat = stats[statOrdinal];
+                        String statText = stat.getLetter() + ":" + stat.getValue(colony);
+                        BufferedImage statImg = this.lib.getStringImage(g2d, statText,
+                            new Color(255, 215, 0), mapViewerScaledUtils.getFontNormal());
+                        g2d.drawImage(statImg, rop,
+                            (tileBounds.getWidth() - statImg.getWidth())/2 + 1,
+                            nextY);
+                        nextY += statImg.getHeight();
+                    }
+                }
+                if (getClientOptions().getBoolean(ClientOptions.SHOW_BUILDING_BADGES)) {
+                    String badges = ColonyBuildingBadges.getBadges(colony);
+                    if (!badges.isEmpty()) {
+                        BufferedImage badgeImg = this.lib.getStringImage(g2d, badges,
+                            new Color(255, 215, 0), mapViewerScaledUtils.getFontNormal());
+                        g2d.drawImage(badgeImg, rop,
+                            (tileBounds.getWidth() - badgeImg.getWidth())/2 + 1,
+                            nextY);
+                    }
                 }
             }
             break;
@@ -751,6 +765,13 @@ public final class MapViewer extends FreeColClientHolder {
                         ColonyStat stat = stats[statOrdinal];
                         String t = stat.getLetter() + ": " + stat.getValue(colony);
                         extraSpecs.add(new TextSpecification(t, mapViewerScaledUtils.getFontProduction()));
+                    }
+                }
+                if (getClientOptions().getBoolean(ClientOptions.SHOW_BUILDING_BADGES)
+                    && mapViewerScaledUtils.getFontProduction() != null) {
+                    String badges = ColonyBuildingBadges.getBadges(colony);
+                    if (!badges.isEmpty()) {
+                        extraSpecs.add(new TextSpecification(badges, mapViewerScaledUtils.getFontProduction()));
                     }
                 }
             }

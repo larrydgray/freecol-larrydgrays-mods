@@ -37,6 +37,9 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import net.sf.freecol.common.model.Modifier.ModifierType;
+import net.sf.freecol.common.option.BooleanOption;
+import net.sf.freecol.common.option.GameOptions;
+import net.sf.freecol.common.option.IntegerOption;
 import net.sf.freecol.common.util.LogBuilder;
 
 
@@ -264,6 +267,39 @@ public class SimpleCombatModel extends CombatModel {
                                       owner.getNationType())));
             }
 
+            // LarryDGray's Mods: artillery support bonus -- a land
+            // attacker gets an offensive boost when backed up by
+            // artillery or an armed ship on its own tile, mirroring
+            // the coastal defence bonus on the defensive side.  Built
+            // dynamically (not a spec.xml <modifier>) so its size is
+            // adjustable via a game option, not just on/off.
+            final Specification attackerSpec = attackerUnit.getSpecification();
+            // LarryDGray's Mods: by default the bonus is for
+            // infantry/cavalry backed by artillery, not artillery
+            // backing up artillery -- only let an artillery attacker
+            // qualify if that is separately switched on.
+            final boolean artilleryMaySupportArtillery
+                = attackerSpec.hasOption(GameOptions.ARTILLERY_SUPPORTS_ARTILLERY,
+                    BooleanOption.class)
+                && attackerSpec.getBoolean(GameOptions.ARTILLERY_SUPPORTS_ARTILLERY);
+            if (!attackerUnit.isNaval()
+                && attackerUnit.hasTile()
+                && (!attackerUnit.hasAbility(Ability.BOMBARD)
+                    || artilleryMaySupportArtillery)
+                // LarryDGray's Mods: a continued save from before this
+                // option existed won't have it in its frozen ruleset --
+                // treat as off rather than crash.
+                && attackerSpec.hasOption(
+                    GameOptions.ARTILLERY_SUPPORT_BONUS, BooleanOption.class)
+                && attackerSpec.getBoolean(GameOptions.ARTILLERY_SUPPORT_BONUS)
+                && any(attackerUnit.getTile().getUnits(), u -> u != attackerUnit
+                    && (u.hasAbility(Ability.BOMBARD)
+                        || (u.isNaval() && u.isOffensiveUnit())))) {
+                result.add(new Modifier(Modifier.ARTILLERY_SUPPORT_BONUS,
+                    attackerSpec.getInteger(GameOptions.ARTILLERY_SUPPORT_BONUS_VALUE),
+                    ModifierType.PERCENTAGE, null, Modifier.GENERAL_COMBAT_INDEX));
+            }
+
             // Land/naval specific
             if (attackerUnit.isNaval()) {
                 addNavalOffensiveModifiers(attackerUnit, result);
@@ -448,6 +484,36 @@ public class SimpleCombatModel extends CombatModel {
             result.addAll(defenderUnit.getCombatModifiers(Modifier.DEFENCE,
                     defenderUnit.getType(), turn));
             // end @compat 0.11.0
+
+            // LarryDGray's Mods: coastal defence bonus when defending
+            // a settlement tile and artillery or an armed ship is
+            // present there -- applies against naval AND land
+            // attackers alike (historically, ships/guns in port gave
+            // fire support against a land invasion too, not just an
+            // approach from the sea), regardless of whether the
+            // actual defender is a land unit getting backup, or a
+            // docked warship defending itself, so a lone armed ship
+            // does not miss out on its own presence bonus.  The
+            // `instanceof Unit` guard just avoids a cast failure for
+            // combatIsBombard, where attacker is a Settlement.  Built
+            // dynamically (not a spec.xml <modifier>) so its size is
+            // adjustable via a game option, not just a fixed value.
+            final Specification defenderSpec = defenderUnit.getSpecification();
+            if (attacker instanceof Unit
+                && defenderUnit.hasTile()
+                && defenderUnit.getTile().hasSettlement()
+                && any(defenderUnit.getTile().getUnits(), u ->
+                    u.hasAbility(Ability.BOMBARD)
+                    || (u.isNaval() && u.isOffensiveUnit()))
+                // LarryDGray's Mods: a continued save from before this
+                // option existed won't have it in its frozen ruleset --
+                // treat as off rather than crash.
+                && defenderSpec.hasOption(
+                    GameOptions.COASTAL_DEFENCE_BONUS_VALUE, IntegerOption.class)) {
+                result.add(new Modifier(Modifier.COASTAL_DEFENCE_BONUS,
+                    defenderSpec.getInteger(GameOptions.COASTAL_DEFENCE_BONUS_VALUE),
+                    ModifierType.PERCENTAGE, null, Modifier.GENERAL_COMBAT_INDEX));
+            }
 
             // Land/naval split
             if (defenderUnit.isNaval()) {

@@ -35,6 +35,7 @@ import javax.swing.JPopupMenu;
 
 import net.miginfocom.swing.MigLayout;
 
+import net.sf.freecol.client.ClientOptions;
 import net.sf.freecol.client.FreeColClient;
 import net.sf.freecol.client.control.InGameController;
 import net.sf.freecol.client.gui.*;
@@ -128,6 +129,18 @@ public final class QuickActionMenu extends JPopupMenu {
 
 
     /**
+     * LarryDGray's Mods: whether the unit right-click menu should use
+     * single-word labels instead of full phrases.
+     *
+     * @return True if the condensed unit menu client option is on.
+     */
+    private boolean isCondensedMenu() {
+        return freeColClient.getClientOptions()
+            .getBoolean(ClientOptions.CONDENSED_UNIT_MENU);
+    }
+
+
+    /**
      * Gets a string corresponding to the UnitAction to work at a work
      * location.
      *
@@ -214,6 +227,10 @@ public final class QuickActionMenu extends JPopupMenu {
             JMenuItem menuItem = Utility.localizedMenuItem("quickActionMenu.clearSpeciality",
                 new ImageIcon(gui.getFixedImageLibrary()
                     .getTinyUnitTypeImage(uc.to)));
+            if (isCondensedMenu()) {
+                menuItem.setText(Messages.message(
+                    "quickActionMenu.clearSpeciality.condensed"));
+            }
             menuItem.setActionCommand(UnitAction.CLEAR_SPECIALITY.toString());
             menuItem.addActionListener(unitLabel);
             this.add(menuItem);
@@ -401,6 +418,9 @@ public final class QuickActionMenu extends JPopupMenu {
         }
 
         JMenu container = Utility.localizedMenu("quickActionMenu.changeWork");
+        if (isCondensedMenu()) {
+            container.setText(Messages.message("quickActionMenu.changeWork.condensed"));
+        }
         List<JMenuItem> owned = descendingList(items);
         if (expertOwned != null) owned.add(0, expertOwned);
         for (JMenuItem j : owned) container.add(j);
@@ -515,6 +535,9 @@ public final class QuickActionMenu extends JPopupMenu {
         final boolean isUnitAtSea = tempUnit.isAtSea();
 
         JMenuItem menuItem = Utility.localizedMenuItem("activateUnit");
+        if (isCondensedMenu()) {
+            menuItem.setText(Messages.message("quickActionMenu.activateUnit.condensed"));
+        }
         menuItem.addActionListener((ActionEvent ae) -> {
                 if (tempUnit.getState() != Unit.UnitState.ACTIVE) {
                     freeColClient.getInGameController()
@@ -545,6 +568,9 @@ public final class QuickActionMenu extends JPopupMenu {
 
         boolean hasTradeRoute = tempUnit.getTradeRoute() != null;
         menuItem = Utility.localizedMenuItem("clearOrders");
+        if (isCondensedMenu()) {
+            menuItem.setText(Messages.message("quickActionMenu.clearOrders.condensed"));
+        }
         menuItem.setActionCommand(UnitAction.CLEAR_ORDERS.toString());
         menuItem.addActionListener(unitLabel);
         menuItem.setEnabled((unitState != Unit.UnitState.ACTIVE
@@ -621,7 +647,13 @@ public final class QuickActionMenu extends JPopupMenu {
             key = "model.role.change." + from.getSuffix()
                 + "." + to.getSuffix();
         }
-        String text = Messages.message(key);
+        // LarryDGray's Mods: use a single-word label if the
+        // condensed unit menu option is on and one exists for this
+        // exact key, else fall back to the normal full phrase.
+        String condensedKey = key + ".condensed";
+        String text = (isCondensedMenu() && Messages.containsKey(condensedKey))
+            ? Messages.message(condensedKey)
+            : Messages.message(key);
         if (price > 0) {
             text += " ("
                 + Messages.message(StringTemplate.template("goldAmount")

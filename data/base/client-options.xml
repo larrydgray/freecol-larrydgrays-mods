@@ -394,33 +394,103 @@
     </optionGroup>
 
     <optionGroup id="clientOptions.larryDGraysMods">
-      <!-- Turn Report: per-line deprioritize/dismiss checkboxes, a
-           show-dismissed undo toggle, and sorting starvation warnings
-           to the top of the report. -->
-      <booleanOption id="model.option.enhancedTurnReport"
-                     defaultValue="true"/>
-      <!-- Colony stat tool bar: a row of toggle buttons letting the
-           player pick one warehouse-goods or unit-type count to show
-           under every owned colony's name on the map. -->
-      <booleanOption id="model.option.showColonyStatToolbar"
-                     defaultValue="true"/>
-      <!-- Which stat is currently selected (ColonyStat ordinal), or
-           -1 for none.  Not really a "preference" in the usual sense,
-           since it is set via the tool bar buttons rather than this
-           dialog, but needs to be a real option to persist across
-           turns/sessions.  IMPORTANT: maximumValue must equal (number
-           of ColonyStat enum entries minus 1), or setInteger() will
-           silently clamp any higher ordinal back down to this max.
-           Bump it whenever a ColonyStat is added. -->
-      <integerOption id="model.option.colonyStatDisplay"
-                     defaultValue="-1" minimumValue="-1" maximumValue="19"/>
-      <!-- Turn Report: automatically grey out goods shortage messages
-           the first time each is seen in a turn. -->
-      <booleanOption id="model.option.greyShortagesByDefault"
-                     defaultValue="true"/>
+      <optionGroup id="clientOptions.larryDGraysMods.settings">
+        <!-- Turn Report: per-line deprioritize/dismiss checkboxes, a
+             show-dismissed undo toggle, and sorting starvation
+             warnings to the top of the report. -->
+        <booleanOption id="model.option.enhancedTurnReport"
+                       defaultValue="true"/>
+        <!-- Colony stat tool bar: a row of toggle buttons letting
+             the player pick one warehouse-goods or unit-type count
+             to show under every owned colony's name on the map. -->
+        <booleanOption id="model.option.showColonyStatToolbar"
+                       defaultValue="true"/>
+        <!-- Which stat is currently selected (ColonyStat ordinal),
+             or -1 for none.  Not really a "preference" in the usual
+             sense, since it is set via the tool bar buttons rather
+             than this dialog, but needs to be a real option to
+             persist across turns/sessions.  IMPORTANT: maximumValue
+             must equal (number of ColonyStat enum entries minus 1),
+             or setInteger() will silently clamp any higher ordinal
+             back down to this max.  Bump it whenever a ColonyStat is
+             added. -->
+        <integerOption id="model.option.colonyStatDisplay"
+                       defaultValue="-1" minimumValue="-1"
+                       maximumValue="19"/>
+        <!-- Turn Report: automatically grey out goods shortage
+             messages the first time each is seen in a turn. -->
+        <booleanOption id="model.option.greyShortagesByDefault"
+                       defaultValue="true"/>
+        <!-- Always-on letter badges under every owned colony's name
+             on the map showing which key buildings are present:
+             Custom House, and the current tier of the schoolhouse
+             and church upgrade chains.  Independent of the colony
+             stat tool bar's single-stat toggle above. -->
+        <booleanOption id="model.option.showBuildingBadges"
+                       defaultValue="true"/>
+        <!-- Trade Advisor (F9): click a goods column header to sort
+             colonies by production (or, on a second click, total on
+             hand) of that good. -->
+        <booleanOption id="model.option.enableTradeAdvisorSort"
+                       defaultValue="true"/>
+        <!-- LarryDGray's Mods: name the unit type in the
+             colonist-starved message, e.g. "Our Expert Farmer has
+             starved" instead of just "A colonist has starved". -->
+        <booleanOption id="model.option.showStarvedUnitType"
+                       defaultValue="true"/>
+        <!-- LarryDGray's Mods: single-word labels in the unit
+             right-click menu (Change work -> Work, Activate unit ->
+             Activate, Clear orders -> Orders, Remove all equipment
+             -> Unequip, etc.) instead of full phrases. -->
+        <booleanOption id="model.option.condensedUnitMenu"
+                       defaultValue="true"/>
+        <!-- LarryDGray's Mods: does the Start Game screen
+             automatically reload the last saved nation
+             availability/color setup? The checkbox's own state
+             persists here like any other client option. -->
+        <booleanOption id="model.option.autoloadNewGameSettings"
+                       defaultValue="false"/>
+      </optionGroup>
+      <!-- Status only, not switchable yet.  These mods change game
+           rules (new unit abilities, new combat capability) rather
+           than just UI, so making them safely optional needs a real
+           game option, not a client preference.  Shown here so the
+           mods list stays honest about what is actually installed. -->
+      <optionGroup id="clientOptions.larryDGraysMods.status"
+                   editable="false">
+        <booleanOption id="model.option.statusCaravanArmada"
+                       defaultValue="true"/>
+        <booleanOption id="model.option.statusSendFleet"
+                       defaultValue="true"/>
+        <booleanOption id="model.option.statusNavalBombardment"
+                       defaultValue="true"/>
+        <!-- LarryDGray's Mods: the entries below are real game
+             options, set once at New Game time and frozen into the
+             save - they can't be changed here, but their values are
+             synced live from the actual running game each time you
+             log in, so this always reflects what's really active in
+             this save. -->
+        <booleanOption id="model.option.statusArtilleryBombardment"
+                       defaultValue="true"/>
+        <booleanOption id="model.option.statusArtillerySupportBonus"
+                       defaultValue="true"/>
+        <integerOption id="model.option.statusArtillerySupportBonusValue"
+                       defaultValue="50" minimumValue="0" maximumValue="200"/>
+        <booleanOption id="model.option.statusArtillerySupportsArtillery"
+                       defaultValue="false"/>
+        <integerOption id="model.option.statusCoastalDefenceBonusValue"
+                       defaultValue="50" minimumValue="0" maximumValue="200"/>
+        <booleanOption id="model.option.statusShipsRequireCloth"
+                       defaultValue="true"/>
+      </optionGroup>
     </optionGroup>
 
     <optionGroup id="clientOptions.etc" editable="false" visible="false">
       <!-- Placement options, set dynamically, not from the options dialogs. -->
+      <!-- LarryDGray's Mods: which nation the host player themselves
+           picked to play as, saved alongside the nation availability
+           setup so Save/Load Settings restores that too. -->
+      <stringOption id="model.option.lastSelectedNationId"
+                    defaultValue=""/>
     </optionGroup>
 </optionGroup>
