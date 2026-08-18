@@ -172,7 +172,9 @@ preferences.
 - **Submenu text (e.g. "Work" in a unit right-click menu) rendered in
   unreadable gold-on-light instead of dark text** - the theme already had
   a deliberate fix for this exact contrast problem on plain menu items,
-  but missed the separate UI key used by submenus.
+  but missed submenus, which share a UI key with the top-level menu bar
+  (where the gold color is correct). Fixed with a per-instance check
+  instead of a blanket override, so the top-level bar keeps its gold.
 
 ## Known, unresolved issues
 

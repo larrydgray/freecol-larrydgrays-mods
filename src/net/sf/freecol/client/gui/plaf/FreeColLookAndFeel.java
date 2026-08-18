@@ -129,6 +129,7 @@ public class FreeColLookAndFeel extends MetalLookAndFeel {
         FreeColListUI.class,
         FreeColMenuBarUI.class,
         FreeColMenuItemUI.class,
+        FreeColMenuUI.class,
         FreeColOptionPaneUI.class,
         FreeColPanelUI.class,
         FreeColPopupMenuUI.class,
@@ -175,11 +176,16 @@ public class FreeColLookAndFeel extends MetalLookAndFeel {
         u.put("MenuItem.foreground", menuItemForeground);
         u.put("CheckBoxMenuItem.foreground", menuItemForeground);
         u.put("RadioButtonMenuItem.foreground", menuItemForeground);
-        // LarryDGray's Mods: a JMenu (submenu, e.g. a right-click
-        // menu's "Work" entry) uses this separate key - missed by the
-        // three overrides above, so it fell through to the same gold
-        // meant for the dark top-level menu bar, unreadable here.
-        u.put("Menu.foreground", menuItemForeground);
+        // Note: JMenu ("Menu.foreground") is deliberately NOT
+        // overridden here, unlike the three keys above - a JMenu is
+        // used both for the top-level menu bar buttons ("Game",
+        // "View", ...), which sit on a dark background where the
+        // theme's gold has good contrast, and for nested submenus
+        // inside a dropdown (e.g. a unit menu's "Work" entry), which
+        // sit on a light background where that gold is unreadable.
+        // A single static override here can only get one of those two
+        // cases right. See FreeColMenuUI, which decides per-instance
+        // based on the JMenu's actual parent at paint time instead.
 
         int offset = "FreeCol".length();
         for (Class<?> uiClass : uiClasses) {
