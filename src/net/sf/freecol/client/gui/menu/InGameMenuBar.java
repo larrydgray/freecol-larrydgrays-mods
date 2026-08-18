@@ -62,6 +62,7 @@ import net.sf.freecol.client.gui.action.NewAction;
 import net.sf.freecol.client.gui.action.OpenAction;
 import net.sf.freecol.client.gui.action.PreferencesAction;
 import net.sf.freecol.client.gui.action.QuitAction;
+import net.sf.freecol.client.gui.action.RestartAction;
 import net.sf.freecol.client.gui.action.ReconnectAction;
 import net.sf.freecol.client.gui.action.RenameAction;
 import net.sf.freecol.client.gui.action.ReportCargoAction;
@@ -182,6 +183,7 @@ public class InGameMenuBar extends FreeColMenuBar {
         menu.add(getMenuItem(ReportHighScoresAction.id));
         menu.add(getMenuItem(RetireAction.id));
         menu.add(getMenuItem(SaveAndQuitAction.id));
+        menu.add(getMenuItem(RestartAction.id));
         menu.add(getMenuItem(QuitAction.id));
         
         add(menu);

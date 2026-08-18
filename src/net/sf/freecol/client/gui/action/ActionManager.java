@@ -136,6 +136,7 @@ public class ActionManager extends OptionGroup {
         add(new OpenAction(freeColClient));
         add(new PreferencesAction(freeColClient));
         add(new SaveAndQuitAction(freeColClient));
+        add(new RestartAction(freeColClient));
         add(new QuitAction(freeColClient));
         add(new AttackRangedAction(freeColClient));
         add(new ReconnectAction(freeColClient));

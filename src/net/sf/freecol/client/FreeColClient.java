@@ -25,6 +25,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -1069,7 +1070,69 @@ public final class FreeColClient {
         }
         FreeCol.quit(0);
     }
-    
+
+    /**
+     * LarryDGray's Mods: restart the application - a dev/debug
+     * convenience so a freshly rebuilt jar can be picked up with one
+     * click instead of manually closing and relaunching by hand.
+     */
+    public void askToRestart() {
+        if (gui.confirm("restartDialog.areYouSure.text", "ok", "cancel")) {
+            if (getMyPlayer() != null) {
+                getConnectController().requestLogout(LogoutReason.QUIT);
+            }
+            restart();
+        }
+    }
+
+    /**
+     * LarryDGray's Mods: spawn a new instance of this same
+     * application (reading whatever jar is on disk right now, useful
+     * right after a rebuild), then quit this one.
+     */
+    public void restart() {
+        if (!relaunchProcess()) {
+            logger.warning("Restart requested but could not relaunch"
+                + " the application - quitting without restarting.");
+        }
+        quit();
+    }
+
+    /**
+     * LarryDGray's Mods: spawn a new process running this same
+     * application. Tries to reuse the exact original java command
+     * line (including JVM args like -Xmx) via ProcessHandle; falls
+     * back to a plain "java -jar <this jar>" if that is unavailable.
+     *
+     * @return True if a new process was successfully started.
+     */
+    private boolean relaunchProcess() {
+        try {
+            ProcessHandle.Info info = ProcessHandle.current().info();
+            List<String> command = new ArrayList<>();
+            command.add(info.command().orElseGet(() ->
+                System.getProperty("java.home") + File.separator + "bin"
+                    + File.separator + "java"));
+            String[] args = info.arguments().orElse(null);
+            if (args != null && args.length > 0) {
+                command.addAll(Arrays.asList(args));
+            } else {
+                File jar = new File(FreeColClient.class.getProtectionDomain()
+                    .getCodeSource().getLocation().toURI());
+                command.add("-jar");
+                command.add(jar.getAbsolutePath());
+            }
+            new ProcessBuilder(command)
+                .directory(new File(System.getProperty("user.dir")))
+                .inheritIO()
+                .start();
+            return true;
+        } catch (Exception e) {
+            logger.log(Level.WARNING, "Failed to relaunch application", e);
+            return false;
+        }
+    }
+
     private void overrideDefaultUncaughtExceptionHandler() {
         // This overrides the handler in FreeCol:
         Thread.setDefaultUncaughtExceptionHandler((Thread thread, Throwable e) -> {

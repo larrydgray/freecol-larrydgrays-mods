@@ -139,6 +139,13 @@ screen (single player, or the multiplayer host/admin):
   the saved setup every time this screen opens. The checkbox's own
   on/off state is remembered across sessions too.
 
+### Restart *(always on)*
+A **Restart** item in the Game menu, next to Quit - a dev/debug
+convenience that spawns a fresh copy of the application (reading
+whatever jar is on disk right now) and closes the current one, so a
+freshly rebuilt jar can be picked up with one click instead of
+manually closing and relaunching by hand.
+
 ## Bug Fixes
 
 Fixes below are always active and are genuine FreeCol bugs, not mod
