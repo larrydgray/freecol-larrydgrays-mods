@@ -162,6 +162,10 @@ preferences.
 - **Game Options and Map Generator Options never actually restored
   themselves between sessions** - they were being saved correctly, but the
   matching reload-on-startup logic was dead, commented-out code.
+- **Submenu text (e.g. "Work" in a unit right-click menu) rendered in
+  unreadable gold-on-light instead of dark text** - the theme already had
+  a deliberate fix for this exact contrast problem on plain menu items,
+  but missed the separate UI key used by submenus.
 
 ## Known, unresolved issues
 

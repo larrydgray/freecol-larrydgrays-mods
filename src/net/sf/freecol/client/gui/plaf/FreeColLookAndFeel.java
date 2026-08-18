@@ -175,6 +175,11 @@ public class FreeColLookAndFeel extends MetalLookAndFeel {
         u.put("MenuItem.foreground", menuItemForeground);
         u.put("CheckBoxMenuItem.foreground", menuItemForeground);
         u.put("RadioButtonMenuItem.foreground", menuItemForeground);
+        // LarryDGray's Mods: a JMenu (submenu, e.g. a right-click
+        // menu's "Work" entry) uses this separate key - missed by the
+        // three overrides above, so it fell through to the same gold
+        // meant for the dark top-level menu bar, unreadable here.
+        u.put("Menu.foreground", menuItemForeground);
 
         int offset = "FreeCol".length();
         for (Class<?> uiClass : uiClasses) {
