@@ -439,6 +439,12 @@
              hand) of that good. -->
         <booleanOption id="model.option.enableTradeAdvisorSort"
                        defaultValue="true"/>
+        <!-- Trade Advisor (F9): show one row per colony (a
+             switchable On Hand / Production / Net Production value,
+             zero amounts left blank) instead of the default two rows
+             (on hand and net production together, zeroes shown). -->
+        <booleanOption id="model.option.tradeAdvisorCompactView"
+                       defaultValue="true"/>
         <!-- LarryDGray's Mods: name the unit type in the
              colonist-starved message, e.g. "Our Expert Farmer has
              starved" instead of just "A colonist has starved". -->

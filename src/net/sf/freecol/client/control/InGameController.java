@@ -4756,6 +4756,16 @@ public final class InGameController extends FreeColClientHolder {
                 .addAmount("%amount%", Turn.getSeasonNumber()));
         }
         player.clearNationCache();
+
+        // LarryDGray's Mods: colony map labels (including the
+        // building badges / warehouse warning badges) are cached
+        // per-tile and only redrawn when the camera moves over them.
+        // Goods/waste state changes every turn, so force a redraw of
+        // every owned colony's tile now rather than leaving stale
+        // badges on screen until an unrelated pan refreshes them.
+        for (Colony colony : player.getColonyList()) {
+            getGUI().refreshTile(colony.getTile());
+        }
         return true;
     }
 
@@ -5049,6 +5059,13 @@ public final class InGameController extends FreeColClientHolder {
         }
 
         if (askServer().rename((FreeColGameObject)object, name)) {
+            // LarryDGray's Mods: a renamed colony's settlement label
+            // on the map is cached per-tile and otherwise only gets
+            // redrawn when the camera moves over it - force a redraw
+            // now so the new name shows immediately.
+            if (object instanceof Colony) {
+                getGUI().refreshTile(((Colony)object).getTile());
+            }
             updateGUI(null, false);
             return true;
         }

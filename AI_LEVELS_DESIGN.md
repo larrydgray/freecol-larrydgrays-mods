@@ -271,6 +271,35 @@ founding father choices, expansion pacing, etc.)*
   AI needs to manage food production/storage with this threshold in
   mind — deliberately working toward it as a growth lever, not just
   producing food incidentally and treating a birth as a surprise.
+  Confirmed in code (twice, since it initially looked otherwise from
+  play experience): food is completely exempt from warehouse capacity
+  - no storage cap, no turn-end waste removal - so no warehouse
+  building tier is actually *required* for this; it only takes enough
+  net food surplus (production minus consumption) to reach 200. Two
+  distinct levers a strong AI has for getting a colony to 200, and it
+  should recognize both rather than only ever relying on one:
+  - **Organic growth**: build up local food production (expert
+    farmers/fishermen, good tiles) until it runs a positive surplus
+    and 200 is reached on its own over time. Warehouse-tier buildings
+    aren't the actual cause here, but tend to correlate with it, since
+    a colony developed enough to have built a Warehouse is usually
+    also developed enough to be running a real food surplus.
+  - **Forced growth**: ship/import surplus food in from elsewhere
+    (wagon/ship delivery) to push an underdeveloped colony to 200
+    directly, rather than waiting on its own local production - useful
+    specifically for a colony too small/young to have a food surplus
+    of its own yet. Directly connects to the wagon/shipping-network
+    material already in this doc's Auto Shipping section.
+
+  Even though Warehouse tier doesn't gate food/population growth
+  specifically, it still matters a lot for every *other* goods type,
+  which are NOT exempt from capacity waste. A low-level AI might not
+  prioritize warehouse construction at all, leading to routine waste
+  on ordinary production goods (the "!"/"+" warehouse warning badges
+  from LarryDGray's Mods would light up constantly on such a colony) -
+  a strong AI keeps warehouse capacity ahead of its actual production
+  volume, same general pattern as the Armory/Drydock infrastructure
+  timing point in the Combat section.
 
   Capturing another nation's settlement is itself a growth strategy —
   and the population gain isn't just the city's own internal workers.

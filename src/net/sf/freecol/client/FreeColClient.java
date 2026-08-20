@@ -51,6 +51,7 @@ import net.sf.freecol.common.io.FreeColDataFile;
 import net.sf.freecol.common.io.FreeColDirectories;
 import net.sf.freecol.common.io.FreeColSavegameFile;
 import net.sf.freecol.common.io.FreeColTcFile;
+import net.sf.freecol.common.model.Colony;
 import net.sf.freecol.common.model.Game;
 import net.sf.freecol.common.model.Game.LogoutReason;
 import net.sf.freecol.common.model.Player;
@@ -935,6 +936,18 @@ public final class FreeColClient {
         if (player != null) {
             final ClientOptions co = getClientOptions();
             player.setColonyComparator(co.getColonyComparator());
+            // LarryDGray's Mods: settlement map labels (including the
+            // building/warehouse warning badges) are cached per-tile
+            // and only redrawn on camera movement or a new turn
+            // starting - force a redraw of every owned colony right
+            // away on login too, so a freshly loaded save doesn't
+            // keep showing whatever was cached before this session
+            // even started.
+            if (inGame) {
+                for (Colony colony : player.getColonyList()) {
+                    getGUI().refreshTile(colony.getTile());
+                }
+            }
         }
     }
 

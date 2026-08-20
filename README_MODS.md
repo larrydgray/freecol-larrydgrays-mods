@@ -52,6 +52,18 @@ In the Trade Advisor (F9), click a goods column header to sort colonies
 by net production of that good; click again to sort by total goods on
 hand instead.
 
+### Trade Advisor Compact View *(client option, default on)*
+Replaces the Trade Advisor's default two-rows-per-colony layout with a
+single row, switchable via three buttons above the colony column: On
+Hand, Production, and Net Production. Zero amounts are left blank
+instead of showing "0". Also adds Liberty Bells and Crosses as extra
+columns (icon-only header, no market price, since they aren't
+tradeable goods) so colony production of those shows at a glance too.
+Clicking a goods column header (Trade Advisor Sorting, above) sorts by
+whichever of the three values is currently active, so the sort order
+always matches what's on screen. The report retitles itself
+"Production/Trade Report" while this is on.
+
 ### Caravan mechanic *(always on)*
 A dragoon, soldier, scout, or wagon train can lead other land units as
 cargo, using the same carrier machinery ships already use - no new unit
@@ -195,6 +207,10 @@ preferences.
   drop was rejected outright instead of topping the slot off at 100 and
   leaving the remainder in the warehouse, even though the code to do that
   correctly already existed and just never got a chance to run.
+- **Renaming a colony didn't update its map label until you scrolled the
+  camera over it** - the map caches settlement labels per tile and the
+  rename action never marked that tile as needing a redraw, so the old
+  name stuck around on-screen until an unrelated pan forced a refresh.
 
 ## Known, unresolved issues
 

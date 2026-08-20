@@ -23,12 +23,16 @@ import static net.sf.freecol.common.util.CollectionUtils.transform;
 
 import java.awt.Color;
 import java.awt.Cursor;
+import java.awt.Font;
+import java.awt.event.ActionEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 
+import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -60,6 +64,12 @@ import net.sf.freecol.common.model.Unit;
  */
 public final class ReportTradePanel extends ReportPanel {
 
+    /**
+     * LarryDGray's Mods: which single value the Compact View shows
+     * per colony/goods cell.
+     */
+    private static enum TradeDisplayMode { ON_HAND, PRODUCTION, NET_PRODUCTION }
+
     private List<Colony> colonies;
 
     /** LarryDGray's Mods: the goods column last clicked to sort by,
@@ -67,6 +77,9 @@ public final class ReportTradePanel extends ReportPanel {
      *  of production) has happened for it. */
     private GoodsType lastSortColumn = null;
     private boolean sortByTotal = false;
+
+    /** LarryDGray's Mods: which value Compact View currently shows. */
+    private TradeDisplayMode displayMode = TradeDisplayMode.ON_HAND;
 
 
     /**
@@ -100,6 +113,19 @@ public final class ReportTradePanel extends ReportPanel {
     }
 
     /**
+     * LarryDGray's Mods: handle a click on one of the Compact View
+     * On Hand / Production / Net Production buttons.
+     *
+     * @param freeColClient The {@code FreeColClient} for the game.
+     * @param mode The {@code TradeDisplayMode} to switch to.
+     */
+    private void displayModeClicked(FreeColClient freeColClient,
+                                    TradeDisplayMode mode) {
+        this.displayMode = mode;
+        buildPanel(freeColClient, null);
+    }
+
+    /**
      * LarryDGray's Mods: (re)builds the whole report, optionally
      * sorting the colonies by net production (or, on a second click,
      * total on hand) of one goods type, highest first, so clicking a
@@ -111,15 +137,46 @@ public final class ReportTradePanel extends ReportPanel {
      *     null to leave the current order unchanged.
      */
     private void buildPanel(FreeColClient freeColClient, GoodsType sortBy) {
+        // LarryDGray's Mods: Compact View - one row per colony
+        // (switchable On Hand / Production / Net Production, zero
+        // amounts left blank) plus Liberty Bells and Crosses columns,
+        // instead of the default two rows (on hand and net
+        // production together, zeroes shown).
+        final boolean compactView = freeColClient.getClientOptions()
+            .getBoolean(ClientOptions.TRADE_ADVISOR_COMPACT_VIEW);
+
         if (sortBy != null) {
-            // Break ties by name so that repeated clicks always give a
-            // clean, deterministic order instead of leftover order from
-            // whichever column was sorted previously.
-            Comparator<Colony> byValue = (this.sortByTotal)
-                ? Comparator.comparingInt(
-                    (Colony c) -> c.getGoodsCount(sortBy))
-                : Comparator.comparingInt(
-                    (Colony c) -> c.getNetProductionOf(sortBy));
+            // LarryDGray's Mods: in Compact View, sort by whichever
+            // value is currently displayed (On Hand / Production /
+            // Net Production), matching the buttons, rather than the
+            // stock two-way total/production toggle.
+            final GoodsType finalSortBy = sortBy;
+            Comparator<Colony> byValue;
+            if (compactView) {
+                switch (this.displayMode) {
+                case PRODUCTION:
+                    byValue = Comparator.comparingInt(
+                        (Colony c) -> c.getTotalProductionOf(finalSortBy));
+                    break;
+                case ON_HAND:
+                    byValue = Comparator.comparingInt(
+                        (Colony c) -> c.getGoodsCount(finalSortBy));
+                    break;
+                case NET_PRODUCTION: default:
+                    byValue = Comparator.comparingInt(
+                        (Colony c) -> c.getNetProductionOf(finalSortBy));
+                    break;
+                }
+            } else {
+                // Break ties by name so that repeated clicks always give a
+                // clean, deterministic order instead of leftover order from
+                // whichever column was sorted previously.
+                byValue = (this.sortByTotal)
+                    ? Comparator.comparingInt(
+                        (Colony c) -> c.getGoodsCount(finalSortBy))
+                    : Comparator.comparingInt(
+                        (Colony c) -> c.getNetProductionOf(finalSortBy));
+            }
             this.colonies.sort(byValue.reversed()
                 .thenComparing(Colony::getName));
         }
@@ -127,12 +184,24 @@ public final class ReportTradePanel extends ReportPanel {
         final Player player = getMyPlayer();
         Color warnColor = ImageLibrary.getColor("color.report.trade.warn");
 
+        header.setText(Messages.message(compactView
+            ? "report.trade.productionTradeTitle" : "reportTradeAction.name"));
+
         JPanel goodsHeader = new MigPanel("ReportPanelUI");
         goodsHeader.setBorder(new EmptyBorder(20, 20, 0, 20));
         scrollPane.setColumnHeaderView(goodsHeader);
 
         final Specification spec = getSpecification();
         List<GoodsType> storableGoods = spec.getStorableGoodsTypeList();
+        List<GoodsType> extraGoods = new ArrayList<>();
+        if (compactView) {
+            GoodsType bells = spec.getGoodsType("model.goods.bells");
+            GoodsType crosses = spec.getGoodsType("model.goods.crosses");
+            if (bells != null) extraGoods.add(bells);
+            if (crosses != null) extraGoods.add(crosses);
+        }
+        List<GoodsType> allColumns = new ArrayList<>(storableGoods);
+        allColumns.addAll(extraGoods);
         Market market = player.getMarket();
 
         // Display Panel
@@ -151,10 +220,14 @@ public final class ReportTradePanel extends ReportPanel {
                                             columnConstraints, rowConstraints));
         goodsHeader.setOpaque(true);
 
-        JLabel emptyLabel = new JLabel();
-        emptyLabel.setBorder(Utility.getTopLeftCellBorder());
-        goodsHeader.add(emptyLabel, "cell 0 0");
-        
+        if (compactView) {
+            goodsHeader.add(createDisplayModeButtons(freeColClient), "cell 0 0");
+        } else {
+            JLabel emptyLabel = new JLabel();
+            emptyLabel.setBorder(Utility.getTopLeftCellBorder());
+            goodsHeader.add(emptyLabel, "cell 0 0");
+        }
+
         /**
          * Total Units Sold by Player
          */
@@ -179,39 +252,48 @@ public final class ReportTradePanel extends ReportPanel {
         }
 
         int column = 0;
-        for (GoodsType goodsType : storableGoods) {
+        for (GoodsType goodsType : allColumns) {
             column++;
-            int sales = player.getSales(goodsType);
-            int beforeTaxes = player.getIncomeBeforeTaxes(goodsType);
-            int afterTaxes = player.getIncomeAfterTaxes(goodsType);
-            MarketLabel marketLabel = new MarketLabel(freeColClient, goodsType, market)
-                .addBorder();
-            // LarryDGray's Mods: click a column header to sort the
-            // colonies below by net production of that good (click
-            // again to sort by total on hand instead), highest first.
-            if (freeColClient.getClientOptions()
-                    .getBoolean(ClientOptions.ENABLE_TRADE_ADVISOR_SORT)) {
-                marketLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-                marketLabel.setToolTipText(
-                    Messages.message("report.trade.sortByProduction"));
-                marketLabel.addMouseListener(new MouseAdapter() {
-                    @Override
-                    public void mouseClicked(MouseEvent e) {
-                        sortColumnClicked(freeColClient, goodsType);
-                    }
-                });
-            }
-            goodsHeader.add(marketLabel);
+            final boolean isMarketGood = storableGoods.contains(goodsType);
 
-            jl = createNumberLabel(sales);
-            jl.setBorder(Utility.getTopCellBorder());
-            reportPanel.add(jl, "cell " + column + " 0");
-            reportPanel.add(createNumberLabel(beforeTaxes),
-                            "cell " + column + " 1");
-            reportPanel.add(createNumberLabel(afterTaxes),
-                            "cell " + column + " 2");
-            reportPanel.add(createNumberLabel(cargoUnits.getCount(goodsType)),
-                            "cell " + column + " 3");
+            if (isMarketGood) {
+                int sales = player.getSales(goodsType);
+                int beforeTaxes = player.getIncomeBeforeTaxes(goodsType);
+                int afterTaxes = player.getIncomeAfterTaxes(goodsType);
+                MarketLabel marketLabel = new MarketLabel(freeColClient, goodsType, market)
+                    .addBorder();
+                // LarryDGray's Mods: click a column header to sort the
+                // colonies below by net production of that good (click
+                // again to sort by total on hand instead), highest first.
+                if (freeColClient.getClientOptions()
+                        .getBoolean(ClientOptions.ENABLE_TRADE_ADVISOR_SORT)) {
+                    marketLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+                    marketLabel.setToolTipText(
+                        Messages.message("report.trade.sortByProduction"));
+                    marketLabel.addMouseListener(new MouseAdapter() {
+                        @Override
+                        public void mouseClicked(MouseEvent e) {
+                            sortColumnClicked(freeColClient, goodsType);
+                        }
+                    });
+                }
+                goodsHeader.add(marketLabel);
+
+                jl = createNumberLabel(sales);
+                jl.setBorder(Utility.getTopCellBorder());
+                reportPanel.add(jl, "cell " + column + " 0");
+                reportPanel.add(createNumberLabel(beforeTaxes),
+                                "cell " + column + " 1");
+                reportPanel.add(createNumberLabel(afterTaxes),
+                                "cell " + column + " 2");
+                reportPanel.add(createNumberLabel(cargoUnits.getCount(goodsType)),
+                                "cell " + column + " 3");
+            } else {
+                // LarryDGray's Mods: Liberty Bells / Crosses - not
+                // tradeable, so no market price/sales figures, just
+                // an icon header.
+                goodsHeader.add(createGoodsTypeHeaderLabel(goodsType));
+            }
         }
 
         int row = 6;
@@ -229,47 +311,104 @@ public final class ReportTradePanel extends ReportPanel {
             }
             colonyButton.setBorder((first) ? Utility.getTopLeftCellBorder()
                 : Utility.getLeftCellBorder());
-            reportPanel.add(colonyButton, "cell 0 " + row + " 1 2");
+            reportPanel.add(colonyButton, "cell 0 " + row
+                + " 1 " + (compactView ? 1 : 2));
 
             column = 0;
-            for (GoodsType goodsType : storableGoods) {
+            for (GoodsType goodsType : allColumns) {
                 column++;
-                int amount = colony.getGoodsCount(goodsType);
-                JLabel goodsLabel = new JLabel(String.valueOf(amount),
-                                               JLabel.TRAILING);
-                goodsLabel.setBorder((first) ? Utility.getTopCellBorder()
-                    : Utility.getCellBorder());
-                goodsLabel.setForeground(ImageLibrary.getGoodsColor(goodsType, amount,
-                                                             colony));
-                ExportData ed = colony.getExportData(goodsType);
-                if (ed.getExported()) {
-                    goodsLabel.setToolTipText(Messages.message(StringTemplate
-                            .template("report.trade.export")
-                            .addNamed("%goods%", goodsType)
-                            .addAmount("%amount%", ed.getExportLevel())));
-                }
-                reportPanel.add(goodsLabel, "cell " + column + " " + row);
+                final boolean isMarketGood = storableGoods.contains(goodsType);
 
-                int production = colony.getNetProductionOf(goodsType);
-                JLabel productionLabel = createNumberLabel(production, true);
-                productionLabel.setForeground(ImageLibrary.getGoodsColor(goodsType,
-                        production, colony));
-                Collection<StringTemplate> warnings
-                    = colony.getProductionWarnings(goodsType);
-                if (!warnings.isEmpty()) {
-                    StringBuilder sb = new StringBuilder();
-                    for (StringTemplate warning : warnings) {
-                        sb.append(Messages.message(warning))
-                            .append(' ');
+                if (compactView) {
+                    int value;
+                    boolean showSign = false;
+                    switch (this.displayMode) {
+                    case PRODUCTION:
+                        value = colony.getTotalProductionOf(goodsType);
+                        break;
+                    case NET_PRODUCTION:
+                        value = colony.getNetProductionOf(goodsType);
+                        showSign = true;
+                        break;
+                    case ON_HAND: default:
+                        value = (isMarketGood) ? colony.getGoodsCount(goodsType)
+                            : ("model.goods.bells".equals(goodsType.getId()))
+                            ? colony.getLiberty()
+                            : colony.getImmigration();
+                        break;
                     }
-                    sb.setLength(sb.length()-1);
-                    productionLabel.setToolTipText(sb.toString());
-                    productionLabel.setForeground(warnColor);
+                    JLabel valueLabel = createNumberLabel(value, showSign);
+                    if (value == 0) valueLabel.setText("");
+                    valueLabel.setBorder((first) ? Utility.getTopCellBorder()
+                        : Utility.getCellBorder());
+                    if (this.displayMode == TradeDisplayMode.ON_HAND) {
+                        valueLabel.setForeground(ImageLibrary
+                            .getGoodsColor(goodsType, value, colony));
+                    }
+                    if (this.displayMode == TradeDisplayMode.NET_PRODUCTION) {
+                        Collection<StringTemplate> warnings
+                            = colony.getProductionWarnings(goodsType);
+                        if (!warnings.isEmpty()) {
+                            StringBuilder sb = new StringBuilder();
+                            for (StringTemplate warning : warnings) {
+                                sb.append(Messages.message(warning)).append(' ');
+                            }
+                            sb.setLength(sb.length()-1);
+                            valueLabel.setToolTipText(sb.toString());
+                            valueLabel.setForeground(warnColor);
+                        }
+                    }
+                    if (isMarketGood) {
+                        ExportData ed = colony.getExportData(goodsType);
+                        if (ed.getExported()
+                            && this.displayMode == TradeDisplayMode.ON_HAND) {
+                            valueLabel.setToolTipText(Messages.message(StringTemplate
+                                    .template("report.trade.export")
+                                    .addNamed("%goods%", goodsType)
+                                    .addAmount("%amount%", ed.getExportLevel())));
+                        }
+                    }
+                    reportPanel.add(valueLabel, "cell " + column + " " + row);
+
+                } else if (isMarketGood) {
+                    // Original two-row layout, unchanged.
+                    int amount = colony.getGoodsCount(goodsType);
+                    JLabel goodsLabel = new JLabel(String.valueOf(amount),
+                                                   JLabel.TRAILING);
+                    goodsLabel.setBorder((first) ? Utility.getTopCellBorder()
+                        : Utility.getCellBorder());
+                    goodsLabel.setForeground(ImageLibrary.getGoodsColor(goodsType, amount,
+                                                                 colony));
+                    ExportData ed = colony.getExportData(goodsType);
+                    if (ed.getExported()) {
+                        goodsLabel.setToolTipText(Messages.message(StringTemplate
+                                .template("report.trade.export")
+                                .addNamed("%goods%", goodsType)
+                                .addAmount("%amount%", ed.getExportLevel())));
+                    }
+                    reportPanel.add(goodsLabel, "cell " + column + " " + row);
+
+                    int production = colony.getNetProductionOf(goodsType);
+                    JLabel productionLabel = createNumberLabel(production, true);
+                    productionLabel.setForeground(ImageLibrary.getGoodsColor(goodsType,
+                            production, colony));
+                    Collection<StringTemplate> warnings
+                        = colony.getProductionWarnings(goodsType);
+                    if (!warnings.isEmpty()) {
+                        StringBuilder sb = new StringBuilder();
+                        for (StringTemplate warning : warnings) {
+                            sb.append(Messages.message(warning))
+                                .append(' ');
+                        }
+                        sb.setLength(sb.length()-1);
+                        productionLabel.setToolTipText(sb.toString());
+                        productionLabel.setForeground(warnColor);
+                    }
+                    reportPanel.add(productionLabel,
+                                    "cell " + column + " " + (row + 1));
                 }
-                reportPanel.add(productionLabel,
-                                "cell " + column + " " + (row + 1));
             }
-            row += 2;
+            row += (compactView) ? 1 : 2;
             first = false;
         }
 
@@ -285,6 +424,56 @@ public final class ReportTradePanel extends ReportPanel {
             reportPanel.add(createNumberLabel(deltaUnits.getCount(goodsType), true),
                             "cell " + column + " 5, wrap 20");
         }
+    }
+
+    /**
+     * LarryDGray's Mods: build the On Hand / Production / Net
+     * Production button strip shown in Compact View, above the
+     * colony-name column.
+     *
+     * @param freeColClient The {@code FreeColClient} for the game.
+     * @return The button panel.
+     */
+    private JPanel createDisplayModeButtons(FreeColClient freeColClient) {
+        JPanel panel = new MigPanel("ReportPanelUI");
+        panel.setOpaque(false);
+        panel.setLayout(new MigLayout("wrap 1, insets 2, gap 1 1"));
+        panel.add(createDisplayModeButton(freeColClient,
+            "report.trade.onHand", TradeDisplayMode.ON_HAND));
+        panel.add(createDisplayModeButton(freeColClient,
+            "report.trade.production", TradeDisplayMode.PRODUCTION));
+        panel.add(createDisplayModeButton(freeColClient,
+            "report.trade.netProduction", TradeDisplayMode.NET_PRODUCTION));
+        return panel;
+    }
+
+    private JButton createDisplayModeButton(FreeColClient freeColClient,
+                                            String messageKey,
+                                            TradeDisplayMode mode) {
+        JButton button = new JButton(Messages.message(messageKey));
+        button.setFont(button.getFont().deriveFont(
+            (this.displayMode == mode) ? Font.BOLD : Font.PLAIN));
+        button.setEnabled(this.displayMode != mode);
+        button.addActionListener((ActionEvent ae) ->
+            displayModeClicked(freeColClient, mode));
+        return button;
+    }
+
+    /**
+     * LarryDGray's Mods: a simple icon-only column header for a
+     * goods type with no market entry (Liberty Bells, Crosses).
+     *
+     * @param goodsType The {@code GoodsType} to label.
+     * @return The header label.
+     */
+    private JLabel createGoodsTypeHeaderLabel(GoodsType goodsType) {
+        JLabel label = new JLabel(new ImageIcon(
+            getImageLibrary().getScaledGoodsTypeImage(goodsType)));
+        label.setToolTipText(Messages.getName(goodsType));
+        label.setBorder(Utility.getTopCellBorder());
+        label.setVerticalTextPosition(JLabel.BOTTOM);
+        label.setHorizontalTextPosition(JLabel.CENTER);
+        return label;
     }
 
     private JLabel createLeftLabel(String key) {

@@ -303,6 +303,13 @@ public class ClientOptions extends OptionGroup {
     public static final String ENABLE_TRADE_ADVISOR_SORT
         = "model.option.enableTradeAdvisorSort";
 
+    /** Whether the Trade Advisor shows one row per colony (a
+     *  switchable On Hand / Production / Net Production value, zero
+     *  amounts left blank) instead of the default two rows (on hand
+     *  and net production together, zeroes shown). */
+    public static final String TRADE_ADVISOR_COMPACT_VIEW
+        = "model.option.tradeAdvisorCompactView";
+
     /** Whether a colonist-starved message names the unit type that
      *  starved, rather than just the colony. */
     public static final String SHOW_STARVED_UNIT_TYPE

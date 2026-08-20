@@ -78,7 +78,8 @@ public final class ColonyBuildingBadges {
     private static boolean hasFullWarehouseSlot(Colony colony) {
         final int capacity = colony.getWarehouseCapacity();
         return CollectionUtils.any(colony.getCompactGoodsList(),
-            (Goods g) -> g.isStorable() && g.getAmount() >= capacity);
+            (Goods g) -> g.isStorable() && !g.getType().limitIgnored()
+                && g.getAmount() >= capacity);
     }
 
     private static void append(StringBuilder sb, String code) {
