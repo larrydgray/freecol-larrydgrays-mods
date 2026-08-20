@@ -41,6 +41,12 @@ Always-on letter badges under a colony's name showing key
 infrastructure milestones: Custom House presence, and the tier of the
 schoolhouse, printing press, and church upgrade chains.
 
+### Warehouse Warning Badges *(client option, default on)*
+Adds `!`/`+` to the Colony Building Badges line, independently
+toggleable from it: `!` if the colony actively wasted goods to
+overflow last turn, `+` if any goods type is currently sitting at a
+full warehouse slot.
+
 ### Trade Advisor Sorting *(client option)*
 In the Trade Advisor (F9), click a goods column header to sort colonies
 by net production of that good; click again to sort by total goods on
@@ -175,6 +181,20 @@ preferences.
   but missed submenus, which share a UI key with the top-level menu bar
   (where the gold color is correct). Fixed with a per-instance check
   instead of a blanket override, so the top-level bar keeps its gold.
+  Root cause turned out to be one level deeper than the UI key itself:
+  Swing's idle-state menu text painting never calls `Graphics.setColor()`
+  - it just draws with whatever color the `Graphics` object already has,
+  which gets preset from the component's foreground *before* a custom
+  paint routine even runs. Changing the component's foreground property
+  inside that routine was always one step too late to matter; the fix
+  had to set the `Graphics` color directly instead.
+- **Dragging goods from a warehouse into a carrier's cargo hold silently
+  refused the transfer** if the only free room was a partially-filled slot
+  of the same goods type smaller than the full amount being dragged (e.g.
+  70 in the warehouse, 40 already in the cart, no other empty hold) - the
+  drop was rejected outright instead of topping the slot off at 100 and
+  leaving the remainder in the warehouse, even though the code to do that
+  correctly already existed and just never got a chance to run.
 
 ## Known, unresolved issues
 

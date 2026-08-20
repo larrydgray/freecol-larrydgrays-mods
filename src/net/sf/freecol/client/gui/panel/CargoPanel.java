@@ -177,7 +177,18 @@ public class CargoPanel extends FreeColPanel
      */
     @Override
     public boolean accepts(Goods goods) {
-        return carrier != null && carrier.canAdd(goods);
+        // LarryDGray's Mods: carrier.canAdd(goods) demands the whole
+        // dragged amount fit in one go, which wrongly rejects a
+        // transfer whose only free room is a partially-filled slot of
+        // the same goods type smaller than the dragged amount (e.g.
+        // dragging 70 from the warehouse into a slot that already has
+        // 40, with no other free hold) - even though the actual
+        // transfer (GoodsLabel.addCargo()) already knows how to trim
+        // the amount to whatever is loadable and top the slot off.
+        // Just check that there is room for *some* positive amount,
+        // and let that existing clamping logic do the rest.
+        return carrier != null
+            && carrier.getLoadableAmount(goods.getType()) > 0;
     }
 
     /**

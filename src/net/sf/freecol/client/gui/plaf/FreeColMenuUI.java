@@ -61,16 +61,29 @@ public class FreeColMenuUI extends BasicMenuUI {
     public void paint(Graphics g, JComponent c) {
         LAFUtilities.setProperties(g, c);
 
+        // LarryDGray's Mods: for an *idle* (unarmed) menu item,
+        // BasicMenuItemUI.paintText() never calls g.setColor() at
+        // all - it just draws using whatever color the Graphics
+        // object already has. That ambient color is preset from
+        // c.getForeground() by the parent's paintChildren() dispatch
+        // *before* this method runs, so changing c's foreground
+        // property in here is always one step too late to have any
+        // visible effect. Setting the Graphics color directly, right
+        // here before delegating, is what actually reaches the pixel.
+        // (The selectionForeground field swap covers the armed/
+        // hovered case, which paintText() *does* read explicitly.)
         final boolean nested = !(c.getParent() instanceof JMenuBar);
-        final Color original = c.getForeground();
+        final Color originalSelectionForeground = this.selectionForeground;
         if (nested) {
-            c.setForeground(ImageLibrary
-                .getColor("color.menuItemForeground.LookAndFeel"));
+            Color dark = ImageLibrary
+                .getColor("color.menuItemForeground.LookAndFeel");
+            g.setColor(dark);
+            this.selectionForeground = dark;
         }
         try {
             super.paint(g, c);
         } finally {
-            if (nested) c.setForeground(original);
+            if (nested) this.selectionForeground = originalSelectionForeground;
         }
     }
 }

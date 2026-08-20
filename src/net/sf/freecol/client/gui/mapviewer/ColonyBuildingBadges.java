@@ -22,15 +22,18 @@ package net.sf.freecol.client.gui.mapviewer;
 import net.sf.freecol.common.model.Building;
 import net.sf.freecol.common.model.BuildingType;
 import net.sf.freecol.common.model.Colony;
+import net.sf.freecol.common.model.Goods;
 import net.sf.freecol.common.model.Specification;
+import net.sf.freecol.common.util.CollectionUtils;
 
 
 /**
  * LarryDGray's Mods: always-on letter badges shown under a colony's
  * name on the map indicating which key buildings are present --
  * Custom House, and the current tier of the schoolhouse, printing
- * press, and church upgrade chains.  Independent of the toggleable
- * {@link ColonyStat} display.
+ * press, and church upgrade chains -- plus warehouse status warnings
+ * (active overflow, a full storage slot).  Independent of the
+ * toggleable {@link ColonyStat} display.
  */
 public final class ColonyBuildingBadges {
 
@@ -40,10 +43,14 @@ public final class ColonyBuildingBadges {
      * Compute the badge text for a colony.
      *
      * @param colony The {@code Colony} to check.
+     * @param showWarehouseWarnings Whether to include the warehouse
+     *     waste/full warning symbols (independently toggleable from
+     *     the rest of the badges).
      * @return The badge text, space-separated (possibly empty, never
      *     null).
      */
-    public static String getBadges(Colony colony) {
+    public static String getBadges(Colony colony,
+                                   boolean showWarehouseWarnings) {
         final Specification spec = colony.getSpecification();
         StringBuilder sb = new StringBuilder();
 
@@ -53,8 +60,25 @@ public final class ColonyBuildingBadges {
         append(sb, currentTierCode(colony, spec, "model.building.schoolhouse"));
         append(sb, currentTierCode(colony, spec, "model.building.printingPress"));
         append(sb, currentTierCode(colony, spec, "model.building.chapel"));
+        if (showWarehouseWarnings) {
+            if (colony.hasWastedGoods()) append(sb, "!");
+            if (hasFullWarehouseSlot(colony)) append(sb, "+");
+        }
 
         return sb.toString();
+    }
+
+    /**
+     * Does this colony currently have any storable goods type sitting
+     * at or above its warehouse capacity?
+     *
+     * @param colony The {@code Colony} to check.
+     * @return True if some goods type is at a full warehouse slot.
+     */
+    private static boolean hasFullWarehouseSlot(Colony colony) {
+        final int capacity = colony.getWarehouseCapacity();
+        return CollectionUtils.any(colony.getCompactGoodsList(),
+            (Goods g) -> g.isStorable() && g.getAmount() >= capacity);
     }
 
     private static void append(StringBuilder sb, String code) {

@@ -291,6 +291,13 @@ public class ClientOptions extends OptionGroup {
     public static final String SHOW_BUILDING_BADGES
         = "model.option.showBuildingBadges";
 
+    /** Whether to show the warehouse waste/full warning symbols
+     *  (! and +) alongside the key-building letter badges. Separate
+     *  from SHOW_BUILDING_BADGES so the two can be toggled
+     *  independently. */
+    public static final String SHOW_WAREHOUSE_WARNING_BADGES
+        = "model.option.showWarehouseWarningBadges";
+
     /** Whether clicking a Trade Advisor goods column header sorts
      *  the colonies below by production/total of that good. */
     public static final String ENABLE_TRADE_ADVISOR_SORT

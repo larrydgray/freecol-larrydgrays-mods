@@ -123,18 +123,32 @@ public class MissionaryMessage extends AttributeMessage {
         if (denounce) {
             if (missionary == null) {
                 return serverPlayer.clientError("Denouncing an empty mission at: "
-                    + is.getId());
+                    + is.getId())
+                    .add(ChangeSet.See.only(serverPlayer), is.getTile());
             } else if (missionary.getOwner() == serverPlayer) {
                 return serverPlayer.clientError("Denouncing our own missionary at: "
-                    + is.getId());
+                    + is.getId())
+                    .add(ChangeSet.See.only(serverPlayer), is.getTile());
             } else if (!unit.hasAbility(Ability.DENOUNCE_HERESY)) {
                 return serverPlayer.clientError("Unit lacks denouncement ability: "
                     + unitId);
             }
         } else {
             if (missionary != null) {
+                // LarryDGray's Mods: a bare clientError carries no
+                // state update, so without this the requesting
+                // player's client never learns a mission is already
+                // there (e.g. a rival beat them to it) and keeps
+                // offering "Establish Mission" forever, failing the
+                // same way every time with no way to discover why.
+                // Reveal the settlement's tile (which includes the
+                // settlement and its missionary - see
+                // IndianSettlement.writeChildren()) alongside the
+                // rejection so the client's local copy gets corrected
+                // in the same round-trip.
                 return serverPlayer.clientError("Establishing extra mission at: "
-                    + is.getId());
+                    + is.getId())
+                    .add(ChangeSet.See.only(serverPlayer), is.getTile());
             } else if (!unit.hasAbility(Ability.ESTABLISH_MISSION)) {
                 return serverPlayer.clientError("Unit lacks establish mission ability: "
                     + unitId);

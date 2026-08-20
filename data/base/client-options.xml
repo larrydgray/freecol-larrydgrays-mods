@@ -428,6 +428,12 @@
              stat tool bar's single-stat toggle above. -->
         <booleanOption id="model.option.showBuildingBadges"
                        defaultValue="true"/>
+        <!-- Warehouse waste/full warning symbols (! and +) alongside
+             the key-building letter badges above.  Independent
+             toggle so the badges and the warehouse warnings can be
+             switched separately. -->
+        <booleanOption id="model.option.showWarehouseWarningBadges"
+                       defaultValue="true"/>
         <!-- Trade Advisor (F9): click a goods column header to sort
              colonies by production (or, on a second click, total on
              hand) of that good. -->

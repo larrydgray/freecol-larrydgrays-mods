@@ -142,6 +142,13 @@ public class Colony extends Settlement implements TradeLocation {
     /** The turn in which this colony was established. */
     protected Turn established = new Turn(0);
 
+    /**
+     * LarryDGray's Mods: whether this colony wasted (lost to
+     * overflow) any goods on the most recently processed turn. Reset
+     * and recomputed each turn in ServerColony.csNewTurnWarnings().
+     */
+    protected boolean wastedGoods = false;
+
     /** A list of items to be built. */
     protected final BuildQueue<BuildableType> buildQueue
             = new BuildQueue<>(this,
@@ -359,6 +366,26 @@ public class Colony extends Settlement implements TradeLocation {
      */
     public void setProductionBonus(int productionBonus) {
         this.productionBonus = productionBonus;
+    }
+
+    /**
+     * LarryDGray's Mods: did this colony waste (lose to overflow) any
+     * goods on the most recently processed turn?
+     *
+     * @return True if goods were wasted last turn.
+     */
+    public boolean hasWastedGoods() {
+        return this.wastedGoods;
+    }
+
+    /**
+     * LarryDGray's Mods: set whether this colony wasted goods on the
+     * most recently processed turn.
+     *
+     * @param wastedGoods The new wasted-goods state.
+     */
+    public void setWastedGoods(boolean wastedGoods) {
+        this.wastedGoods = wastedGoods;
     }
 
     /**
@@ -3080,6 +3107,7 @@ public class Colony extends Settlement implements TradeLocation {
     private static final String SONS_OF_LIBERTY_TAG = "sonsOfLiberty";
     private static final String TORIES_TAG = "tories";
     private static final String UNIT_COUNT_TAG = "unitCount";
+    private static final String WASTED_GOODS_TAG = "wastedGoods";
 
 
     /**
@@ -3111,6 +3139,8 @@ public class Colony extends Settlement implements TradeLocation {
             xw.writeAttribute(IMMIGRATION_TAG, immigration);
 
             xw.writeAttribute(PRODUCTION_BONUS_TAG, productionBonus);
+
+            xw.writeAttribute(WASTED_GOODS_TAG, wastedGoods);
 
         } else {
             int uc = getApparentUnitCount();
@@ -3193,6 +3223,8 @@ public class Colony extends Settlement implements TradeLocation {
         immigration = xr.getAttribute(IMMIGRATION_TAG, 0);
 
         productionBonus = xr.getAttribute(PRODUCTION_BONUS_TAG, 0);
+
+        wastedGoods = xr.getAttribute(WASTED_GOODS_TAG, false);
 
         displayUnitCount = xr.getAttribute(UNIT_COUNT_TAG, -1);
     }

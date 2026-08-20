@@ -723,7 +723,9 @@ public final class MapViewer extends FreeColClientHolder {
                     }
                 }
                 if (getClientOptions().getBoolean(ClientOptions.SHOW_BUILDING_BADGES)) {
-                    String badges = ColonyBuildingBadges.getBadges(colony);
+                    String badges = ColonyBuildingBadges.getBadges(colony,
+                        getClientOptions().getBoolean(
+                            ClientOptions.SHOW_WAREHOUSE_WARNING_BADGES));
                     if (!badges.isEmpty()) {
                         BufferedImage badgeImg = this.lib.getStringImage(g2d, badges,
                             new Color(255, 215, 0), mapViewerScaledUtils.getFontNormal());
@@ -769,7 +771,9 @@ public final class MapViewer extends FreeColClientHolder {
                 }
                 if (getClientOptions().getBoolean(ClientOptions.SHOW_BUILDING_BADGES)
                     && mapViewerScaledUtils.getFontProduction() != null) {
-                    String badges = ColonyBuildingBadges.getBadges(colony);
+                    String badges = ColonyBuildingBadges.getBadges(colony,
+                        getClientOptions().getBoolean(
+                            ClientOptions.SHOW_WAREHOUSE_WARNING_BADGES));
                     if (!badges.isEmpty()) {
                         extraSpecs.add(new TextSpecification(badges, mapViewerScaledUtils.getFontProduction()));
                     }

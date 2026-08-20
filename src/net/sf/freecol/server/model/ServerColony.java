@@ -566,6 +566,9 @@ public class ServerColony extends Colony implements TurnTaker {
         // levels that will be exceeded next turn
         final int limit = getWarehouseCapacity();
         final int adjustment = limit / GoodsContainer.CARGO_SIZE;
+        // LarryDGray's Mods: recompute fresh each turn - true only if
+        // this pass actually wastes something below.
+        setWastedGoods(false);
         for (Goods goods : transform(getCompactGoodsList(),
                                      AbstractGoods::isStorable)) {
             final GoodsType type = goods.getType();
@@ -593,6 +596,7 @@ public class ServerColony extends Colony implements TurnTaker {
                 // limit has been exceeded
                 waste = amount - limit;
                 container.removeGoods(type, waste);
+                setWastedGoods(true); // LarryDGray's Mods
                 messageId = "model.colony.warehouseWaste";
             } else if (amount == limit && oldAmount < limit) {
                 // limit has been reached during this turn
