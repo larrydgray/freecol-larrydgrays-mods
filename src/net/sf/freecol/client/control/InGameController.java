@@ -58,6 +58,8 @@ import net.sf.freecol.client.gui.GUI;
 import net.sf.freecol.client.gui.option.FreeColActionUI;
 import net.sf.freecol.client.gui.panel.FreeColPanel;
 import net.sf.freecol.client.gui.panel.report.ReportTurnPanel;
+import net.sf.freecol.client.gui.report.ColonyGrowthHistory;
+import net.sf.freecol.client.gui.report.NationHistory;
 import net.sf.freecol.common.FreeColException;
 import net.sf.freecol.common.debug.DebugUtils;
 import net.sf.freecol.common.debug.FreeColDebugger;
@@ -185,6 +187,14 @@ public final class InGameController extends FreeColClientHolder {
 
     /** The messages in the last turn report. */
     private final List<ModelMessage> turnReportMessages = new ArrayList<>();
+
+    /** LarryDGray's Mods: turn-by-turn colony growth history, for the
+     *  Colony Growth report. Client-side, session-scoped only. */
+    private final ColonyGrowthHistory colonyGrowthHistory = new ColonyGrowthHistory();
+
+    /** LarryDGray's Mods: turn-by-turn nation summary history, for
+     *  the Nation Comparison report. Client-side, session-scoped only. */
+    private final NationHistory nationHistory = new NationHistory();
 
 
     /**
@@ -4757,6 +4767,21 @@ public final class InGameController extends FreeColClientHolder {
         }
         player.clearNationCache();
 
+        // LarryDGray's Mods: sample this turn's colony growth /
+        // nation summary stats for the Colony Growth and Nation
+        // Comparison reports. Each independently switchable, since
+        // nation sampling round-trips per live European nation every
+        // turn whether or not the report is ever opened.
+        if (getClientOptions().getBoolean(
+                ClientOptions.ENABLE_COLONY_GROWTH_REPORT)) {
+            this.colonyGrowthHistory.recordTurn(player, turn);
+        }
+        if (getClientOptions().getBoolean(
+                ClientOptions.ENABLE_NATION_COMPARISON_REPORT)) {
+            this.nationHistory.recordTurn(this,
+                game.getLiveEuropeanPlayerList(), turn);
+        }
+
         // LarryDGray's Mods: colony map labels (including the
         // building badges / warehouse warning badges) are cached
         // per-tile and only redrawn when the camera moves over them.
@@ -5437,6 +5462,36 @@ public final class InGameController extends FreeColClientHolder {
         if (player != null) {
             player.refilterModelMessages(getClientOptions());
         }
+        // LarryDGray's Mods: reset this session's in-memory report
+        // history. The actual restore-from-save happens in
+        // FreeColClient.login() instead of here - getMyPlayer() at
+        // this point in the connection sequence can still be null or
+        // stale (the client has not necessarily finished resolving
+        // its own player for the game just connected), whereas
+        // login() receives the correct, freshly-resolved player and
+        // game directly as parameters.
+        this.colonyGrowthHistory.clear();
+        this.nationHistory.clear();
+    }
+
+    /**
+     * LarryDGray's Mods: get the turn-by-turn colony growth history,
+     * for the Colony Growth report.
+     *
+     * @return The {@code ColonyGrowthHistory}.
+     */
+    public ColonyGrowthHistory getColonyGrowthHistory() {
+        return this.colonyGrowthHistory;
+    }
+
+    /**
+     * LarryDGray's Mods: get the turn-by-turn nation summary history,
+     * for the Nation Comparison report.
+     *
+     * @return The {@code NationHistory}.
+     */
+    public NationHistory getNationHistory() {
+        return this.nationHistory;
     }
 
     /**

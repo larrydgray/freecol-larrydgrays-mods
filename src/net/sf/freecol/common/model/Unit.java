@@ -3591,6 +3591,24 @@ public class Unit extends GoodsLocation
      *  carrying at least one other (naval) ship as a passenger. */
     private static final int ARMADA_CAPACITY = 300;
 
+    /** LarryDGray's Mods: only these ship types can lead an armada -
+     *  the Frigate and Man-o-War (the top two purpose-built warships,
+     *  excluding the weaker Privateer), plus the Galleon (the large
+     *  dedicated cargo hauler, despite having no combat stats).
+     *  Ordinary trade ships (Caravel, Merchantman) can not. */
+    private static final Set<String> ARMADA_FLAGSHIP_IDS = Set.of(
+        "model.unit.frigate", "model.unit.manOWar", "model.unit.galleon");
+
+    /**
+     * LarryDGray's Mods: is this unit's type eligible to lead an
+     * armada (carry other ships as passengers)?
+     *
+     * @return True if this unit type can be an armada flagship.
+     */
+    private boolean canBeArmadaFlagship() {
+        return ARMADA_FLAGSHIP_IDS.contains(this.type.getId());
+    }
+
     /**
      * Gets this unit's base cargo capacity, ignoring any caravan or
      * armada boost.  This is the ceiling that always applies to
@@ -3619,7 +3637,7 @@ public class Unit extends GoodsLocation
         if (canCarryUnits() && !getUnitList().isEmpty()) {
             if (!isNaval()) {
                 capacity = Math.max(capacity, CARAVAN_CAPACITY);
-            } else if (any(getUnitList(), Unit::isNaval)) {
+            } else if (canBeArmadaFlagship() && any(getUnitList(), Unit::isNaval)) {
                 capacity = Math.max(capacity, ARMADA_CAPACITY);
             }
         }
@@ -3632,16 +3650,19 @@ public class Unit extends GoodsLocation
      * embarked, bypassing the bootstrap problem where a would-be
      * armada flagship's normal (or even caravan) capacity is far too
      * small to ever accept the first escorted ship.  A ship escorting
-     * other ships uses the armada capacity for naval candidates only;
-     * its ordinary (goods-like) passenger capacity is unaffected.
+     * other ships uses the armada capacity for naval candidates only,
+     * and only if it is actually eligible to be a flagship (a combat
+     * ship or a Galleon) - an ordinary trade ship never gets the
+     * armada boost, no matter what it is offered as cargo. Its
+     * ordinary (goods-like) passenger capacity is unaffected either way.
      *
      * @param candidate The {@code Unit} being considered as cargo.
      * @return The applicable capacity ceiling.
      */
     private int getEmbarkCeiling(Unit candidate) {
         if (isNaval()) {
-            return (candidate.isNaval()) ? ARMADA_CAPACITY
-                : getBaseCargoCapacity();
+            return (candidate.isNaval() && canBeArmadaFlagship())
+                ? ARMADA_CAPACITY : getBaseCargoCapacity();
         }
         return getCargoCapacity();
     }

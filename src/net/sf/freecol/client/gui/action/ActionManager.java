@@ -144,6 +144,7 @@ public class ActionManager extends OptionGroup {
         add(new ReportCargoAction(freeColClient));
         add(new ReportContinentalCongressAction(freeColClient));
         add(new ReportColonyAction(freeColClient));
+        add(new ReportColonyGrowthAction(freeColClient));
         add(new ReportEducationAction(freeColClient));
         add(new ReportExplorationAction(freeColClient));
         add(new ReportForeignAction(freeColClient));
@@ -152,6 +153,7 @@ public class ActionManager extends OptionGroup {
         add(new ReportIndianAction(freeColClient));
         add(new ReportLabourAction(freeColClient));
         add(new ReportMilitaryAction(freeColClient));
+        add(new ReportNationComparisonAction(freeColClient));
         add(new ReportNavalAction(freeColClient));
         add(new ReportProductionAction(freeColClient));
         add(new ReportReligionAction(freeColClient));

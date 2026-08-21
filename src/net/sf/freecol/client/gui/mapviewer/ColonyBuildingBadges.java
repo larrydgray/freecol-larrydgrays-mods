@@ -31,9 +31,9 @@ import net.sf.freecol.common.util.CollectionUtils;
  * LarryDGray's Mods: always-on letter badges shown under a colony's
  * name on the map indicating which key buildings are present --
  * Custom House, and the current tier of the schoolhouse, printing
- * press, and church upgrade chains -- plus warehouse status warnings
- * (active overflow, a full storage slot).  Independent of the
- * toggleable {@link ColonyStat} display.
+ * press, church, and warehouse upgrade chains -- plus warehouse
+ * status warnings (active overflow, a full storage slot).
+ * Independent of the toggleable {@link ColonyStat} display.
  */
 public final class ColonyBuildingBadges {
 
@@ -60,6 +60,7 @@ public final class ColonyBuildingBadges {
         append(sb, currentTierCode(colony, spec, "model.building.schoolhouse"));
         append(sb, currentTierCode(colony, spec, "model.building.printingPress"));
         append(sb, currentTierCode(colony, spec, "model.building.chapel"));
+        append(sb, currentTierCode(colony, spec, "model.building.depot"));
         if (showWarehouseWarnings) {
             if (colony.hasWastedGoods()) append(sb, "!");
             if (hasFullWarehouseSlot(colony)) append(sb, "+");
@@ -119,7 +120,9 @@ public final class ColonyBuildingBadges {
         case "model.building.newspaper":    return "Np";
         case "model.building.church":       return "Ch";
         case "model.building.cathedral":    return "Ca";
-        default: return null; // e.g. a bare chapel -- not shown
+        case "model.building.warehouse":    return "Wh";
+        case "model.building.warehouseExpansion": return "Wx";
+        default: return null; // e.g. a bare chapel or the base Depot -- not shown
         }
     }
 }

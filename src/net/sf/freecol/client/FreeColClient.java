@@ -947,6 +947,25 @@ public final class FreeColClient {
                 for (Colony colony : player.getColonyList()) {
                     getGUI().refreshTile(colony.getTile());
                 }
+
+                // LarryDGray's Mods: rebuild the Colony Growth /
+                // Nation Comparison report history from whatever this
+                // player's save data has persisted, so a freshly
+                // loaded save continues the timeline instead of
+                // starting it over. This must happen here rather than
+                // InGameController.setGameConnected(), since that can
+                // run before the client has finished resolving its
+                // own player for the game just connected - login()
+                // receives the correct player and game directly.
+                this.inGameController.getColonyGrowthHistory()
+                    .restoreFrom(player);
+                this.inGameController.getNationHistory()
+                    .restoreFrom(player, game.getLiveEuropeanPlayerList());
+                logger.info("LarryDGray's Mods: restored report history on login for "
+                    + player.getId() + " - colonyGrowthSamples="
+                    + player.getColonyGrowthHistory().size()
+                    + ", nationHistorySamples(self)="
+                    + player.getNationHistory(player.getId()).size());
             }
         }
     }

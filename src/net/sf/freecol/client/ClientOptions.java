@@ -320,6 +320,20 @@ public class ClientOptions extends OptionGroup {
     public static final String CONDENSED_UNIT_MENU
         = "model.option.condensedUnitMenu";
 
+    /** Whether to sample each owned colony's population/Sons of
+     *  Liberty%/liberty every turn, for the Colony Growth report's
+     *  timeline. Independent of ENABLE_NATION_COMPARISON_REPORT since
+     *  this sampling is a free local walk of owned colonies. */
+    public static final String ENABLE_COLONY_GROWTH_REPORT
+        = "model.option.enableColonyGrowthReport";
+
+    /** Whether to sample every live European nation's NationSummary
+     *  every turn, for the Nation Comparison report's timeline.
+     *  Independent of ENABLE_COLONY_GROWTH_REPORT since this sampling
+     *  round-trips a summary request per live nation each turn. */
+    public static final String ENABLE_NATION_COMPARISON_REPORT
+        = "model.option.enableNationComparisonReport";
+
     /**
      * LarryDGray's Mods: read-only "Status" mirrors of the real game
      * options, synced live from the current game each time the

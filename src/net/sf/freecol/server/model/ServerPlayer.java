@@ -74,6 +74,7 @@ import net.sf.freecol.common.model.AbstractUnit;
 import net.sf.freecol.common.model.Building;
 import net.sf.freecol.common.model.BuildingType;
 import net.sf.freecol.common.model.Colony;
+import net.sf.freecol.common.model.ColonyGrowthSample;
 import net.sf.freecol.common.model.CombatModel;
 import net.sf.freecol.common.model.CombatModel.CombatEffectType;
 import net.sf.freecol.common.model.CombatModel.CombatResult;
@@ -102,6 +103,8 @@ import net.sf.freecol.common.model.ModelMessage.MessageType;
 import net.sf.freecol.common.model.Modifier;
 import net.sf.freecol.common.model.Monarch;
 import net.sf.freecol.common.model.Nation;
+import net.sf.freecol.common.model.NationHistorySample;
+import net.sf.freecol.common.model.NationSummary;
 import net.sf.freecol.common.model.Player;
 import net.sf.freecol.common.model.Role;
 import net.sf.freecol.common.model.Settlement;
@@ -4628,6 +4631,29 @@ outer:  for (Effect effect : effects) {
             // Generate warnings once everything is stabilized
             for (Colony c : getColonyList()) {
                 ((ServerColony)c).csNewTurnWarnings(random, lb, cs);
+            }
+
+            // LarryDGray's Mods: sample this turn's Colony Growth /
+            // Nation Comparison report stats directly onto this
+            // (server-authoritative) player, so the history is
+            // actually part of what gets written to the save file.
+            // Must happen server-side: the client keeps its own
+            // separate Player object graph (even in single-player,
+            // client and server talk over a local connection), so a
+            // client-side-only sample would never reach the copy
+            // that saveGame() actually serializes. Restricted to
+            // non-AI players: these reports are only ever read by a
+            // human, and every AI also sampling every other AI's
+            // NationSummary each turn would be a needless O(n^2) cost
+            // and save-file bloat for data nobody looks at.
+            if (!isAI()) {
+                addColonyGrowthSample(new ColonyGrowthSample(
+                    game.getTurn().getNumber(), this));
+                for (Player p : game.getLiveEuropeanPlayerList()) {
+                    addNationHistorySample(new NationHistorySample(
+                        game.getTurn().getNumber(), p.getId(),
+                        new NationSummary(p, this)));
+                }
             }
         }
 

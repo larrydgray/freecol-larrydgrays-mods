@@ -117,7 +117,9 @@ public final class SpecificationTest extends FreeColTestCase {
         assertFalse(wagonType.isRecruitable());
         assertFalse(wagonType.hasAbility(Ability.NAVAL_UNIT));
         assertTrue(wagonType.hasAbility(Ability.CARRY_GOODS));
-        assertFalse(wagonType.hasAbility(Ability.CARRY_UNITS));
+        // LarryDGray's Mods: wagon trains can lead a caravan (carry
+        // other units), part of the Caravan/Armada mod.
+        assertTrue(wagonType.hasAbility(Ability.CARRY_UNITS));
         assertFalse(wagonType.hasAbility(Ability.CAPTURE_GOODS));
 
         //assertFalse(brave.hasAbility(Ability.FOUND_COLONY));

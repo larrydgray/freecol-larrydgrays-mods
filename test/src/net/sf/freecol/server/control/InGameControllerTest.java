@@ -417,10 +417,16 @@ public class InGameControllerTest extends FreeColTestCase {
         caravel.getType().setSpaceTaken(2);
         ServerUnit wagon = new ServerUnit(game, landTile, dutch, wagonTrainType);
 
-        // Can not put ship on carrier
+        // LarryDGray's Mods: a Galleon is an eligible armada
+        // flagship, so it can now carry another ship as cargo - part
+        // of the Caravan/Armada mod. Put the caravel back to sea
+        // afterwards so it does not eat into the galleon's ordinary
+        // (non-ship) cargo space for the rest of this test, which
+        // still uses the galleon's unboosted base capacity.
         igc.embarkUnit(dutch, caravel, galleon);
-        assertTrue("Caravel can not be put on galleon",
-                   caravel.getLocation() == seaTile);
+        assertTrue("Caravel should embark on galleon (an armada flagship)",
+                   caravel.getLocation() == galleon);
+        caravel.setLocation(seaTile);
 
         // Can not put wagon on galleon at its normal size
         wagon.getType().setSpaceTaken(12);

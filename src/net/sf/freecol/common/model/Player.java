@@ -304,6 +304,16 @@ public class Player extends FreeColGameObject implements Nameable {
     /** The last-sale data. */
     protected HashMap<String, LastSale> lastSales = null;
 
+    /** LarryDGray's Mods: this player's own turn-by-turn Colony
+     *  Growth report history, so it survives a save/reload instead of
+     *  living only in memory for the session. */
+    protected final List<ColonyGrowthSample> colonyGrowthHistory = new ArrayList<>();
+
+    /** LarryDGray's Mods: this player's turn-by-turn Nation
+     *  Comparison report history - one entry per turn per observed
+     *  nation, from this player's own point of view. */
+    protected final List<NationHistorySample> nationHistory = new ArrayList<>();
+
     // Temporary/transient variables, do not serialize.
 
     /** The units this player owns. */
@@ -2774,7 +2784,102 @@ public class Player extends FreeColGameObject implements Nameable {
             this.history.addAll(history);
         }
     }
-    
+
+    /** LarryDGray's Mods: cap on retained samples, per player for
+     *  Colony Growth, per observed nation for Nation Comparison -
+     *  cheap memory/save-size insurance. */
+    private static final int MAX_HISTORY_SAMPLES = 500;
+
+    /**
+     * LarryDGray's Mods: get this player's Colony Growth report
+     * history.
+     *
+     * @return A copy of the {@code ColonyGrowthSample}s for this
+     *     player, oldest first.
+     */
+    public final List<ColonyGrowthSample> getColonyGrowthHistory() {
+        synchronized (this.colonyGrowthHistory) {
+            return new ArrayList<>(this.colonyGrowthHistory);
+        }
+    }
+
+    /**
+     * LarryDGray's Mods: append a Colony Growth sample for this
+     * player, trimming the oldest once the cap is exceeded.
+     *
+     * @param sample The {@code ColonyGrowthSample} to add.
+     */
+    public void addColonyGrowthSample(ColonyGrowthSample sample) {
+        synchronized (this.colonyGrowthHistory) {
+            this.colonyGrowthHistory.add(sample);
+            if (this.colonyGrowthHistory.size() > MAX_HISTORY_SAMPLES) {
+                this.colonyGrowthHistory.remove(0);
+            }
+        }
+    }
+
+    /**
+     * LarryDGray's Mods: forget this player's Colony Growth report
+     * history, e.g. when a different game is connected.
+     */
+    public void clearColonyGrowthHistory() {
+        synchronized (this.colonyGrowthHistory) {
+            this.colonyGrowthHistory.clear();
+        }
+    }
+
+    /**
+     * LarryDGray's Mods: get this player's Nation Comparison report
+     * history for one observed nation.
+     *
+     * @param nationId The observed player's identifier.
+     * @return A copy of the matching {@code NationHistorySample}s,
+     *     oldest first.
+     */
+    public final List<NationHistorySample> getNationHistory(String nationId) {
+        synchronized (this.nationHistory) {
+            List<NationHistorySample> result = new ArrayList<>();
+            for (NationHistorySample s : this.nationHistory) {
+                if (nationId.equals(s.getNationId())) result.add(s);
+            }
+            return result;
+        }
+    }
+
+    /**
+     * LarryDGray's Mods: append a Nation Comparison sample for the
+     * given observed nation, trimming that nation's own oldest
+     * sample once its cap is exceeded (other nations' history is
+     * untouched).
+     *
+     * @param sample The {@code NationHistorySample} to add.
+     */
+    public void addNationHistorySample(NationHistorySample sample) {
+        synchronized (this.nationHistory) {
+            this.nationHistory.add(sample);
+            int count = 0;
+            NationHistorySample oldest = null;
+            for (NationHistorySample s : this.nationHistory) {
+                if (!sample.getNationId().equals(s.getNationId())) continue;
+                count++;
+                if (oldest == null || s.getTurn() < oldest.getTurn()) oldest = s;
+            }
+            if (count > MAX_HISTORY_SAMPLES && oldest != null) {
+                this.nationHistory.remove(oldest);
+            }
+        }
+    }
+
+    /**
+     * LarryDGray's Mods: forget this player's Nation Comparison
+     * report history, e.g. when a different game is connected.
+     */
+    public void clearNationHistory() {
+        synchronized (this.nationHistory) {
+            this.nationHistory.clear();
+        }
+    }
+
 
     //
     // The players view of the Map
@@ -4331,6 +4436,19 @@ public class Player extends FreeColGameObject implements Nameable {
                 event.toXML(xw);
             }
 
+            // LarryDGray's Mods: Colony Growth / Nation Comparison
+            // report history, private to this player like the rest
+            // of this block.
+            for (ColonyGrowthSample sample : getColonyGrowthHistory()) {
+                sample.toXML(xw);
+            }
+
+            synchronized (this.nationHistory) {
+                for (NationHistorySample sample : this.nationHistory) {
+                    sample.toXML(xw);
+                }
+            }
+
             for (TradeRoute route : sort(getTradeRoutes())) {
                 route.toXML(xw);
             }
@@ -4535,6 +4653,12 @@ public class Player extends FreeColGameObject implements Nameable {
 
         } else if (HistoryEvent.TAG.equals(tag)) {
             addHistory(new HistoryEvent(xr));
+
+        } else if (ColonyGrowthSample.TAG.equals(tag)) {
+            addColonyGrowthSample(new ColonyGrowthSample(xr));
+
+        } else if (NationHistorySample.TAG.equals(tag)) {
+            addNationHistorySample(new NationHistorySample(xr));
 
         } else if (LastSale.TAG.equals(tag)) {
             addLastSale(new LastSale(xr));

@@ -92,6 +92,7 @@ import net.sf.freecol.client.gui.panel.report.CompactLabourReport;
 import net.sf.freecol.client.gui.panel.report.LabourData.UnitData;
 import net.sf.freecol.client.gui.panel.report.ReportCargoPanel;
 import net.sf.freecol.client.gui.panel.report.ReportClassicColonyPanel;
+import net.sf.freecol.client.gui.panel.report.ReportColonyGrowthPanel;
 import net.sf.freecol.client.gui.panel.report.ReportCompactColonyPanel;
 import net.sf.freecol.client.gui.panel.report.ReportContinentalCongressPanel;
 import net.sf.freecol.client.gui.panel.report.ReportEducationPanel;
@@ -103,6 +104,7 @@ import net.sf.freecol.client.gui.panel.report.ReportIndianPanel;
 import net.sf.freecol.client.gui.panel.report.ReportLabourDetailPanel;
 import net.sf.freecol.client.gui.panel.report.ReportLabourPanel;
 import net.sf.freecol.client.gui.panel.report.ReportMilitaryPanel;
+import net.sf.freecol.client.gui.panel.report.ReportNationComparisonPanel;
 import net.sf.freecol.client.gui.panel.report.ReportNavalPanel;
 import net.sf.freecol.client.gui.panel.report.ReportProductionPanel;
 import net.sf.freecol.client.gui.panel.report.ReportReligiousPanel;
@@ -1185,6 +1187,36 @@ public final class Widgets {
             = this.canvas.getExistingFreeColPanel(ReportForeignAffairPanel.class);
         if (panel == null) {
             panel = new ReportForeignAffairPanel(this.freeColClient);
+            this.canvas.showFreeColPanel(panel, PopupPosition.CENTERED, true);
+        }
+        return panel;
+    }
+
+    /**
+     * LarryDGray's Mods: show the Colony Growth report.
+     *
+     * @return The panel shown.
+     */
+    public FreeColPanel showReportColonyGrowthPanel() {
+        ReportColonyGrowthPanel panel
+            = this.canvas.getExistingFreeColPanel(ReportColonyGrowthPanel.class);
+        if (panel == null) {
+            panel = new ReportColonyGrowthPanel(this.freeColClient);
+            this.canvas.showFreeColPanel(panel, PopupPosition.CENTERED, true);
+        }
+        return panel;
+    }
+
+    /**
+     * LarryDGray's Mods: show the Nation Comparison report.
+     *
+     * @return The panel shown.
+     */
+    public FreeColPanel showReportNationComparisonPanel() {
+        ReportNationComparisonPanel panel
+            = this.canvas.getExistingFreeColPanel(ReportNationComparisonPanel.class);
+        if (panel == null) {
+            panel = new ReportNationComparisonPanel(this.freeColClient);
             this.canvas.showFreeColPanel(panel, PopupPosition.CENTERED, true);
         }
         return panel;

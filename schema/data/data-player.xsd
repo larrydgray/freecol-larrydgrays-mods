@@ -35,6 +35,26 @@
     <xs:complexType>
       <xs:choice minOccurs="0" maxOccurs="unbounded">
 
+        <xs:element name="colonyGrowthSample">
+          <xs:annotation>
+            <xs:documentation>
+              LarryDGray's Mods: one turn's worth of this player's
+              Colony Growth report history.
+            </xs:documentation>
+          </xs:annotation>
+          <xs:complexType>
+            <xs:attribute name="id" type="xs:string" use="optional"/>
+            <xs:attribute name="turn" type="xs:int" use="optional" default="0"/>
+            <xs:attribute name="population" type="xs:int" use="optional" default="0"/>
+            <xs:attribute name="citizens" type="xs:int" use="optional" default="0"/>
+            <xs:attribute name="sonsOfLiberty" type="xs:int" use="optional" default="0"/>
+            <xs:attribute name="liberty" type="xs:int" use="optional" default="0"/>
+            <xs:attribute name="numberOfSettlements" type="xs:int" use="optional" default="0"/>
+            <xs:attribute name="unitCounts" type="xs:string" use="optional"/>
+            <xs:attribute name="goodsCounts" type="xs:string" use="optional"/>
+          </xs:complexType>
+        </xs:element>
+
         <xs:element ref="europe"/>
 
         <xs:element name="foundingFathers">
@@ -67,6 +87,29 @@
 
         <xs:element ref="market" />
         <xs:element ref="monarch" />
+
+        <xs:element name="nationHistorySample">
+          <xs:annotation>
+            <xs:documentation>
+              LarryDGray's Mods: one turn's worth of this player's
+              Nation Comparison report history for one observed
+              nation.
+            </xs:documentation>
+          </xs:annotation>
+          <xs:complexType>
+            <xs:attribute name="id" type="xs:string" use="optional"/>
+            <xs:attribute name="turn" type="xs:int" use="optional" default="0"/>
+            <xs:attribute name="nationId" type="xs:string" use="optional"/>
+            <xs:attribute name="numberOfSettlements" type="xs:int" use="optional" default="0"/>
+            <xs:attribute name="numberOfUnits" type="xs:int" use="optional" default="0"/>
+            <xs:attribute name="militaryStrength" type="xs:int" use="optional" default="0"/>
+            <xs:attribute name="navalStrength" type="xs:int" use="optional" default="0"/>
+            <xs:attribute name="gold" type="xs:int" use="optional" default="0"/>
+            <xs:attribute name="SoL" type="xs:int" use="optional" default="0"/>
+            <xs:attribute name="foundingFathers" type="xs:int" use="optional" default="0"/>
+            <xs:attribute name="tax" type="xs:int" use="optional" default="0"/>
+          </xs:complexType>
+        </xs:element>
 
         <xs:element name="offeredFathers">
           <xs:complexType>

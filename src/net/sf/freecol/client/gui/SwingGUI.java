@@ -2364,6 +2364,22 @@ public class SwingGUI extends GUI {
      * {@inheritDoc}
      */
     @Override
+    public FreeColPanel showReportColonyGrowthPanel() {
+        return this.widgets.showReportColonyGrowthPanel();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public FreeColPanel showReportNationComparisonPanel() {
+        return this.widgets.showReportNationComparisonPanel();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public FreeColPanel showReportHistoryPanel() {
         return this.widgets.showReportHistoryPanel();
     }

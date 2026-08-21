@@ -456,6 +456,20 @@
              -> Unequip, etc.) instead of full phrases. -->
         <booleanOption id="model.option.condensedUnitMenu"
                        defaultValue="true"/>
+        <!-- LarryDGray's Mods: sample each owned colony's
+             population/Sons of Liberty%/liberty every turn for the
+             Colony Growth report's timeline. Independent toggle from
+             the Nation Comparison sampling below since this one is a
+             free local walk of owned colonies. -->
+        <booleanOption id="model.option.enableColonyGrowthReport"
+                       defaultValue="true"/>
+        <!-- LarryDGray's Mods: sample every live European nation's
+             summary stats every turn for the Nation Comparison
+             report's timeline. Independent toggle from the Colony
+             Growth sampling above since this one round-trips a
+             summary request per live nation each turn. -->
+        <booleanOption id="model.option.enableNationComparisonReport"
+                       defaultValue="true"/>
         <!-- LarryDGray's Mods: does the Start Game screen
              automatically reload the last saved nation
              availability/color setup? The checkbox's own state

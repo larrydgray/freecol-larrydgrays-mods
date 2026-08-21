@@ -835,6 +835,7 @@ public final class Specification implements OptionContainer {
             shipCloth.put("model.unit.manOWar", 120);
             for (Map.Entry<String, Integer> e : shipCloth.entrySet()) {
                 UnitType ut = getUnitType(e.getKey());
+                if (ut == null) continue; // e.g. deleted by a mod/custom spec
                 List<AbstractGoods> req = new ArrayList<>(ut.getRequiredGoodsList());
                 removeInPlace(req, ag -> ag.getType() == clothType);
                 if (shipsRequireCloth) {

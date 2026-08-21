@@ -2251,6 +2251,13 @@ public class GUI extends FreeColClientHolder {
     public FreeColPanel showReportColonyPanel() { return null; }
 
     /**
+     * LarryDGray's Mods: show the Colony Growth Report.
+     *
+     * @return The panel shown.
+     */
+    public FreeColPanel showReportColonyGrowthPanel() { return null; }
+
+    /**
      * Show the Continental Congress Report.
      *
      * @return The panel shown.
@@ -2277,6 +2284,13 @@ public class GUI extends FreeColClientHolder {
      * @return The panel shown.
      */
     public FreeColPanel showReportForeignAffairPanel() { return null; }
+
+    /**
+     * LarryDGray's Mods: show the Nation Comparison Report.
+     *
+     * @return The panel shown.
+     */
+    public FreeColPanel showReportNationComparisonPanel() { return null; }
 
     /**
      * Show the History Report.

@@ -39,7 +39,8 @@ showing a warehouse-goods or unit-type count of your choosing.
 ### Colony Building Badges *(always on, display-only)*
 Always-on letter badges under a colony's name showing key
 infrastructure milestones: Custom House presence, and the tier of the
-schoolhouse, printing press, and church upgrade chains.
+schoolhouse, printing press, church, and warehouse upgrade chains
+(`Wh`/`Wx` for Warehouse/Warehouse Expansion).
 
 ### Warehouse Warning Badges *(client option, default on)*
 Adds `!`/`+` to the Colony Building Badges line, independently

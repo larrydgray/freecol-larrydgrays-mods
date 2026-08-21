@@ -130,7 +130,10 @@ public class UnitTest extends FreeColTestCase {
         assertTrue(galleon.canAdd(treasureTrain));
 
         assertFalse(galleon.canAdd(wagonTrain));
-        assertFalse(galleon.canAdd(caravel));
+        // LarryDGray's Mods: a Galleon is an eligible armada flagship,
+        // so it can now carry another ship as cargo - part of the
+        // Caravan/Armada mod.
+        assertTrue(galleon.canAdd(caravel));
         assertFalse(galleon.canAdd(galleon));
 
         assertTrue(caravel.canAdd(colonist));
