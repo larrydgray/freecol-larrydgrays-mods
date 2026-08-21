@@ -470,6 +470,12 @@
              summary request per live nation each turn. -->
         <booleanOption id="model.option.enableNationComparisonReport"
                        defaultValue="true"/>
+        <!-- LarryDGray's Mods: sample this player's empire-wide goods
+             on-hand/net production totals every turn for the Trade
+             History report's timeline. Its own independent toggle,
+             like the two above. -->
+        <booleanOption id="model.option.enableTradeHistoryReport"
+                       defaultValue="true"/>
         <!-- LarryDGray's Mods: does the Start Game screen
              automatically reload the last saved nation
              availability/color setup? The checkbox's own state

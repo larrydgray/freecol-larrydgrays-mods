@@ -65,6 +65,14 @@ public class MarketData extends FreeColGameObject {
     /** Total sales. */
     private int sales;
 
+    /** LarryDGray's Mods: total units bought, and total units sold,
+     *  tracked separately (both always non-negative, unlike
+     *  {@link #sales} which nets the two together and can go
+     *  negative) - lets the Trade History report show buy/sell
+     *  volume trends independently, not just the net figure. */
+    private int unitsBought;
+    private int unitsSold;
+
     /** Total income before taxes. */
     private int incomeBeforeTaxes;
 
@@ -97,6 +105,8 @@ public class MarketData extends FreeColGameObject {
         initialPrice = goodsType.getInitialSellPrice();
         arrears = 0;
         sales = 0;
+        unitsBought = 0;
+        unitsSold = 0;
         incomeBeforeTaxes = 0;
         incomeAfterTaxes = 0;
         oldPrice = costToBuy;
@@ -231,6 +241,42 @@ public class MarketData extends FreeColGameObject {
      */
     public final void setSales(final int newSales) {
         this.sales = newSales;
+    }
+
+    /**
+     * LarryDGray's Mods: get the total units bought.
+     *
+     * @return The total units bought.
+     */
+    public final int getUnitsBought() {
+        return unitsBought;
+    }
+
+    /**
+     * LarryDGray's Mods: set the total units bought.
+     *
+     * @param newUnitsBought The new total units bought.
+     */
+    public final void setUnitsBought(final int newUnitsBought) {
+        this.unitsBought = newUnitsBought;
+    }
+
+    /**
+     * LarryDGray's Mods: get the total units sold.
+     *
+     * @return The total units sold.
+     */
+    public final int getUnitsSold() {
+        return unitsSold;
+    }
+
+    /**
+     * LarryDGray's Mods: set the total units sold.
+     *
+     * @param newUnitsSold The new total units sold.
+     */
+    public final void setUnitsSold(final int newUnitsSold) {
+        this.unitsSold = newUnitsSold;
     }
 
     /**
@@ -407,6 +453,8 @@ public class MarketData extends FreeColGameObject {
         this.initialPrice = o.getInitialPrice();
         this.arrears = o.getArrears();
         this.sales = o.getSales();
+        this.unitsBought = o.getUnitsBought();
+        this.unitsSold = o.getUnitsSold();
         this.incomeBeforeTaxes = o.getIncomeBeforeTaxes();
         this.incomeAfterTaxes = o.getIncomeAfterTaxes();
         this.oldPrice = o.getOldPrice();
@@ -424,6 +472,8 @@ public class MarketData extends FreeColGameObject {
     private static final String INCOME_BEFORE_TAXES_TAG = "incomeBeforeTaxes";
     private static final String INITIAL_PRICE_TAG = "initialPrice";
     private static final String SALES_TAG = "sales";
+    private static final String UNITS_BOUGHT_TAG = "unitsBought";
+    private static final String UNITS_SOLD_TAG = "unitsSold";
     private static final String TRADED_TAG = "traded";
 
 
@@ -443,6 +493,10 @@ public class MarketData extends FreeColGameObject {
         xw.writeAttribute(ARREARS_TAG, arrears);
 
         xw.writeAttribute(SALES_TAG, sales);
+
+        xw.writeAttribute(UNITS_BOUGHT_TAG, unitsBought);
+
+        xw.writeAttribute(UNITS_SOLD_TAG, unitsSold);
 
         xw.writeAttribute(INCOME_AFTER_TAXES_TAG, incomeAfterTaxes);
 
@@ -470,6 +524,10 @@ public class MarketData extends FreeColGameObject {
         arrears = xr.getAttribute(ARREARS_TAG, 0);
 
         sales = xr.getAttribute(SALES_TAG, 0);
+
+        unitsBought = xr.getAttribute(UNITS_BOUGHT_TAG, 0);
+
+        unitsSold = xr.getAttribute(UNITS_SOLD_TAG, 0);
 
         incomeBeforeTaxes = xr.getAttribute(INCOME_BEFORE_TAXES_TAG, 0);
 

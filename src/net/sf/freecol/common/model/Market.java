@@ -351,6 +351,60 @@ public final class Market extends FreeColGameObject implements Ownable {
     }
 
     /**
+     * LarryDGray's Mods: gets the total units bought of a type of
+     * goods - unlike {@link #getSales}, always non-negative, and does
+     * not net against units sold.
+     *
+     * @param goodsType The {@code GoodsType} to get units bought for.
+     * @return The total units bought.
+     */
+    public int getUnitsBought(GoodsType goodsType) {
+        MarketData data = getMarketData(goodsType);
+        return (data == null) ? 0 : data.getUnitsBought();
+    }
+
+    /**
+     * LarryDGray's Mods: adds to the total units bought of a type of
+     * goods.
+     *
+     * @param goodsType The {@code GoodsType} to modify.
+     * @param amount The amount to add to the current total.
+     */
+    public void modifyUnitsBought(GoodsType goodsType, int amount) {
+        if (amount != 0) {
+            MarketData data = requireMarketData(goodsType);
+            data.setUnitsBought(data.getUnitsBought() + amount);
+        }
+    }
+
+    /**
+     * LarryDGray's Mods: gets the total units sold of a type of
+     * goods - unlike {@link #getSales}, always non-negative, and does
+     * not net against units bought.
+     *
+     * @param goodsType The {@code GoodsType} to get units sold for.
+     * @return The total units sold.
+     */
+    public int getUnitsSold(GoodsType goodsType) {
+        MarketData data = getMarketData(goodsType);
+        return (data == null) ? 0 : data.getUnitsSold();
+    }
+
+    /**
+     * LarryDGray's Mods: adds to the total units sold of a type of
+     * goods.
+     *
+     * @param goodsType The {@code GoodsType} to modify.
+     * @param amount The amount to add to the current total.
+     */
+    public void modifyUnitsSold(GoodsType goodsType, int amount) {
+        if (amount != 0) {
+            MarketData data = requireMarketData(goodsType);
+            data.setUnitsSold(data.getUnitsSold() + amount);
+        }
+    }
+
+    /**
      * Gets the income before taxes for a type of goods.
      *
      * @param goodsType The {@code GoodsType} to get the income for.

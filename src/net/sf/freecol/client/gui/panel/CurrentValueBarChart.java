@@ -25,6 +25,7 @@ import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Image;
 import java.awt.RenderingHints;
 import java.util.Collections;
 import java.util.List;
@@ -47,17 +48,38 @@ import net.sf.freecol.common.i18n.Messages;
  */
 public class CurrentValueBarChart extends JPanel {
 
-    /** One bar: a label, a color, and its current value. */
+    /** One bar: a label, a color, its current value, and (LarryDGray's
+     *  Mods) an optional icon shown to the left instead of the text
+     *  label. */
     public static final class Bar {
 
         public final String label;
         public final Color color;
         public final double value;
+        public final Image icon;
 
         public Bar(String label, Color color, double value) {
+            this(label, color, value, null);
+        }
+
+        /**
+         * LarryDGray's Mods: a bar labelled with an icon instead of
+         * (or in addition to) plain text - e.g. a unit type's small
+         * image, for a "Labor Advisor as a bar chart" view.
+         *
+         * @param label Kept for tooltip/accessibility purposes even
+         *     when an icon is shown; pass "" if genuinely nothing to
+         *     say beyond the icon.
+         * @param color The bar's fill color.
+         * @param value The bar's value.
+         * @param icon The icon to draw at the left instead of the
+         *     text label, or null for the original text-only look.
+         */
+        public Bar(String label, Color color, double value, Image icon) {
             this.label = label;
             this.color = color;
             this.value = value;
+            this.icon = icon;
         }
     }
 
@@ -88,7 +110,55 @@ public class CurrentValueBarChart extends JPanel {
      */
     public void setBars(List<Bar> bars) {
         this.bars = (bars == null) ? Collections.emptyList() : bars;
+        updatePreferredSize();
         repaint();
+    }
+
+    /**
+     * LarryDGray's Mods: cap actual height at the preferred height
+     * computed above. Without this, a "grow" MigLayout constraint in
+     * a tall viewport stretches the component to fill all available
+     * space regardless of how many bars there are - and since each
+     * row's paint height is actual-height/bar-count, a handful of
+     * bars in a tall viewport renders as huge, over-spaced rows
+     * instead of the intended row height.
+     *
+     * @return The preferred size, reused as the maximum.
+     */
+    @Override
+    public Dimension getMaximumSize() {
+        return getPreferredSize();
+    }
+
+    /**
+     * LarryDGray's Mods: grow the chart's preferred height to fit
+     * however many bars there are - the original fixed 300px height
+     * assumed a handful of categories (a few military unit roles);
+     * a long list (e.g. every colonist unit type for a Labor Advisor
+     * bar-chart view) needs proportionally more room, left to the
+     * enclosing scroll pane to handle once it exceeds the viewport.
+     */
+    private void updatePreferredSize() {
+        // LarryDGray's Mods: rows need to be tall enough for the
+        // tallest icon in use, plus some breathing room - a fixed
+        // 26px row (sized for plain text) left icon-labelled bars
+        // (e.g. Labor Advisor's unit type images) crowded edge to
+        // edge with barely a gap between them.
+        int maxIconHeight = 0;
+        for (Bar b : this.bars) {
+            if (b.icon != null && b.icon.getHeight(null) > maxIconHeight) {
+                maxIconHeight = b.icon.getHeight(null);
+            }
+        }
+        final int rowPadding = (int)(10 * this.scale);
+        final int rowHeight = (maxIconHeight > 0)
+            ? maxIconHeight + rowPadding
+            : (int)(26 * this.scale);
+        final int minHeight = (int)(300 * this.scale);
+        final int height = Math.max(minHeight,
+            this.bars.size() * rowHeight + (int)(12 * this.scale));
+        setPreferredSize(new Dimension(getPreferredSize().width, height));
+        revalidate();
     }
 
     /**
@@ -130,7 +200,8 @@ public class CurrentValueBarChart extends JPanel {
         int labelWidth = 0;
         for (Bar b : this.bars) {
             if (b.value > maxValue) maxValue = b.value;
-            int lw = fm.stringWidth(b.label);
+            int lw = (b.icon != null) ? b.icon.getWidth(null)
+                : fm.stringWidth(b.label);
             if (lw > labelWidth) labelWidth = lw;
         }
         if (maxValue <= 0) maxValue = 1;
@@ -154,10 +225,17 @@ public class CurrentValueBarChart extends JPanel {
             int barLen = Math.max(1, (int)Math.round(
                 (plotRight - plotLeft) * (b.value / maxValue)));
 
-            g2d.setColor(Color.BLACK);
-            g2d.drawString(b.label,
-                plotLeft - fm.stringWidth(b.label) - (int)(6 * this.scale),
-                barY + fm.getAscent());
+            if (b.icon != null) {
+                int iw = b.icon.getWidth(null);
+                int ih = b.icon.getHeight(null);
+                g2d.drawImage(b.icon, plotLeft - iw - (int)(6 * this.scale),
+                    rowY + (rowHeight - ih) / 2, null);
+            } else {
+                g2d.setColor(Color.BLACK);
+                g2d.drawString(b.label,
+                    plotLeft - fm.stringWidth(b.label) - (int)(6 * this.scale),
+                    barY + fm.getAscent());
+            }
 
             g2d.setColor(b.color);
             g2d.fillRect(plotLeft, barY, barLen, barHeight);

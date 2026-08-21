@@ -24,63 +24,54 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import net.sf.freecol.common.model.ColonyGrowthSample;
 import net.sf.freecol.common.model.Player;
+import net.sf.freecol.common.model.TradeHistorySample;
 
 
 /**
  * LarryDGray's Mods: client-side, session-scoped view of a player's
- * turn-by-turn Colony Growth report history for live display -
- * population, all colonists owned empire-wide, empire-wide Sons of
- * Liberty%, total accumulated liberty, number of settlements, and
- * military/wagon/goods counts. The actual computation and category
- * ids live on {@link ColonyGrowthSample} (common model) so the
- * server's per-turn hook - the authoritative copy that gets saved -
- * and this client-side display share the exact same logic; this
- * class is just a thin, per-session cache wrapping that shared type.
+ * turn-by-turn Trade History report history - empire-wide goods
+ * on-hand and net production totals. The actual computation lives on
+ * {@link TradeHistorySample} (common model) so the server's per-turn
+ * hook - the authoritative copy that gets saved - and this client-side
+ * display share the exact same logic; this class is just a thin,
+ * per-session cache wrapping that shared type. Mirrors
+ * {@link ColonyGrowthHistory} exactly.
  */
-public class ColonyGrowthHistory {
+public class TradeHistory {
 
     /** Cap retained samples per player, cheap memory insurance. */
     private static final int MAX_SAMPLES = 500;
 
-    /** Category id constants - see {@link ColonyGrowthSample} for
-     *  what each means. Re-exported here so callers that already
-     *  depend on this class do not also need to import the common
-     *  model class just for these. */
-    public static final String WAGON_TRAIN_ID = ColonyGrowthSample.WAGON_TRAIN_ID;
-    public static final String PROFESSIONAL_SUFFIX = ColonyGrowthSample.PROFESSIONAL_SUFFIX;
-    public static final String SCOUT_ROLE_ID = ColonyGrowthSample.SCOUT_ROLE_ID;
-    public static final String SEASONED_SCOUT_ID = ColonyGrowthSample.SEASONED_SCOUT_ID;
-
     /**
-     * One turn's worth of a player's empire-wide growth stats, plus
+     * One turn's worth of a player's empire-wide goods totals, plus
      * the turn number it was recorded on. A thin, read-only wrapper
-     * around a {@link ColonyGrowthSample}.
+     * around a {@link TradeHistorySample}.
      */
     public static final class Sample {
 
         public final int turn;
-        public final int population;
-        public final int citizens;
-        public final int sonsOfLiberty;
-        public final int liberty;
-        public final int numberOfSettlements;
-        public final Map<String, Integer> unitCounts;
-        public final Map<String, Integer> goodsCounts;
-        /** Each colony's own population, keyed by colony id. */
-        public final Map<String, Integer> colonyPopulations;
+        public final Map<String, Integer> goodsOnHand;
+        public final Map<String, Integer> goodsProduction;
+        public final Map<String, Integer> goodsNetProduction;
+        public final Map<String, Integer> goodsSales;
+        public final Map<String, Integer> goodsUnitsBought;
+        public final Map<String, Integer> goodsUnitsSold;
+        public final Map<String, Integer> goodsIncomeBeforeTaxes;
+        public final Map<String, Integer> goodsIncomeAfterTaxes;
+        public final Map<String, Integer> goodsUnitsInCargo;
 
-        Sample(ColonyGrowthSample cgs) {
-            this.turn = cgs.getTurn();
-            this.population = cgs.getPopulation();
-            this.citizens = cgs.getCitizens();
-            this.sonsOfLiberty = cgs.getSonsOfLiberty();
-            this.liberty = cgs.getLiberty();
-            this.numberOfSettlements = cgs.getNumberOfSettlements();
-            this.unitCounts = cgs.getUnitCounts();
-            this.goodsCounts = cgs.getGoodsCounts();
-            this.colonyPopulations = cgs.getColonyPopulations();
+        Sample(TradeHistorySample ths) {
+            this.turn = ths.getTurn();
+            this.goodsOnHand = ths.getGoodsOnHand();
+            this.goodsProduction = ths.getGoodsProduction();
+            this.goodsNetProduction = ths.getGoodsNetProduction();
+            this.goodsSales = ths.getGoodsSales();
+            this.goodsUnitsBought = ths.getGoodsUnitsBought();
+            this.goodsUnitsSold = ths.getGoodsUnitsSold();
+            this.goodsIncomeBeforeTaxes = ths.getGoodsIncomeBeforeTaxes();
+            this.goodsIncomeAfterTaxes = ths.getGoodsIncomeAfterTaxes();
+            this.goodsUnitsInCargo = ths.getGoodsUnitsInCargo();
         }
     }
 
@@ -88,7 +79,7 @@ public class ColonyGrowthHistory {
 
 
     /**
-     * Sample the given player's current empire-wide growth stats for
+     * Sample the given player's current empire-wide goods totals for
      * live display, for the given turn. This is purely for this
      * session's chart - the server's own per-turn hook is what
      * actually persists the authoritative copy into the save file,
@@ -99,7 +90,7 @@ public class ColonyGrowthHistory {
      * @param turn The current turn number.
      */
     public void recordTurn(Player player, int turn) {
-        Sample sample = new Sample(new ColonyGrowthSample(turn, player));
+        Sample sample = new Sample(new TradeHistorySample(turn, player));
         List<Sample> samples = this.history
             .computeIfAbsent(player.getId(), k -> new ArrayList<>());
         samples.add(sample);
@@ -116,7 +107,7 @@ public class ColonyGrowthHistory {
      */
     public void restoreFrom(Player player) {
         List<Sample> samples = new ArrayList<>();
-        for (ColonyGrowthSample persisted : player.getColonyGrowthHistory()) {
+        for (TradeHistorySample persisted : player.getTradeHistory()) {
             samples.add(new Sample(persisted));
         }
         this.history.put(player.getId(), samples);

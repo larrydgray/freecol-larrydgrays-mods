@@ -974,11 +974,15 @@ public final class FreeColClient {
                 .restoreFrom(player);
             this.inGameController.getNationHistory()
                 .restoreFrom(player, game.getLiveEuropeanPlayerList());
+            this.inGameController.getTradeHistory()
+                .restoreFrom(player);
             logger.info("LarryDGray's Mods: restored report history on login for "
                 + player.getId() + " - colonyGrowthSamples="
                 + player.getColonyGrowthHistory().size()
                 + ", nationHistorySamples(self)="
-                + player.getNationHistory(player.getId()).size());
+                + player.getNationHistory(player.getId()).size()
+                + ", tradeHistorySamples="
+                + player.getTradeHistory().size());
         }
     }
 

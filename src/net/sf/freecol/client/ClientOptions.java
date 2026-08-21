@@ -334,6 +334,14 @@ public class ClientOptions extends OptionGroup {
     public static final String ENABLE_NATION_COMPARISON_REPORT
         = "model.option.enableNationComparisonReport";
 
+    /** Whether to sample this player's empire-wide goods on-hand/net
+     *  production totals every turn, for the Trade History report's
+     *  timeline. Its own toggle, independent of the other two, since
+     *  it is a distinct client-side live-display cache even though
+     *  the underlying server-side sampling is always-on. */
+    public static final String ENABLE_TRADE_HISTORY_REPORT
+        = "model.option.enableTradeHistoryReport";
+
     /**
      * LarryDGray's Mods: read-only "Status" mirrors of the real game
      * options, synced live from the current game each time the

@@ -60,6 +60,7 @@ import net.sf.freecol.client.gui.panel.FreeColPanel;
 import net.sf.freecol.client.gui.panel.report.ReportTurnPanel;
 import net.sf.freecol.client.gui.report.ColonyGrowthHistory;
 import net.sf.freecol.client.gui.report.NationHistory;
+import net.sf.freecol.client.gui.report.TradeHistory;
 import net.sf.freecol.common.FreeColException;
 import net.sf.freecol.common.debug.DebugUtils;
 import net.sf.freecol.common.debug.FreeColDebugger;
@@ -195,6 +196,10 @@ public final class InGameController extends FreeColClientHolder {
     /** LarryDGray's Mods: turn-by-turn nation summary history, for
      *  the Nation Comparison report. Client-side, session-scoped only. */
     private final NationHistory nationHistory = new NationHistory();
+
+    /** LarryDGray's Mods: turn-by-turn empire-wide goods history, for
+     *  the Trade History report. Client-side, session-scoped only. */
+    private final TradeHistory tradeHistory = new TradeHistory();
 
 
     /**
@@ -4781,6 +4786,16 @@ public final class InGameController extends FreeColClientHolder {
             this.nationHistory.recordTurn(this,
                 game.getLiveEuropeanPlayerList(), turn);
         }
+        if (getClientOptions().getBoolean(
+                ClientOptions.ENABLE_TRADE_HISTORY_REPORT)) {
+            this.tradeHistory.recordTurn(player, turn);
+            logger.info("LarryDGray's Mods: tradeHistory.recordTurn() called for turn "
+                + turn + ", now has " + this.tradeHistory.getHistory(player).size()
+                + " samples in the client-side cache");
+        } else {
+            logger.info("LarryDGray's Mods: ENABLE_TRADE_HISTORY_REPORT is OFF, "
+                + "skipping tradeHistory.recordTurn() for turn " + turn);
+        }
 
         // LarryDGray's Mods: colony map labels (including the
         // building badges / warehouse warning badges) are cached
@@ -5472,6 +5487,7 @@ public final class InGameController extends FreeColClientHolder {
         // game directly as parameters.
         this.colonyGrowthHistory.clear();
         this.nationHistory.clear();
+        this.tradeHistory.clear();
     }
 
     /**
@@ -5492,6 +5508,16 @@ public final class InGameController extends FreeColClientHolder {
      */
     public NationHistory getNationHistory() {
         return this.nationHistory;
+    }
+
+    /**
+     * LarryDGray's Mods: get the turn-by-turn empire-wide goods
+     * history, for the Trade History report.
+     *
+     * @return The {@code TradeHistory}.
+     */
+    public TradeHistory getTradeHistory() {
+        return this.tradeHistory;
     }
 
     /**

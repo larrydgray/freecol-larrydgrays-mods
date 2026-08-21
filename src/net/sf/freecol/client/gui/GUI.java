@@ -2369,6 +2369,13 @@ public class GUI extends FreeColClientHolder {
     public FreeColPanel showReportTradePanel() { return null; }
 
     /**
+     * LarryDGray's Mods: show the Trade History Report.
+     *
+     * @return The panel shown.
+     */
+    public FreeColPanel showReportTradeHistoryPanel() { return null; }
+
+    /**
      * Show the Turn Report.
      *
      * @param messages The {@code ModelMessage}s that make up the report.

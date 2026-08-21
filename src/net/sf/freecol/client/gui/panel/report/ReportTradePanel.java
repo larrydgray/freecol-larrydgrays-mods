@@ -113,6 +113,22 @@ public final class ReportTradePanel extends ReportPanel {
     }
 
     /**
+     * LarryDGray's Mods: handle a click on the City Size column
+     * header - sorts colonies by population, highest first. Not a
+     * goods type, so this bypasses sortColumnClicked's GoodsType-based
+     * mechanism entirely: sort directly, then rebuild with no pending
+     * goods-column sort.
+     *
+     * @param freeColClient The {@code FreeColClient} for the game.
+     */
+    private void sortByCitySizeClicked(FreeColClient freeColClient) {
+        this.lastSortColumn = null;
+        this.colonies.sort(Comparator.comparingInt(Colony::getUnitCount)
+            .reversed().thenComparing(Colony::getName));
+        buildPanel(freeColClient, null);
+    }
+
+    /**
      * LarryDGray's Mods: handle a click on one of the Compact View
      * On Hand / Production / Net Production buttons.
      *
@@ -155,12 +171,23 @@ public final class ReportTradePanel extends ReportPanel {
             if (compactView) {
                 switch (this.displayMode) {
                 case PRODUCTION:
-                    byValue = Comparator.comparingInt(
-                        (Colony c) -> c.getTotalProductionOf(finalSortBy));
+                    // LarryDGray's Mods: match the Food-production fix
+                    // in the value display below - a plain
+                    // getTotalProductionOf(food) always reads zero.
+                    byValue = Comparator.comparingInt((Colony c)
+                        -> (finalSortBy.isFoodType()) ? c.getFoodProduction()
+                            : c.getTotalProductionOf(finalSortBy));
                     break;
                 case ON_HAND:
-                    byValue = Comparator.comparingInt(
-                        (Colony c) -> c.getGoodsCount(finalSortBy));
+                    // LarryDGray's Mods: Liberty Bells / Crosses have
+                    // no real warehouse count (not storable) - match
+                    // the value display below, which uses liberty/
+                    // immigration points instead.
+                    byValue = Comparator.comparingInt((Colony c)
+                        -> (!finalSortBy.isStorable())
+                            ? ("model.goods.bells".equals(finalSortBy.getId())
+                                ? c.getLiberty() : c.getImmigration())
+                            : c.getGoodsCount(finalSortBy));
                     break;
                 case NET_PRODUCTION: default:
                     byValue = Comparator.comparingInt(
@@ -209,7 +236,13 @@ public final class ReportTradePanel extends ReportPanel {
         goodsHeader.removeAll();
 
         String layoutConstraints = "insets 0, gap 0 0";
+        // LarryDGray's Mods: the City Size column (column 1) gets its
+        // own, wider fixed width - "City Size" as text is much wider
+        // than the icon-sized goods columns that follow it, and would
+        // otherwise overlap the next column's header/values.
         String columnConstraints = "[25%!, fill]["
+            + (int)Math.round(ImageLibrary.ICON_SIZE.width * 2.5)
+            + "!, fill]["
             + (int)Math.round(ImageLibrary.ICON_SIZE.width * 1.25)
             + "!, fill]";
         String rowConstraints = "[fill]";
@@ -251,7 +284,34 @@ public final class ReportTradePanel extends ReportPanel {
             }
         }
 
-        int column = 0;
+        // LarryDGray's Mods: City Size column - not a trade item (no
+        // GoodsType backing it), so it's built separately from the
+        // allColumns loop below. Placed first, immediately after the
+        // colony name column and before any goods column, per Larry's
+        // request.
+        final int citySizeColumn = 1;
+        JLabel citySizeHeader = Utility.localizedLabel("report.trade.citySizeShort");
+        citySizeHeader.setBorder(Utility.getTopCellBorder());
+        // LarryDGray's Mods: short text in the header itself - a
+        // narrow column sized for icon-width goods columns has no
+        // room for the full "City Size" phrase - with the full name
+        // always available as a tooltip.
+        citySizeHeader.setToolTipText(Messages.message("report.trade.citySize"));
+        if (freeColClient.getClientOptions()
+                .getBoolean(ClientOptions.ENABLE_TRADE_ADVISOR_SORT)) {
+            citySizeHeader.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            citySizeHeader.setToolTipText(
+                Messages.message("report.trade.sortByCitySize"));
+            citySizeHeader.addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseClicked(MouseEvent e) {
+                    sortByCitySizeClicked(freeColClient);
+                }
+            });
+        }
+        goodsHeader.add(citySizeHeader);
+
+        int column = citySizeColumn;
         for (GoodsType goodsType : allColumns) {
             column++;
             final boolean isMarketGood = storableGoods.contains(goodsType);
@@ -279,20 +339,34 @@ public final class ReportTradePanel extends ReportPanel {
                 }
                 goodsHeader.add(marketLabel);
 
-                jl = createNumberLabel(sales);
+                jl = createNumberLabelBlankZero(sales);
                 jl.setBorder(Utility.getTopCellBorder());
                 reportPanel.add(jl, "cell " + column + " 0");
-                reportPanel.add(createNumberLabel(beforeTaxes),
+                reportPanel.add(createNumberLabelBlankZero(beforeTaxes),
                                 "cell " + column + " 1");
-                reportPanel.add(createNumberLabel(afterTaxes),
+                reportPanel.add(createNumberLabelBlankZero(afterTaxes),
                                 "cell " + column + " 2");
-                reportPanel.add(createNumberLabel(cargoUnits.getCount(goodsType)),
+                reportPanel.add(createNumberLabelBlankZero(cargoUnits.getCount(goodsType)),
                                 "cell " + column + " 3");
             } else {
                 // LarryDGray's Mods: Liberty Bells / Crosses - not
                 // tradeable, so no market price/sales figures, just
-                // an icon header.
-                goodsHeader.add(createGoodsTypeHeaderLabel(goodsType));
+                // an icon header. Still sortable like every other
+                // column, matching the behavior below.
+                JLabel goodsTypeHeader = createGoodsTypeHeaderLabel(goodsType);
+                if (freeColClient.getClientOptions()
+                        .getBoolean(ClientOptions.ENABLE_TRADE_ADVISOR_SORT)) {
+                    goodsTypeHeader.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+                    goodsTypeHeader.setToolTipText(
+                        Messages.message("report.trade.sortByProduction"));
+                    goodsTypeHeader.addMouseListener(new MouseAdapter() {
+                        @Override
+                        public void mouseClicked(MouseEvent e) {
+                            sortColumnClicked(freeColClient, goodsType);
+                        }
+                    });
+                }
+                goodsHeader.add(goodsTypeHeader);
             }
         }
 
@@ -314,7 +388,13 @@ public final class ReportTradePanel extends ReportPanel {
             reportPanel.add(colonyButton, "cell 0 " + row
                 + " 1 " + (compactView ? 1 : 2));
 
-            column = 0;
+            JLabel citySizeLabel = createNumberLabel(colony.getUnitCount());
+            citySizeLabel.setBorder((first) ? Utility.getTopCellBorder()
+                : Utility.getCellBorder());
+            reportPanel.add(citySizeLabel, "cell " + citySizeColumn + " " + row
+                + " 1 " + (compactView ? 1 : 2));
+
+            column = citySizeColumn;
             for (GoodsType goodsType : allColumns) {
                 column++;
                 final boolean isMarketGood = storableGoods.contains(goodsType);
@@ -324,7 +404,19 @@ public final class ReportTradePanel extends ReportPanel {
                     boolean showSign = false;
                     switch (this.displayMode) {
                     case PRODUCTION:
-                        value = colony.getTotalProductionOf(goodsType);
+                        // LarryDGray's Mods: Food is never produced
+                        // "as itself" - farmers/fishermen produce
+                        // grain/fish, which is only aggregated into
+                        // food storage-side (Colony.getNetProductionOf
+                        // resolves this via storedAs; the raw
+                        // per-work-location getTotalProductionOf does
+                        // not) - so a plain getTotalProductionOf(food)
+                        // always reads zero. getFoodProduction() is
+                        // FreeCol's own existing workaround for this
+                        // exact case (see Colony.getFoodProduction()).
+                        value = (goodsType.isFoodType())
+                            ? colony.getFoodProduction()
+                            : colony.getTotalProductionOf(goodsType);
                         break;
                     case NET_PRODUCTION:
                         value = colony.getNetProductionOf(goodsType);
@@ -408,6 +500,7 @@ public final class ReportTradePanel extends ReportPanel {
                                     "cell " + column + " " + (row + 1));
                 }
             }
+
             row += (compactView) ? 1 : 2;
             first = false;
         }
@@ -416,12 +509,12 @@ public final class ReportTradePanel extends ReportPanel {
         reportPanel.add(Utility.localizedLabel("report.trade.hasCustomHouse"),
                         "cell 0 " + row + ", span");
 
-        column = 0;
+        column = citySizeColumn;
         for (GoodsType goodsType : storableGoods) {
             column++;
-            reportPanel.add(createNumberLabel(totalUnits.getCount(goodsType)),
+            reportPanel.add(createNumberLabelBlankZero(totalUnits.getCount(goodsType)),
                             "cell " + column + " 4");
-            reportPanel.add(createNumberLabel(deltaUnits.getCount(goodsType), true),
+            reportPanel.add(createNumberLabelBlankZero(deltaUnits.getCount(goodsType), true),
                             "cell " + column + " 5, wrap 20");
         }
     }
@@ -494,6 +587,25 @@ public final class ReportTradePanel extends ReportPanel {
         } else if (alwaysAddSign && value > 0) {
             result.setText("+" + value);
         }
+        return result;
+    }
+
+    /**
+     * LarryDGray's Mods: like {@link #createNumberLabel(int)}, but a
+     * zero value renders as a blank cell instead of "0" - for the
+     * summary rows (units sold, income, cargo, totals), where most
+     * cells are zero for most goods and the zeroes just add clutter.
+     *
+     * @param value The value to display.
+     * @return The label.
+     */
+    private JLabel createNumberLabelBlankZero(int value) {
+        return createNumberLabelBlankZero(value, false);
+    }
+
+    private JLabel createNumberLabelBlankZero(int value, boolean alwaysAddSign) {
+        JLabel result = createNumberLabel(value, alwaysAddSign);
+        if (value == 0) result.setText("");
         return result;
     }
 }

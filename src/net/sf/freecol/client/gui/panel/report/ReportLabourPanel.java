@@ -23,11 +23,15 @@ import java.awt.AlphaComposite;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Composite;
+import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Image;
 import java.awt.event.ActionEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,14 +40,17 @@ import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.DefaultListModel;
 import javax.swing.ImageIcon;
+import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JList;
+import javax.swing.JPanel;
 import javax.swing.KeyStroke;
 import javax.swing.ListCellRenderer;
 import javax.swing.ListSelectionModel;
 
 import net.miginfocom.swing.MigLayout;
 import net.sf.freecol.client.FreeColClient;
+import net.sf.freecol.client.gui.panel.CurrentValueBarChart;
 import net.sf.freecol.client.gui.panel.FreeColPanel;
 import net.sf.freecol.client.gui.panel.MigPanel;
 import net.sf.freecol.common.i18n.Messages;
@@ -129,6 +136,13 @@ public final class ReportLabourPanel extends ReportPanel {
     /** A list of panels for the unit types. */
     private JList<LabourUnitPanel> panelList = null;
 
+    /** LarryDGray's Mods: bar-chart alternative to the icon grid
+     *  above - "just for fun", Larry's own framing. */
+    private final CurrentValueBarChart barChart;
+
+    /** LarryDGray's Mods: which of the two views is currently shown. */
+    private boolean showBarChart = false;
+
 
     /**
      * The constructor that will add the items to this panel.
@@ -210,7 +224,80 @@ public final class ReportLabourPanel extends ReportPanel {
         this.panelList.setLayoutOrientation(JList.HORIZONTAL_WRAP);
         this.panelList.setCellRenderer(new LabourUnitPanelRenderer());
 
-        this.scrollPane.setViewportView(this.panelList);
+        // LarryDGray's Mods: bar-chart alternative view - "just for
+        // fun", Larry's own framing. Same unit types/counts as the
+        // icon grid above, one bar per type, icon instead of a text
+        // label, sorted highest first so it reads like a leaderboard.
+        this.barChart = new CurrentValueBarChart(freeColClient);
+        List<UnitType> barUnitTypes = new ArrayList<>();
+        for (UnitType unitType : getSpecification().getUnitTypeList()) {
+            if (unitType.isPerson() && unitType.isAvailableTo(player)) {
+                barUnitTypes.add(unitType);
+            }
+        }
+        barUnitTypes.sort(Comparator.comparingInt(
+            (UnitType ut) -> this.unitCount.getCount(ut)).reversed());
+        Color barColor = new Color(70, 130, 180);
+        List<CurrentValueBarChart.Bar> bars = new ArrayList<>();
+        for (UnitType unitType : barUnitTypes) {
+            int count = this.unitCount.getCount(unitType);
+            // LarryDGray's Mods: getSmallerUnitTypeImage (0.5x) instead
+            // of getSmallUnitTypeImage (0.75x used by the grid above) -
+            // smaller still-recognizable icons, so more rows fit
+            // without the chart feeling oversized.
+            Image icon = freeColClient.getGUI().getFixedImageLibrary()
+                .getSmallerUnitTypeImage(unitType);
+            bars.add(new CurrentValueBarChart.Bar(Messages.getName(unitType),
+                barColor, count, icon));
+        }
+        this.barChart.setBars(bars);
+
+        reportPanel.setLayout(new MigLayout("wrap 1, gap 0 10",
+                                            "[fill]", "[][fill, grow]"));
+        updateView();
+    }
+
+    /**
+     * LarryDGray's Mods: rebuild the panel for whichever of the two
+     * views (icon grid / bar chart) is currently selected.
+     */
+    private void updateView() {
+        reportPanel.removeAll();
+        reportPanel.add(createViewToggleButtons());
+        if (this.showBarChart) {
+            reportPanel.add(this.barChart, "grow, push");
+        } else {
+            reportPanel.add(this.panelList, "grow, push");
+        }
+        reportPanel.revalidate();
+        reportPanel.repaint();
+    }
+
+    /**
+     * LarryDGray's Mods: build the Grid/Bar Chart toggle button
+     * strip.
+     *
+     * @return The button panel.
+     */
+    private JPanel createViewToggleButtons() {
+        JPanel panel = new MigPanel("ReportPanelUI");
+        panel.setOpaque(false);
+        panel.setLayout(new MigLayout("insets 2, gap 5 1"));
+        panel.add(createViewToggleButton("report.labour.gridView", false));
+        panel.add(createViewToggleButton("report.labour.barChartView", true));
+        return panel;
+    }
+
+    private JButton createViewToggleButton(String messageKey, boolean bar) {
+        JButton button = new JButton(Messages.message(messageKey));
+        button.setFont(button.getFont().deriveFont(
+            (this.showBarChart == bar) ? Font.BOLD : Font.PLAIN));
+        button.setEnabled(this.showBarChart != bar);
+        button.addActionListener((ActionEvent ae) -> {
+            this.showBarChart = bar;
+            updateView();
+        });
+        return button;
     }
 
     private void showDetails() {

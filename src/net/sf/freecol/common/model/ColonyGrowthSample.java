@@ -86,6 +86,10 @@ public class ColonyGrowthSample extends FreeColObject {
     private int numberOfSettlements;
     private Map<String, Integer> unitCounts;
     private Map<String, Integer> goodsCounts;
+    /** LarryDGray's Mods: each colony's own population, keyed by
+     *  colony id, so the Colony Growth report can plot a per-colony
+     *  City Size line rather than only the player-wide total above. */
+    private Map<String, Integer> colonyPopulations;
 
 
     /**
@@ -106,12 +110,15 @@ public class ColonyGrowthSample extends FreeColObject {
      * @param numberOfSettlements The settlement count.
      * @param unitCounts The military/wagon category counts.
      * @param goodsCounts The military goods totals.
+     * @param colonyPopulations Each colony's own population, keyed
+     *     by colony id.
      */
     public ColonyGrowthSample(int turn, int population, int citizens,
                               int sonsOfLiberty, int liberty,
                               int numberOfSettlements,
                               Map<String, Integer> unitCounts,
-                              Map<String, Integer> goodsCounts) {
+                              Map<String, Integer> goodsCounts,
+                              Map<String, Integer> colonyPopulations) {
         this();
         this.turn = turn;
         this.population = population;
@@ -121,6 +128,7 @@ public class ColonyGrowthSample extends FreeColObject {
         this.numberOfSettlements = numberOfSettlements;
         this.unitCounts = new HashMap<>(unitCounts);
         this.goodsCounts = new HashMap<>(goodsCounts);
+        this.colonyPopulations = new HashMap<>(colonyPopulations);
     }
 
     /**
@@ -140,6 +148,10 @@ public class ColonyGrowthSample extends FreeColObject {
         this.sonsOfLiberty = player.getSoL();
         this.liberty = CollectionUtils.sum(colonies, Colony::getLiberty);
         this.numberOfSettlements = colonies.size();
+
+        Map<String, Integer> populations = new HashMap<>();
+        for (Colony c : colonies) populations.put(c.getId(), c.getUnitCount());
+        this.colonyPopulations = populations;
 
         int citizenCount = 0;
         Map<String, Integer> counts = new HashMap<>();
@@ -264,6 +276,10 @@ public class ColonyGrowthSample extends FreeColObject {
         return this.goodsCounts;
     }
 
+    public final Map<String, Integer> getColonyPopulations() {
+        return this.colonyPopulations;
+    }
+
     /**
      * Encode an id-to-count map as a single string, since a variable
      * set of keys does not fit neatly into fixed XML attributes.
@@ -308,6 +324,7 @@ public class ColonyGrowthSample extends FreeColObject {
     // Serialization
 
     private static final String CITIZENS_TAG = "citizens";
+    private static final String COLONY_POPULATIONS_TAG = "colonyPopulations";
     private static final String GOODS_COUNTS_TAG = "goodsCounts";
     private static final String LIBERTY_TAG = "liberty";
     private static final String NUMBER_OF_SETTLEMENTS_TAG = "numberOfSettlements";
@@ -332,6 +349,7 @@ public class ColonyGrowthSample extends FreeColObject {
         xw.writeAttribute(NUMBER_OF_SETTLEMENTS_TAG, this.numberOfSettlements);
         xw.writeAttribute(UNIT_COUNTS_TAG, encode(this.unitCounts));
         xw.writeAttribute(GOODS_COUNTS_TAG, encode(this.goodsCounts));
+        xw.writeAttribute(COLONY_POPULATIONS_TAG, encode(this.colonyPopulations));
     }
 
     /**
@@ -349,6 +367,7 @@ public class ColonyGrowthSample extends FreeColObject {
         this.numberOfSettlements = xr.getAttribute(NUMBER_OF_SETTLEMENTS_TAG, 0);
         this.unitCounts = decode(xr.getAttribute(UNIT_COUNTS_TAG, (String)null));
         this.goodsCounts = decode(xr.getAttribute(GOODS_COUNTS_TAG, (String)null));
+        this.colonyPopulations = decode(xr.getAttribute(COLONY_POPULATIONS_TAG, (String)null));
     }
 
     /**

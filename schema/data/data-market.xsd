@@ -36,6 +36,8 @@
 			                    default="-1" />
 	          <xs:attribute name="arrears" type="xs:int" use="required" />
 	          <xs:attribute name="sales" type="xs:int" use="required" />
+	          <xs:attribute name="unitsBought" type="xs:int" use="optional" default="0" />
+	          <xs:attribute name="unitsSold" type="xs:int" use="optional" default="0" />
 	          <xs:attribute name="incomeBeforeTaxes" type="xs:int" use="required" />
 	          <xs:attribute name="incomeAfterTaxes" type="xs:int" use="required" />
 	          <xs:attribute name="traded" type="xs:boolean" use="optional" />

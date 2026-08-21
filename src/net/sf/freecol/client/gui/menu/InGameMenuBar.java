@@ -23,6 +23,7 @@ import java.awt.Color;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Insets;
 import java.awt.RenderingHints;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseMotionListener;
@@ -31,6 +32,8 @@ import java.util.logging.Logger;
 
 import javax.swing.ButtonGroup;
 import javax.swing.JMenu;
+import javax.swing.JMenuItem;
+import javax.swing.border.EmptyBorder;
 
 import net.sf.freecol.client.FreeColClient;
 import net.sf.freecol.client.gui.FontLibrary;
@@ -83,6 +86,7 @@ import net.sf.freecol.client.gui.action.ReportProductionAction;
 import net.sf.freecol.client.gui.action.ReportReligionAction;
 import net.sf.freecol.client.gui.action.ReportRequirementsAction;
 import net.sf.freecol.client.gui.action.ReportTradeAction;
+import net.sf.freecol.client.gui.action.ReportTradeHistoryAction;
 import net.sf.freecol.client.gui.action.ReportTurnAction;
 import net.sf.freecol.client.gui.action.RetireAction;
 import net.sf.freecol.client.gui.action.SaveAction;
@@ -287,14 +291,15 @@ public class InGameMenuBar extends FreeColMenuBar {
         menu.add(getMenuItem(ReportReligionAction.id));
         menu.add(getMenuItem(ReportLabourAction.id));
         menu.add(getMenuItem(ReportColonyAction.id));
-        menu.add(getMenuItem(ReportColonyGrowthAction.id));
+        menu.add(indentSubReport(getMenuItem(ReportColonyGrowthAction.id)));
         menu.add(getMenuItem(ReportForeignAction.id));
-        menu.add(getMenuItem(ReportNationComparisonAction.id));
+        menu.add(indentSubReport(getMenuItem(ReportNationComparisonAction.id)));
         menu.add(getMenuItem(ReportIndianAction.id));
         menu.add(getMenuItem(ReportContinentalCongressAction.id));
         menu.add(getMenuItem(ReportMilitaryAction.id));
         menu.add(getMenuItem(ReportNavalAction.id));
         menu.add(getMenuItem(ReportTradeAction.id));
+        menu.add(indentSubReport(getMenuItem(ReportTradeHistoryAction.id)));
         menu.add(getMenuItem(ReportTurnAction.id));
         menu.add(getMenuItem(ReportRequirementsAction.id));
         menu.add(getMenuItem(ReportCargoAction.id));
@@ -307,6 +312,27 @@ public class InGameMenuBar extends FreeColMenuBar {
         menu.add(getMenuItem(ShowMapGeneratorOptionsAction.id));
 
         add(menu);
+    }
+
+    /**
+     * LarryDGray's Mods: visually indent a Report menu item so it
+     * reads as a sub-report of whichever entry sits directly above it
+     * (Colony Growth under Colony, Nation Comparison under Foreign
+     * Affairs, Trade History under Trade Advisor) - purely a display
+     * tweak, the item behaves identically otherwise.
+     *
+     * @param item The {@code JMenuItem} to indent.
+     * @return The same item, for chaining into {@code menu.add(...)}.
+     */
+    private JMenuItem indentSubReport(JMenuItem item) {
+        // LarryDGray's Mods: setMargin() has no visible effect here -
+        // FreeColMenuItemUI extends BasicMenuItemUI, whose painting
+        // positions text from the component's BORDER insets, not its
+        // button margin. An extra-wide empty border on the left is
+        // what actually shifts the rendered text.
+        Insets i = item.getInsets();
+        item.setBorder(new EmptyBorder(i.top, i.left + 20, i.bottom, i.right));
+        return item;
     }
 
 

@@ -52,6 +52,7 @@
             <xs:attribute name="numberOfSettlements" type="xs:int" use="optional" default="0"/>
             <xs:attribute name="unitCounts" type="xs:string" use="optional"/>
             <xs:attribute name="goodsCounts" type="xs:string" use="optional"/>
+            <xs:attribute name="colonyPopulations" type="xs:string" use="optional"/>
           </xs:complexType>
         </xs:element>
 
@@ -140,6 +141,29 @@
             <xs:attribute name="player" type="xs:string" use="required"/>
             <xs:attribute name="value" type="xs:int" use="optional"
                           default="0"/>
+          </xs:complexType>
+        </xs:element>
+
+        <xs:element name="tradeHistorySample">
+          <xs:annotation>
+            <xs:documentation>
+              LarryDGray's Mods: one turn's worth of this player's
+              Trade History report history - empire-wide goods
+              on-hand and net production totals.
+            </xs:documentation>
+          </xs:annotation>
+          <xs:complexType>
+            <xs:attribute name="id" type="xs:string" use="optional"/>
+            <xs:attribute name="turn" type="xs:int" use="optional" default="0"/>
+            <xs:attribute name="goodsOnHand" type="xs:string" use="optional"/>
+            <xs:attribute name="goodsProduction" type="xs:string" use="optional"/>
+            <xs:attribute name="goodsNetProduction" type="xs:string" use="optional"/>
+            <xs:attribute name="goodsSales" type="xs:string" use="optional"/>
+            <xs:attribute name="goodsUnitsBought" type="xs:string" use="optional"/>
+            <xs:attribute name="goodsUnitsSold" type="xs:string" use="optional"/>
+            <xs:attribute name="goodsIncomeBeforeTaxes" type="xs:string" use="optional"/>
+            <xs:attribute name="goodsIncomeAfterTaxes" type="xs:string" use="optional"/>
+            <xs:attribute name="goodsUnitsInCargo" type="xs:string" use="optional"/>
           </xs:complexType>
         </xs:element>
 

@@ -314,6 +314,12 @@ public class Player extends FreeColGameObject implements Nameable {
      *  nation, from this player's own point of view. */
     protected final List<NationHistorySample> nationHistory = new ArrayList<>();
 
+    /** LarryDGray's Mods: this player's own turn-by-turn Trade
+     *  History report history - empire-wide goods on-hand and net
+     *  production totals, so it survives a save/reload instead of
+     *  living only in memory for the session. */
+    protected final List<TradeHistorySample> tradeHistory = new ArrayList<>();
+
     // Temporary/transient variables, do not serialize.
 
     /** The units this player owns. */
@@ -1842,6 +1848,30 @@ public class Player extends FreeColGameObject implements Nameable {
     }
 
     /**
+     * LarryDGray's Mods: get the current total units bought of a
+     * type of goods.
+     *
+     * @param goodsType The {@code GoodsType} to query.
+     * @return The total units bought.
+     */
+    public int getUnitsBought(GoodsType goodsType) {
+        final Market market = getMarket();
+        return (market == null) ? 0 : market.getUnitsBought(goodsType);
+    }
+
+    /**
+     * LarryDGray's Mods: get the current total units sold of a
+     * type of goods.
+     *
+     * @param goodsType The {@code GoodsType} to query.
+     * @return The total units sold.
+     */
+    public int getUnitsSold(GoodsType goodsType) {
+        final Market market = getMarket();
+        return (market == null) ? 0 : market.getUnitsSold(goodsType);
+    }
+
+    /**
      * Has a type of goods been traded?
      *
      * @param goodsType The {@code GoodsType} to check.
@@ -2877,6 +2907,44 @@ public class Player extends FreeColGameObject implements Nameable {
     public void clearNationHistory() {
         synchronized (this.nationHistory) {
             this.nationHistory.clear();
+        }
+    }
+
+    /**
+     * LarryDGray's Mods: get this player's Trade History report
+     * history.
+     *
+     * @return A copy of the {@code TradeHistorySample}s for this
+     *     player, oldest first.
+     */
+    public final List<TradeHistorySample> getTradeHistory() {
+        synchronized (this.tradeHistory) {
+            return new ArrayList<>(this.tradeHistory);
+        }
+    }
+
+    /**
+     * LarryDGray's Mods: append a Trade History sample for this
+     * player, trimming the oldest once the cap is exceeded.
+     *
+     * @param sample The {@code TradeHistorySample} to add.
+     */
+    public void addTradeHistorySample(TradeHistorySample sample) {
+        synchronized (this.tradeHistory) {
+            this.tradeHistory.add(sample);
+            if (this.tradeHistory.size() > MAX_HISTORY_SAMPLES) {
+                this.tradeHistory.remove(0);
+            }
+        }
+    }
+
+    /**
+     * LarryDGray's Mods: forget this player's Trade History report
+     * history, e.g. when a different game is connected.
+     */
+    public void clearTradeHistory() {
+        synchronized (this.tradeHistory) {
+            this.tradeHistory.clear();
         }
     }
 
@@ -4449,6 +4517,10 @@ public class Player extends FreeColGameObject implements Nameable {
                 }
             }
 
+            for (TradeHistorySample sample : getTradeHistory()) {
+                sample.toXML(xw);
+            }
+
             for (TradeRoute route : sort(getTradeRoutes())) {
                 route.toXML(xw);
             }
@@ -4659,6 +4731,9 @@ public class Player extends FreeColGameObject implements Nameable {
 
         } else if (NationHistorySample.TAG.equals(tag)) {
             addNationHistorySample(new NationHistorySample(xr));
+
+        } else if (TradeHistorySample.TAG.equals(tag)) {
+            addTradeHistorySample(new TradeHistorySample(xr));
 
         } else if (LastSale.TAG.equals(tag)) {
             addLastSale(new LastSale(xr));

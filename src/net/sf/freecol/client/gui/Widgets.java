@@ -109,6 +109,7 @@ import net.sf.freecol.client.gui.panel.report.ReportNavalPanel;
 import net.sf.freecol.client.gui.panel.report.ReportProductionPanel;
 import net.sf.freecol.client.gui.panel.report.ReportReligiousPanel;
 import net.sf.freecol.client.gui.panel.report.ReportRequirementsPanel;
+import net.sf.freecol.client.gui.panel.report.ReportTradeHistoryPanel;
 import net.sf.freecol.client.gui.panel.report.ReportTradePanel;
 import net.sf.freecol.client.gui.panel.report.ReportTurnPanel;
 import net.sf.freecol.common.i18n.Messages;
@@ -1198,12 +1199,20 @@ public final class Widgets {
      * @return The panel shown.
      */
     public FreeColPanel showReportColonyGrowthPanel() {
-        ReportColonyGrowthPanel panel
+        // LarryDGray's Mods: unlike most reports, this one's data
+        // (this.history) is captured once at construction, not
+        // recomputed live - reusing an already-open instance via
+        // getExistingFreeColPanel would just keep showing whatever
+        // history existed the moment it was first opened, forever,
+        // even as more turns get sampled. Always close any existing
+        // instance and build a fresh one instead, so reopening the
+        // report (even via "bring to front" on an already-open one)
+        // always reflects the latest turns.
+        ReportColonyGrowthPanel existing
             = this.canvas.getExistingFreeColPanel(ReportColonyGrowthPanel.class);
-        if (panel == null) {
-            panel = new ReportColonyGrowthPanel(this.freeColClient);
-            this.canvas.showFreeColPanel(panel, PopupPosition.CENTERED, true);
-        }
+        if (existing != null) this.canvas.removeFromCanvas(existing);
+        ReportColonyGrowthPanel panel = new ReportColonyGrowthPanel(this.freeColClient);
+        this.canvas.showFreeColPanel(panel, PopupPosition.CENTERED, true);
         return panel;
     }
 
@@ -1213,12 +1222,13 @@ public final class Widgets {
      * @return The panel shown.
      */
     public FreeColPanel showReportNationComparisonPanel() {
-        ReportNationComparisonPanel panel
+        // LarryDGray's Mods: see showReportColonyGrowthPanel() above -
+        // same stale-history-on-reopen issue, same fix.
+        ReportNationComparisonPanel existing
             = this.canvas.getExistingFreeColPanel(ReportNationComparisonPanel.class);
-        if (panel == null) {
-            panel = new ReportNationComparisonPanel(this.freeColClient);
-            this.canvas.showFreeColPanel(panel, PopupPosition.CENTERED, true);
-        }
+        if (existing != null) this.canvas.removeFromCanvas(existing);
+        ReportNationComparisonPanel panel = new ReportNationComparisonPanel(this.freeColClient);
+        this.canvas.showFreeColPanel(panel, PopupPosition.CENTERED, true);
         return panel;
     }
 
@@ -1309,6 +1319,23 @@ public final class Widgets {
             panel = new ReportTradePanel(this.freeColClient);
             this.canvas.showFreeColPanel(panel, PopupPosition.CENTERED, true);
         }
+        return panel;
+    }
+
+    /**
+     * LarryDGray's Mods: show the Trade History report.
+     *
+     * @return The panel shown.
+     */
+    public FreeColPanel showReportTradeHistoryPanel() {
+        // LarryDGray's Mods: see showReportColonyGrowthPanel() above -
+        // same stale-history-on-reopen issue (root cause of Larry's
+        // "still blank" report), same fix.
+        ReportTradeHistoryPanel existing
+            = this.canvas.getExistingFreeColPanel(ReportTradeHistoryPanel.class);
+        if (existing != null) this.canvas.removeFromCanvas(existing);
+        ReportTradeHistoryPanel panel = new ReportTradeHistoryPanel(this.freeColClient);
+        this.canvas.showFreeColPanel(panel, PopupPosition.CENTERED, true);
         return panel;
     }
 

@@ -42,6 +42,7 @@ import net.sf.freecol.client.gui.panel.Utility;
 import net.sf.freecol.client.gui.plaf.FreeColComboBoxRenderer;
 import net.sf.freecol.client.gui.report.ColonyGrowthHistory;
 import net.sf.freecol.common.i18n.Messages;
+import net.sf.freecol.common.model.Colony;
 import net.sf.freecol.common.model.FreeColSpecObjectType;
 import net.sf.freecol.common.model.GoodsType;
 import net.sf.freecol.common.model.Player;
@@ -112,6 +113,9 @@ public final class ReportColonyGrowthPanel extends ReportPanel {
         }
     }
 
+    private static final String SOLDIER_ROLE_ID = "model.role.soldier";
+    private static final String DRAGOON_ROLE_ID = "model.role.dragoon";
+
     /** Cycled across the lines within a multi-line stat entry. */
     private static final Color[] PALETTE = {
         Color.BLUE, Color.RED, new Color(0, 140, 0), new Color(210, 105, 0),
@@ -149,7 +153,17 @@ public final class ReportColonyGrowthPanel extends ReportPanel {
             new StatEntry(Messages.message("report.colonyGrowth.sonsOfLiberty"),
                 s -> s.sonsOfLiberty),
             new StatEntry(Messages.message("report.colonyGrowth.liberty"),
-                s -> s.liberty)));
+                s -> s.liberty),
+            // LarryDGray's Mods: combined count across both roles and
+            // both the regular/professional split, for "how many
+            // armed land units do I have in total" at a glance.
+            new StatEntry(Messages.message("report.colonyGrowth.totalArmedLand"),
+                s -> s.unitCounts.getOrDefault(SOLDIER_ROLE_ID, 0)
+                    + s.unitCounts.getOrDefault(
+                        SOLDIER_ROLE_ID + ColonyGrowthHistory.PROFESSIONAL_SUFFIX, 0)
+                    + s.unitCounts.getOrDefault(DRAGOON_ROLE_ID, 0)
+                    + s.unitCounts.getOrDefault(
+                        DRAGOON_ROLE_ID + ColonyGrowthHistory.PROFESSIONAL_SUFFIX, 0))));
 
         // LarryDGray's Mods: which military unit types (and wagon
         // trains) to offer isn't known ahead of time - collect every
@@ -207,6 +221,33 @@ public final class ReportColonyGrowthPanel extends ReportPanel {
             }
             stats.add(new StatEntry(
                 Messages.message("report.colonyGrowth.shipsAndWagons"), specs, true));
+        }
+
+        // LarryDGray's Mods: each colony's own population plotted as
+        // its own line, rather than only the empire-wide total above
+        // - one line per colony ever seen across this player's whole
+        // history, labelled by name (or a placeholder if it's since
+        // been lost) so a captured/destroyed colony's line simply
+        // stops advancing instead of vanishing from the legend.
+        TreeSet<String> colonyIds = new TreeSet<>();
+        for (ColonyGrowthHistory.Sample s : this.history) {
+            colonyIds.addAll(s.colonyPopulations.keySet());
+        }
+        if (!colonyIds.isEmpty()) {
+            List<SeriesSpec> specs = new ArrayList<>();
+            int colorIndex = 0;
+            for (String colonyId : colonyIds) {
+                final String id = colonyId;
+                Colony colony = getGame().getFreeColGameObject(id, Colony.class);
+                String label = (colony == null)
+                    ? Messages.message("report.colonyGrowth.lostColony")
+                    : colony.getName();
+                specs.add(new SeriesSpec(label,
+                    PALETTE[colorIndex++ % PALETTE.length], false, false,
+                    s -> s.colonyPopulations.getOrDefault(id, 0)));
+            }
+            stats.add(new StatEntry(
+                Messages.message("report.colonyGrowth.citySizeByColony"), specs, false));
         }
 
         this.statSelector = new JComboBox<>(stats.toArray(new StatEntry[0]));
@@ -280,8 +321,11 @@ public final class ReportColonyGrowthPanel extends ReportPanel {
         // LarryDGray's Mods: for an offensive role with an
         // expert-unit (soldier, dragoon), the plain role id is
         // specifically the non-expert-type count now, disjoint from
-        // its Professional counterpart - label it "Regular" so the
-        // split reads as two parts of a whole, not a duplicate.
+        // its Professional counterpart. Soldier's plain-role label is
+        // "Armed" specifically (per Larry's naming preference, since
+        // "just has muskets" reads more naturally than "Soldier" once
+        // there's also a Dragoon line on the same chart); other roles
+        // (Dragoon) just use their own role name with no prefix.
         // Scout is excluded even though it technically carries a
         // token +1 offence modifier: it's tracked entirely separately
         // (see ColonyGrowthHistory.addUnitCategories), and its own
@@ -290,8 +334,9 @@ public final class ReportColonyGrowthPanel extends ReportPanel {
         if (!ColonyGrowthHistory.SCOUT_ROLE_ID.equals(baseId)
                 && fcot instanceof Role && ((Role)fcot).isOffensive()
                 && ((Role)fcot).getExpertUnit() != null) {
-            return Messages.message("report.colonyGrowth.regularPrefix")
-                + " " + baseLabel;
+            return SOLDIER_ROLE_ID.equals(baseId)
+                ? Messages.message("report.colonyGrowth.armed")
+                : baseLabel;
         }
         return baseLabel;
     }

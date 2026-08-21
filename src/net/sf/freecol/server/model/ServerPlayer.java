@@ -113,6 +113,7 @@ import net.sf.freecol.common.model.Stance;
 import net.sf.freecol.common.model.StringTemplate;
 import net.sf.freecol.common.model.Tension;
 import net.sf.freecol.common.model.Tile;
+import net.sf.freecol.common.model.TradeHistorySample;
 import net.sf.freecol.common.model.TradeRoute;
 import net.sf.freecol.common.model.Turn;
 import net.sf.freecol.common.model.Unit;
@@ -1260,6 +1261,7 @@ public class ServerPlayer extends Player implements TurnTaker {
             }
             modifyGold(-price);
             market.modifySales(type, -a);
+            market.modifyUnitsBought(type, a);
             if (container != null) container.addGoods(type, a);
             market.modifyIncomeBeforeTaxes(type, -price);
             market.modifyIncomeAfterTaxes(type, -price);
@@ -1326,6 +1328,7 @@ public class ServerPlayer extends Player implements TurnTaker {
             }
             
             market.modifySales(type, a);
+            market.modifyUnitsSold(type, a);
             if (container != null) container.addGoods(type, -a);
             market.modifyIncomeBeforeTaxes(type, incomeBeforeTaxes);
             market.modifyIncomeAfterTaxes(type, incomeAfterTaxes);
@@ -4654,6 +4657,8 @@ outer:  for (Effect effect : effects) {
                         game.getTurn().getNumber(), p.getId(),
                         new NationSummary(p, this)));
                 }
+                addTradeHistorySample(new TradeHistorySample(
+                    game.getTurn().getNumber(), this));
             }
         }
 
