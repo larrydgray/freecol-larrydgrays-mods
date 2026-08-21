@@ -63,7 +63,36 @@ tradeable goods) so colony production of those shows at a glance too.
 Clicking a goods column header (Trade Advisor Sorting, above) sorts by
 whichever of the three values is currently active, so the sort order
 always matches what's on screen. The report retitles itself
-"Production/Trade Report" while this is on.
+"Production/Trade Report" while this is on. Compact View's rows also
+start with a **City Size** column (each colony's population) right
+after the colony name, sortable the same way as any goods column.
+
+### Labor Advisor: Bar Chart View *(display-only, always available)*
+A Grid/Bar Chart toggle on the Labor Advisor (F2). The bar chart shows
+every unit type you own as a horizontal bar - icon on the left, count
+at the end of the bar - sorted highest-count-first, alongside the
+original icon grid.
+
+### Colony Growth Report *(client option, default on)*
+New Reports menu entry showing a full turn-by-turn timeline, not just
+the current turn's snapshot: population, citizens, settlements, Sons
+of Liberty %, liberty, land military units, ships & wagons, and each
+colony's own population plotted as a separate line. History is sampled
+once per turn (server-side, so it survives save/reload) and the report
+picks up right where a reloaded save left off.
+
+### Nation Comparison Report *(client option, default on)*
+The same full-timeline treatment as Colony Growth, but for every
+European nation you've met: settlements, units, military/naval
+strength, and gold, plus (with Jan de Witt) Sons of Liberty %, Founding
+Fathers, and tax rate.
+
+### Trade History Report *(client option, default on)*
+New Reports menu entry for empire-wide goods trends: pick Basic Goods
+or Refined Goods, then a metric (On Hand, Production, Net Production,
+Sales, Units Bought, Units Sold, Income Before/After Taxes, or Units In
+Cargo), and see every good in that group plotted together over the
+whole game's turn history.
 
 ### Caravan mechanic *(always on)*
 A dragoon, soldier, scout, or wagon train can lead other land units as
@@ -212,6 +241,14 @@ preferences.
   camera over it** - the map caches settlement labels per tile and the
   rename action never marked that tile as needing a redraw, so the old
   name stuck around on-screen until an unrelated pan forced a refresh.
+- **Food's Production figure always read zero** - `Colony.
+  getTotalProductionOf()` only counts raw production of the exact goods
+  type asked for, but farmers/fishermen produce grain/fish, not "food"
+  directly (only the storage side aggregates those into food). Visible
+  in the Trade Advisor's Production mode and its sort-by-column, and in
+  the new Trade History report - fixed by using FreeCol's own existing
+  `getFoodProduction()` helper (originally written for a different
+  caller) for the food case specifically.
 
 ## Known, unresolved issues
 
