@@ -28,6 +28,7 @@ import net.sf.freecol.common.model.FreeColGameObject;
 import net.sf.freecol.common.model.Ownable;
 import net.sf.freecol.common.model.Player;
 import net.sf.freecol.common.model.Settlement;
+import net.sf.freecol.common.model.Stance;
 import net.sf.freecol.common.model.Unit;
 import net.sf.freecol.common.networking.ChangeSet;
 import net.sf.freecol.common.networking.ChangeSet.See;
@@ -278,6 +279,21 @@ public class DiplomacySession extends TimedSession {
             if (result) {
                 result = getGame().csAcceptTrade(this.agreement, this.unit,
                                                  this.settlement, cs);
+            } else if (this.agreement.getContext()
+                    == DiplomaticTrade.TradeContext.CONTACT) {
+                // LarryDGray's Mods: rejecting a first-contact peace
+                // offer otherwise leaves both players' stance stuck
+                // at UNCONTACTED forever - only accepting the treaty
+                // transitions it, via csAcceptTrade above - which
+                // then makes every later contact attempt between the
+                // same two players look like a still-missing session
+                // (the "Missing contact diplomacy session" client
+                // error) instead of one that already completed.
+                // Default to WAR, matching this codebase's own
+                // convention elsewhere for "contact made, no peace
+                // agreed."
+                getOwner().csChangeStance(Stance.WAR, getOtherPlayer(),
+                    true, cs);
             }
             this.agreement.setStatus((result) ? TradeStatus.ACCEPT_TRADE
                                               : TradeStatus.REJECT_TRADE);

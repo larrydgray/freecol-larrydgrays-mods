@@ -291,6 +291,25 @@ founding father choices, expansion pacing, etc.)*
     of its own yet. Directly connects to the wagon/shipping-network
     material already in this doc's Auto Shipping section.
 
+  Cost-aware colonist acquisition, a third lever alongside the two
+  growth types above: paying to recruit the next immigrant in Europe
+  gets progressively more expensive each time you use it - a quirk
+  Larry only noticed after a while of play. A weak/newbie AI just
+  keeps paying that price regardless of how high it's climbed. A
+  strong AI's actual rule is simpler than it might sound: once the
+  price gets too high, just stop paying for immigrants (fall back to
+  organic immigration via crosses production instead), rather than
+  paying an ever-climbing price indefinitely.
+
+  Exception - trained immigrants: the Europe recruitment pool
+  sometimes offers a specific already-trained specialist as one of
+  the candidates, not just a generic colonist slot. For that case, a
+  strong AI doesn't just apply the flat stop-paying rule - it compares
+  that candidate's recruitment cost against the cost of training that
+  *same* specialty directly (e.g. training a miner costs 600 gold per
+  Larry's recall), and takes whichever is cheaper for that specific
+  type, rather than treating all recruitment offers identically.
+
   Even though Warehouse tier doesn't gate food/population growth
   specifically, it still matters a lot for every *other* goods type,
   which are NOT exempt from capacity waste. A low-level AI might not

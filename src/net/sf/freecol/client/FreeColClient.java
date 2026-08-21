@@ -926,6 +926,8 @@ public final class FreeColClient {
      */
     public synchronized void login(boolean inGame, Game game, Player player,
                                    boolean single) {
+        logger.info("LarryDGray's Mods: login() called with inGame=" + inGame
+            + ", player=" + player);
         this.loggedIn = true;
         changeClientState(inGame);
         setGame(game);
@@ -942,31 +944,41 @@ public final class FreeColClient {
             // starting - force a redraw of every owned colony right
             // away on login too, so a freshly loaded save doesn't
             // keep showing whatever was cached before this session
-            // even started.
-            if (inGame) {
-                for (Colony colony : player.getColonyList()) {
-                    getGUI().refreshTile(colony.getTile());
-                }
-
-                // LarryDGray's Mods: rebuild the Colony Growth /
-                // Nation Comparison report history from whatever this
-                // player's save data has persisted, so a freshly
-                // loaded save continues the timeline instead of
-                // starting it over. This must happen here rather than
-                // InGameController.setGameConnected(), since that can
-                // run before the client has finished resolving its
-                // own player for the game just connected - login()
-                // receives the correct player and game directly.
-                this.inGameController.getColonyGrowthHistory()
-                    .restoreFrom(player);
-                this.inGameController.getNationHistory()
-                    .restoreFrom(player, game.getLiveEuropeanPlayerList());
-                logger.info("LarryDGray's Mods: restored report history on login for "
-                    + player.getId() + " - colonyGrowthSamples="
-                    + player.getColonyGrowthHistory().size()
-                    + ", nationHistorySamples(self)="
-                    + player.getNationHistory(player.getId()).size());
+            // even started. Deliberately NOT gated on `inGame`: that
+            // flag reflects a transient server-side state (LOAD_GAME
+            // vs IN_GAME) that is false for the very first login after
+            // loading an already-in-progress save - exactly the case
+            // this refresh exists for. It went unnoticed for the
+            // badge refresh only because InGameController.newTurn()
+            // re-does the same refresh moments later on the next
+            // turn, masking the gap; the report-history restore below
+            // has no such fallback, so its failure to run was fully
+            // visible ("no history recorded" on a freshly loaded,
+            // 80+-turn game). player.getColonyList()/
+            // getLiveEuropeanPlayerList() are safe to call regardless
+            // of game phase - simply empty before a game world exists.
+            for (Colony colony : player.getColonyList()) {
+                getGUI().refreshTile(colony.getTile());
             }
+
+            // LarryDGray's Mods: rebuild the Colony Growth / Nation
+            // Comparison report history from whatever this player's
+            // save data has persisted, so a freshly loaded save
+            // continues the timeline instead of starting it over.
+            // This must happen here rather than
+            // InGameController.setGameConnected(), since that can run
+            // before the client has finished resolving its own player
+            // for the game just connected - login() receives the
+            // correct player and game directly.
+            this.inGameController.getColonyGrowthHistory()
+                .restoreFrom(player);
+            this.inGameController.getNationHistory()
+                .restoreFrom(player, game.getLiveEuropeanPlayerList());
+            logger.info("LarryDGray's Mods: restored report history on login for "
+                + player.getId() + " - colonyGrowthSamples="
+                + player.getColonyGrowthHistory().size()
+                + ", nationHistorySamples(self)="
+                + player.getNationHistory(player.getId()).size());
         }
     }
 

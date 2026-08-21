@@ -123,7 +123,19 @@ public final class StartGamePanel extends FreeColPanel {
         getGUI().showGameOptionsDialog(fcc.isAdmin(), (gameOptions) -> {
             if (gameOptions != null) {
                 fcc.getGame().setGameOptions(gameOptions);
-                fcc.getPreGameController().updateGameOptions();                
+                fcc.getPreGameController().updateGameOptions();
+                // LarryDGray's Mods: this only updated the live
+                // Specification, sent to the server for this game -
+                // it never touched game_options.xml, so the file
+                // Specification.updateGameAndMapOptions() reloads the
+                // NEXT time the Start Game screen opens could still
+                // hold a stale value and silently revert this choice
+                // before the game is actually started. Persist it now
+                // so what's on disk always matches what was just
+                // confirmed.
+                File file = FreeColDirectories
+                    .getOptionsFile(FreeColDirectories.GAME_OPTIONS_FILE_NAME);
+                if (file != null) gameOptions.save(file, null, true);
             }
         });
     };
@@ -134,6 +146,14 @@ public final class StartGamePanel extends FreeColPanel {
             if (mgo != null) {
                 fcc.getGame().setMapGeneratorOptions(mgo);
                 fcc.getPreGameController().updateMapGeneratorOptions();
+                // LarryDGray's Mods: same reasoning as gameOptionsCmd
+                // above - persist to map_generator_options.xml right
+                // away so a later reload of that file can never
+                // silently revert this choice before Start Game is
+                // clicked.
+                File file = FreeColDirectories.getOptionsFile(
+                    FreeColDirectories.MAP_GENERATOR_OPTIONS_FILE_NAME);
+                if (file != null) mgo.save(file, null, true);
             }
         });
     };
