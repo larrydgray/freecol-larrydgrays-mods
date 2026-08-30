@@ -202,6 +202,66 @@ public class GameOptions {
         = "model.option.enableUpkeep";
 
     /**
+     * LarryDGray's Mods: master switch for redirecting warehouse
+     * overflow into an idle, fortified, non-trade-route wagon train
+     * or ship instead of wasting it, and for the related per-colony
+     * "pause population growth" Food cap.
+     */
+    public static final String ENABLE_WAREHOUSE_OVERFLOW
+        = "model.option.enableWarehouseOverflow";
+
+    /**
+     * LarryDGray's Mods: master switch for the per-colony "Manager"
+     * auto-worker-optimizer (dropdown in the Colony screen).
+     */
+    public static final String ENABLE_COLONY_MANAGER
+        = "model.option.enableColonyManager";
+
+    /**
+     * LarryDGray's Mods: master switch for the ship "Auto Explore"
+     * order - a ship searches open water for unexplored territory,
+     * then hugs whatever boundary it runs into (coastline, the polar
+     * edge, or the ocean/high seas line), disengaging automatically on
+     * contact with another nation's unit.
+     */
+    public static final String ENABLE_AUTO_EXPLORE
+        = "model.option.enableAutoExplore";
+
+    /**
+     * LarryDGray's Mods: master switch letting a ship act as a scout -
+     * speaking with the chief of a coastal native settlement, an
+     * interaction normally reserved for a land unit wearing the Scout
+     * role. A ship structurally cannot be equipped with the Scout role
+     * (no ship unit type sets canBeEquipped=true), so this is a
+     * dedicated Game Option rather than a Role/Ability grant. Default
+     * off: unlike Auto Explore/Minimum Colony Distance, this is new
+     * gameplay capability, not a preservation of existing behaviour.
+     */
+    public static final String ENABLE_NAVAL_SCOUTING
+        = "model.option.enableNavalScouting";
+
+    /**
+     * LarryDGray's Mods: minimum distance (in tiles) required between
+     * a newly founded colony and any of the founding player's other
+     * colonies. 1 (the default) imposes no restriction beyond the
+     * vanilla rules - colonies may be founded directly adjacent to
+     * each other. Raising it to 2+ prevents two colonies' work radii
+     * (each 1 tile out from its own center) from ever overlapping, so
+     * they can never compete for the same resource tile.
+     */
+    public static final String MINIMUM_COLONY_DISTANCE
+        = "model.option.minimumColonyDistance";
+
+    /**
+     * LarryDGray's Mods: whether ending the turn should first warn if
+     * any owned colony is about to lose a colonist to starvation this
+     * turn (naming which settlement(s), with an End Turn Anyway/Cancel
+     * choice) rather than silently letting it happen.
+     */
+    public static final String WARN_BEFORE_END_TURN_STARVATION
+        = "model.option.warnBeforeEndTurnStarvation";
+
+    /**
      * Toggle whether artifical tile improvements contribute to the
      * production of secondary (non-food) goods on the colony center
      * tile.

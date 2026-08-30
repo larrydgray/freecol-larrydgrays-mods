@@ -43,9 +43,12 @@ import net.sf.freecol.common.model.Colony;
 import net.sf.freecol.common.model.ColonyTile;
 import net.sf.freecol.common.model.ExportData;
 import net.sf.freecol.common.model.Game;
+import net.sf.freecol.common.model.GoldCategory;
 import net.sf.freecol.common.model.Goods;
 import net.sf.freecol.common.model.GoodsContainer;
+import net.sf.freecol.common.model.GoodsLocation;
 import net.sf.freecol.common.model.GoodsType;
+import net.sf.freecol.common.model.Location;
 import net.sf.freecol.common.model.Market;
 import net.sf.freecol.common.model.ModelMessage;
 import net.sf.freecol.common.model.ModelMessage.MessageType;
@@ -57,11 +60,15 @@ import net.sf.freecol.common.model.StringTemplate;
 import net.sf.freecol.common.model.Tile;
 import net.sf.freecol.common.model.TypeCountMap;
 import net.sf.freecol.common.model.Unit;
+import net.sf.freecol.common.model.Unit.UnitState;
 import net.sf.freecol.common.model.UnitChangeType;
+import net.sf.freecol.common.model.UnitLocation.NoAddReason;
 import net.sf.freecol.common.model.UnitType;
 import net.sf.freecol.common.model.WorkLocation;
 import net.sf.freecol.common.networking.ChangeSet;
 import net.sf.freecol.common.networking.ChangeSet.See;
+import net.sf.freecol.common.option.BooleanOption;
+import net.sf.freecol.common.option.GameOptions;
 import net.sf.freecol.common.util.LogBuilder;
 
 
@@ -513,6 +520,490 @@ public class ServerColony extends Colony implements TurnTaker {
     }
 
     /**
+     * LarryDGray's Mods: redirect would-be-wasted goods into an idle,
+     * fortified, non-trade-route wagon train or ship at this colony's
+     * tile, instead of destroying them. Fortified is read here as
+     * "this carrier is deliberately parked, available for something"
+     * rather than its usual defensive meaning.
+     *
+     * @param type The {@code GoodsType} overflowing.
+     * @param amount The amount that would otherwise be wasted.
+     * @param cs A {@code ChangeSet} to update.
+     * @return The amount actually redirected (0 if none, or if the
+     *     master {@link GameOptions#ENABLE_WAREHOUSE_OVERFLOW} option
+     *     is off).
+     */
+    private int redirectOverflowToCarrier(GoodsType type, int amount, ChangeSet cs) {
+        // LarryDGray's Mods: a continued save's embedded spec predates
+        // this option and has no fallback - spec.getBoolean() would
+        // throw a hard RuntimeException on every colony's turn
+        // processing rather than just no-op, so guard with hasOption().
+        final Specification spec = getSpecification();
+        if (amount <= 0
+            || !spec.hasOption(GameOptions.ENABLE_WAREHOUSE_OVERFLOW, BooleanOption.class)
+            || !spec.getBoolean(GameOptions.ENABLE_WAREHOUSE_OVERFLOW)) {
+            return 0;
+        }
+        int remaining = amount;
+        for (Unit u : getTile().getUnitList()) {
+            if (remaining <= 0) break;
+            if (!u.isCarrier() || u.getTradeRoute() != null
+                || u.getState() != UnitState.FORTIFIED) continue;
+            int loadable = u.getLoadableAmount(type);
+            if (loadable <= 0) continue;
+            int moveAmount = Math.min(remaining, loadable);
+            GoodsLocation.moveGoods(this, type, moveAmount, u);
+            // LarryDGray's Mods: without this, the carrier's cargo
+            // change is applied server-side but never reaches the
+            // client - the Cargo panel would show stale data
+            // indefinitely, frozen at whatever it last happened to
+            // sync (this exact bug shipped and was caught live).
+            cs.add(See.only(getOwner()), u);
+            remaining -= moveAmount;
+        }
+        int redirected = amount - remaining;
+        if (redirected > 0) {
+            cs.addMessage(getOwner(),
+                new ModelMessage(MessageType.WAREHOUSE_CAPACITY,
+                                 "model.colony.warehouseOverflowRedirected",
+                                 this, type)
+                    .addNamed("%goods%", type)
+                    .addAmount("%amount%", redirected)
+                    .addName("%colony%", getName()));
+        }
+        return redirected;
+    }
+
+    /**
+     * LarryDGray's Mods: the reverse of {@link
+     * #redirectOverflowToCarrier} - when this colony's warehouse has
+     * room for a goods type again (freed up by consumption in
+     * production, a trade route pickup, etc.), pull it back in from
+     * any fortified, non-trade-route carrier parked at the colony's
+     * tile holding some.
+     *
+     * @param type The {@code GoodsType} to drain back in.
+     * @param room How much more of this type the warehouse can
+     *     currently hold.
+     * @param cs A {@code ChangeSet} to update.
+     * @return The amount actually drained back in (0 if none, or if
+     *     the master {@link GameOptions#ENABLE_WAREHOUSE_OVERFLOW}
+     *     option is off).
+     */
+    private int drainCarrierIntoWarehouse(GoodsType type, int room, ChangeSet cs) {
+        final Specification spec = getSpecification();
+        if (room <= 0
+            || !spec.hasOption(GameOptions.ENABLE_WAREHOUSE_OVERFLOW, BooleanOption.class)
+            || !spec.getBoolean(GameOptions.ENABLE_WAREHOUSE_OVERFLOW)) {
+            return 0;
+        }
+        int remaining = room;
+        for (Unit u : getTile().getUnitList()) {
+            if (remaining <= 0) break;
+            if (!u.isCarrier() || u.getTradeRoute() != null
+                || u.getState() != UnitState.FORTIFIED) continue;
+            int available = u.getGoodsCount(type);
+            if (available <= 0) continue;
+            int moveAmount = Math.min(remaining, available);
+            GoodsLocation.moveGoods(u, type, moveAmount, this);
+            // LarryDGray's Mods: same client-sync fix as
+            // redirectOverflowToCarrier - the carrier's cargo change
+            // must be explicitly added to the ChangeSet.
+            cs.add(See.only(getOwner()), u);
+            remaining -= moveAmount;
+        }
+        int drained = room - remaining;
+        if (drained > 0) {
+            cs.addMessage(getOwner(),
+                new ModelMessage(MessageType.WAREHOUSE_CAPACITY,
+                                 "model.colony.warehouseOverflowReturned",
+                                 this, type)
+                    .addNamed("%goods%", type)
+                    .addAmount("%amount%", drained)
+                    .addName("%colony%", getName()));
+        }
+        return drained;
+    }
+
+    /**
+     * LarryDGray's Mods: snapshot of one unit's work assignment, used
+     * to build the Manager's Undo state.
+     */
+    private static final class ManagerUndoEntry {
+        final Unit unit;
+        final Location location;
+        final GoodsType workType;
+        ManagerUndoEntry(Unit unit, Location location, GoodsType workType) {
+            this.unit = unit;
+            this.location = location;
+            this.workType = workType;
+        }
+    }
+
+    /**
+     * LarryDGray's Mods: a candidate worker move found while scanning
+     * for the best available reassignment toward the Manager's
+     * target goods type. {@code rescueUnit}/{@code rescueLocation} are
+     * non-null only when this move would otherwise cause imminent
+     * starvation and a second, compensating move (some other unit
+     * pulled onto food) was found to keep it safe - see
+     * {@link #findManagerRescue}.
+     */
+    private static final class Candidate {
+        final Unit unit;
+        final WorkLocation location;
+        final int newNet;
+        final Unit rescueUnit;
+        final WorkLocation rescueLocation;
+        Candidate(Unit unit, WorkLocation location, int newNet) {
+            this(unit, location, newNet, null, null);
+        }
+        Candidate(Unit unit, WorkLocation location, int newNet,
+                  Unit rescueUnit, WorkLocation rescueLocation) {
+            this.unit = unit;
+            this.location = location;
+            this.newNet = newNet;
+            this.rescueUnit = rescueUnit;
+            this.rescueLocation = rescueLocation;
+        }
+    }
+
+    /**
+     * LarryDGray's Mods: snapshot of this colony's worker arrangement
+     * immediately before the Manager's most recent reassignment pass,
+     * or null if there is nothing to undo. Deliberately not persisted
+     * - a stale snapshot from a previous session would rarely be
+     * useful once several turns have passed anyway.
+     */
+    private transient List<ManagerUndoEntry> managerUndo = null;
+
+    /**
+     * LarryDGray's Mods: apply this colony's Manager goal (if any),
+     * reassigning workers to maximize net production of the target
+     * goods type. Runs once per turn from csNewTurn(), before this
+     * turn's production is snapshotted, so this turn's production
+     * already reflects any reassignment made here - and is also
+     * called immediately whenever the goal is changed (see
+     * {@code InGameController.setColonyManager}), so a player sees
+     * the effect right away rather than waiting for the next turn to
+     * process, matching how similar auto-management features work in
+     * other 4X games.
+     *
+     * @param cs A {@code ChangeSet} to update.
+     */
+    public void csApplyManager(ChangeSet cs) {
+        final Specification spec = getSpecification();
+        if (!spec.hasOption(GameOptions.ENABLE_COLONY_MANAGER, BooleanOption.class)
+            || !spec.getBoolean(GameOptions.ENABLE_COLONY_MANAGER)
+            || getManagerGoal() == ManagerGoal.UNMANAGED) {
+            return;
+        }
+        final GoodsType target = getManagerGoal().getGoodsType(spec);
+        if (target == null) return; // defensive: goods type missing from this ruleset
+
+        final ServerPlayer owner = (ServerPlayer)getOwner();
+        List<ManagerUndoEntry> snapshot = new ArrayList<>();
+        for (Unit u : getUnitList()) {
+            snapshot.add(new ManagerUndoEntry(u, u.getLocation(), u.getWorkType()));
+        }
+
+        boolean changed = false;
+        int currentNet = getAdjustedNetProductionOf(target);
+        final int maxIterations = getUnitCount();
+        for (int i = 0; i < maxIterations; i++) {
+            Candidate best = findBestManagerMove(target, currentNet);
+            if (best == null) break;
+            best.unit.setLocation(best.location);
+            best.unit.changeWorkType(target);
+            cs.add(See.only(owner), best.unit);
+            // LarryDGray's Mods: apply the paired rescue move (if any)
+            // alongside the primary one - see findManagerRescue() for
+            // why a "improving" move can require a second unit pulled
+            // onto food to stay safe. Still counts as one iteration of
+            // this outer loop.
+            if (best.rescueUnit != null) {
+                best.rescueUnit.setLocation(best.rescueLocation);
+                best.rescueUnit.changeWorkType(spec.getPrimaryFoodType());
+                cs.add(See.only(owner), best.rescueUnit);
+            }
+            currentNet = best.newNet;
+            changed = true;
+        }
+
+        if (changed) {
+            this.managerUndo = snapshot;
+            cs.addMessage(owner, new ModelMessage(MessageType.GOODS_MOVEMENT,
+                                                  "model.colony.managerReassigned",
+                                                  this)
+                .addName("%colony%", getName())
+                .addNamed("%goods%", target));
+            cs.add(See.only(owner), this);
+        }
+    }
+
+    /**
+     * LarryDGray's Mods: how many turns of advance warning counts as
+     * "imminent" starvation for the Colony Manager's safety check -
+     * per Larry's own wording, a candidate move must not cause
+     * starvation "in current turn, or even next turn" (Colony.
+     * getStarvationTurns() values of 0 or 1, i.e. strictly less than
+     * this threshold; -1 means not starving at all).
+     */
+    private static final int MANAGER_STARVATION_SAFETY_TURNS = 2;
+
+    /**
+     * LarryDGray's Mods: scan for the single best available worker
+     * move toward the Manager's target goods type, trying tiers in
+     * order (1 = least protected) and stopping at the first tier
+     * that has any improving move at all - a more-protected tier is
+     * never touched while a less-protected one still helps.
+     *
+     * A move that would improve target's net production but newly
+     * push this colony into imminent starvation (see {@link
+     * #MANAGER_STARVATION_SAFETY_TURNS}) is not accepted outright -
+     * {@link #findManagerRescue} is tried first, to see if a second,
+     * compensating unit can be pulled onto food to keep it safe while
+     * still making the original move. Only if no rescue exists is the
+     * candidate discarded. A colony already unsafe before this scan
+     * even starts (for unrelated reasons) is not blocked further -
+     * only a *new* regression caused by the Manager itself triggers
+     * this. Goal == the primary food type skips the whole check: every
+     * accepted move there can only increase food's own net production,
+     * so it can never worsen starvation.
+     *
+     * @param target The target {@code GoodsType}.
+     * @param currentNet This colony's current net production of target.
+     * @return The best {@code Candidate} move found, or null if none
+     *     of the three tiers has any improving move.
+     */
+    private Candidate findBestManagerMove(GoodsType target, int currentNet) {
+        final GoodsType foodType = getSpecification().getPrimaryFoodType();
+        final boolean checkStarvation = target != foodType;
+        final int startingStarvation = getStarvationTurns();
+        final boolean startedSafe = startingStarvation < 0
+            || startingStarvation >= MANAGER_STARVATION_SAFETY_TURNS;
+        for (int tier = 1; tier <= 3; tier++) {
+            List<Unit> pool = getManagerTierCandidates(tier, target);
+            if (pool.isEmpty()) continue;
+            Candidate best = null;
+            for (WorkLocation wl : getAvailableWorkLocationsList()) {
+                for (Unit u : pool) {
+                    // LarryDGray's Mods: a candidate's own current
+                    // location must always be considered - a tile (or
+                    // building) that can produce more than one goods
+                    // type should let its worker just switch goods
+                    // type in place, without being forced to relocate
+                    // first. getNoAddReason() is NOT usable to check
+                    // this case: UnitLocation.getNoAddReason() returns
+                    // ALREADY_PRESENT (not NONE) whenever the unit is
+                    // already standing in that location, since it is
+                    // designed to validate genuinely adding a unit,
+                    // not "is this unit allowed to keep working here."
+                    // So only consult it for an actual relocation.
+                    final boolean sameLocation = u.getLocation() == wl;
+                    if (!sameLocation
+                        && wl.getNoAddReason(u) != NoAddReason.NONE) continue;
+                    final Location oldLoc = u.getLocation();
+                    final GoodsType oldWork = u.getWorkType();
+                    u.setLocation(wl);
+                    u.changeWorkType(target);
+                    int net = getAdjustedNetProductionOf(target);
+                    Candidate rescue = null;
+                    boolean blocked = false;
+                    if (net > currentNet && checkStarvation && startedSafe) {
+                        int afterMove = getStarvationTurns();
+                        boolean stillSafe = afterMove < 0
+                            || afterMove >= MANAGER_STARVATION_SAFETY_TURNS;
+                        if (!stillSafe) {
+                            RescueMove rm = findManagerRescue(u, target, foodType);
+                            if (rm == null) {
+                                blocked = true;
+                            } else {
+                                // Recompute target's net with BOTH the
+                                // primary and rescue moves layered in -
+                                // diverting the rescue unit can itself
+                                // affect target's production (e.g. a
+                                // shared building), so currentNet must
+                                // reflect the real, final state. The
+                                // rescue move is still tentatively
+                                // applied at this point (findManager
+                                // Rescue() deliberately leaves a
+                                // successful match in place rather than
+                                // reverting it) - revert it here, now
+                                // that it's been measured.
+                                net = getAdjustedNetProductionOf(target);
+                                rescue = new Candidate(rm.unit, rm.location, 0);
+                                rm.unit.setLocation(rm.oldLocation);
+                                rm.unit.changeWorkType(rm.oldWorkType);
+                            }
+                        }
+                    }
+                    u.setLocation(oldLoc);
+                    u.changeWorkType(oldWork);
+                    if (!blocked && net > currentNet
+                        && (best == null || net > best.newNet)) {
+                        best = (rescue == null) ? new Candidate(u, wl, net)
+                            : new Candidate(u, wl, net,
+                                            rescue.unit, rescue.location);
+                    }
+                }
+            }
+            if (best != null) return best;
+        }
+        return null;
+    }
+
+    /**
+     * LarryDGray's Mods: a rescue move found by {@link
+     * #findManagerRescue}, still tentatively applied when returned -
+     * carries its own pre-move state so the caller can revert it once
+     * it has measured the combined (primary + rescue) effect.
+     */
+    private static final class RescueMove {
+        final Unit unit;
+        final WorkLocation location;
+        final Location oldLocation;
+        final GoodsType oldWorkType;
+        RescueMove(Unit unit, WorkLocation location,
+                  Location oldLocation, GoodsType oldWorkType) {
+            this.unit = unit;
+            this.location = location;
+            this.oldLocation = oldLocation;
+            this.oldWorkType = oldWorkType;
+        }
+    }
+
+    /**
+     * LarryDGray's Mods: try to find a second unit that can be pulled
+     * onto this colony's primary food type to keep it safe, given the
+     * primary candidate move ({@code primary}, tentatively relocated
+     * by the caller and still in that state) that would otherwise push
+     * it into imminent starvation. Tries the same tiers 1-3 (least-
+     * protected first) as the primary move, excluding the primary unit
+     * itself and anyone already producing food OR the target good
+     * (a target-good producer pulled onto food would silently undo
+     * part of the primary move's own improvement).
+     *
+     * A successful match is deliberately left tentatively APPLIED when
+     * returned, not reverted - the caller needs both the primary and
+     * this rescue move active at once to correctly measure target's
+     * real combined net production, and is responsible for reverting
+     * it (via the returned {@code oldLocation}/{@code oldWorkType})
+     * once done. Every unsuccessful attempt along the way is reverted
+     * immediately, as usual.
+     *
+     * @param primary The unit already tentatively relocated for the
+     *     primary move - excluded from consideration here.
+     * @param target The Manager's target {@code GoodsType} (excluded
+     *     from the rescue pool, see above).
+     * @param foodType This colony's primary food {@code GoodsType}.
+     * @return A {@code RescueMove}, still tentatively applied, or null
+     *     if no such move restores safety.
+     */
+    private RescueMove findManagerRescue(Unit primary, GoodsType target,
+                                         GoodsType foodType) {
+        for (int tier = 1; tier <= 3; tier++) {
+            for (Unit u : getManagerTierCandidates(tier, foodType)) {
+                if (u == primary || u.getWorkType() == target) continue;
+                for (WorkLocation wl : getAvailableWorkLocationsList()) {
+                    final boolean sameLocation = u.getLocation() == wl;
+                    if (!sameLocation
+                        && wl.getNoAddReason(u) != NoAddReason.NONE) continue;
+                    final Location oldLoc = u.getLocation();
+                    final GoodsType oldWork = u.getWorkType();
+                    u.setLocation(wl);
+                    u.changeWorkType(foodType);
+                    int starvation = getStarvationTurns();
+                    boolean safe = starvation < 0
+                        || starvation >= MANAGER_STARVATION_SAFETY_TURNS;
+                    if (safe) return new RescueMove(u, wl, oldLoc, oldWork);
+                    u.setLocation(oldLoc);
+                    u.changeWorkType(oldWork);
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * LarryDGray's Mods: classify this colony's workers into the
+     * Manager's three reassignment-priority tiers for the given
+     * target goal - tier 1 (least protected, moved first): refined/
+     * manufactured goods producers; tier 2: other non-food, non-
+     * build-queue-input workers; tier 3 (most protected, last
+     * resort): food producers and workers feeding the colony's
+     * current buildable. A worker already producing the target good
+     * is never a candidate to move away from (also naturally covers
+     * the case where the goal itself is Food or a build input).
+     *
+     * @param tier The tier to collect (1-3).
+     * @param target The target {@code GoodsType}.
+     * @return The matching workers.
+     */
+    private List<Unit> getManagerTierCandidates(int tier, GoodsType target) {
+        List<Unit> result = new ArrayList<>();
+        final BuildableType building = this.buildQueue.getCurrentlyBuilding();
+        for (Unit u : getUnitList()) {
+            final GoodsType wt = u.getWorkType();
+            if (wt == null || wt == target) continue;
+            final boolean refined = !wt.isFarmed() && wt.getInputType() != null;
+            final boolean food = wt.isFoodType();
+            final boolean buildRequired = building != null
+                && any(building.getRequiredGoodsList(), ag -> ag.getType() == wt);
+            switch (tier) {
+            case 1: if (refined) result.add(u); break;
+            case 2: if (!refined && !food && !buildRequired) result.add(u); break;
+            case 3: if (!refined && (food || buildRequired)) result.add(u); break;
+            default: break;
+            }
+        }
+        return result;
+    }
+
+    /**
+     * LarryDGray's Mods: undo this colony's most recent automatic
+     * Manager reassignment, restoring every moved unit's exact prior
+     * work location and work type. A one-shot action - the snapshot
+     * is consumed (cleared) once used, matching "undo the last
+     * change" rather than a full history stack.
+     *
+     * @param serverPlayer The {@code ServerPlayer} to notify.
+     * @param cs A {@code ChangeSet} to update.
+     */
+    public void csUndoManager(ServerPlayer serverPlayer, ChangeSet cs) {
+        if (this.managerUndo == null) return; // nothing to undo
+        for (ManagerUndoEntry e : this.managerUndo) {
+            if (e.unit == null || e.unit.isDisposed()) continue;
+            if (e.location instanceof WorkLocation
+                && ((WorkLocation)e.location).getNoAddReason(e.unit) != NoAddReason.NONE) {
+                continue;
+            }
+            e.unit.setLocation(e.location);
+            e.unit.changeWorkType(e.workType);
+            cs.add(See.only(serverPlayer), e.unit);
+        }
+        this.managerUndo = null;
+        cs.add(See.only(serverPlayer), this);
+    }
+
+    /**
+     * LarryDGray's Mods: the amount of the primary food type the
+     * currently-building population-queue unit type requires - used
+     * as a floor for Food's effective overflow limit so a low-tier
+     * warehouse never caps Food below the colonist requirement.
+     * Avoids hardcoding the classic ruleset's 200, so this stays
+     * correct if a ruleset changes the colonist food cost.
+     *
+     * @return The required Food amount, or 0 if nothing is currently
+     *     buildable in the population queue.
+     */
+    private int getRequiredFoodAmount() {
+        BuildableType buildable = this.populationQueue.getCurrentlyBuilding();
+        if (buildable == null) return 0;
+        return buildable.getRequiredAmountOf(getSpecification().getPrimaryFoodType());
+    }
+
+    /**
      * Do the checks for user warnings that must wait for all player
      * settlements, units and whatever to stabilize.  Along the way,
      * throw away excess goods.
@@ -575,8 +1066,45 @@ public class ServerColony extends Colony implements TurnTaker {
             final ExportData exportData = getExportData(type);
             final int low = exportData.getLowLevel() * adjustment;
             final int high = exportData.getHighLevel() * adjustment;
-            final int amount = goods.getAmount();
+            int amount = goods.getAmount();
             final int oldAmount = container.getOldGoodsCount(type);
+
+            // LarryDGray's Mods: Food is normally exempt from all
+            // warehouse-capacity handling below since it needs to
+            // accumulate past normal capacity to reach a new
+            // colonist's required amount - but turning "Overflow to
+            // Carrier" on for Food specifically opts it back in to
+            // the exact same capacity/redirect/drain-in handling as
+            // every other goods type below, so it scales with
+            // Warehouse/Warehouse Expansion when that's the bigger
+            // number - but never drops *below* one under the
+            // colonist requirement, even at a base Depot, so flipping
+            // the checkbox on never suddenly wastes/redirects food
+            // that was already safely accumulating toward 200 (Larry
+            // caught this: a bare Depot's own capacity, e.g. 100, is
+            // well under 200 and would otherwise cause exactly that).
+            // Population growth is paused independently of whatever
+            // this cap turns out to be, by the matching skip in
+            // csNewTurn() below - that skip is still required since
+            // the population queue's own readiness check runs earlier
+            // in the turn than any capping here would, using this
+            // turn's production before this method ever gets a
+            // chance to act on it.
+            final boolean foodOverflowActive = type == spec.getPrimaryFoodType()
+                && exportData.isOverflowToCarrier();
+            final boolean treatAsLimited = !type.limitIgnored() || foodOverflowActive;
+            final int effectiveLimit = foodOverflowActive
+                ? Math.max(limit, getRequiredFoodAmount() - 1)
+                : limit;
+
+            // LarryDGray's Mods: if this goods type has room again
+            // (freed up by consumption in production, a trade route
+            // pickup, etc.), pull it back in from any fortified, non-
+            // trade-route carrier parked here holding some.
+            if (treatAsLimited && exportData.isOverflowToCarrier()
+                && amount < effectiveLimit) {
+                amount += drainCarrierIntoWarehouse(type, effectiveLimit - amount, cs);
+            }
 
             if (amount < low && oldAmount >= low
                 && type != spec.getPrimaryFoodType()) {
@@ -589,16 +1117,25 @@ public class ServerColony extends Colony implements TurnTaker {
                         .addName("%colony%", getName()));
                 continue;
             }
-            if (type.limitIgnored()) continue;
+            if (!treatAsLimited) {
+                continue;
+            }
             String messageId = null;
             int waste = 0;
-            if (amount > limit) {
+            if (amount > effectiveLimit) {
                 // limit has been exceeded
-                waste = amount - limit;
-                container.removeGoods(type, waste);
-                setWastedGoods(true); // LarryDGray's Mods
-                messageId = "model.colony.warehouseWaste";
-            } else if (amount == limit && oldAmount < limit) {
+                waste = amount - effectiveLimit;
+                // LarryDGray's Mods: try to redirect into an idle
+                // carrier before actually destroying anything.
+                if (exportData.isOverflowToCarrier()) {
+                    waste -= redirectOverflowToCarrier(type, waste, cs);
+                }
+                if (waste > 0) {
+                    container.removeGoods(type, waste);
+                    setWastedGoods(true); // LarryDGray's Mods
+                    messageId = "model.colony.warehouseWaste";
+                }
+            } else if (amount == effectiveLimit && oldAmount < effectiveLimit) {
                 // limit has been reached during this turn
                 messageId = "model.colony.warehouseOverfull";
             } else if (amount > high && oldAmount <= high) {
@@ -619,8 +1156,8 @@ public class ServerColony extends Colony implements TurnTaker {
             if (!(exportData.getExported()
                   && hasAbility(Ability.EXPORT)
                   && owner.canTrade(type, Market.Access.CUSTOM_HOUSE))
-                && amount <= limit) {
-                int loss = amount + getNetProductionOf(type) - limit;
+                && amount <= effectiveLimit) {
+                int loss = amount + getNetProductionOf(type) - effectiveLimit;
                 if (loss > 0) {
                     cs.addMessage(owner,
                         new ModelMessage(MessageType.WAREHOUSE_CAPACITY,
@@ -653,6 +1190,19 @@ public class ServerColony extends Colony implements TurnTaker {
                     "model.colony.notBuildingAnything", this)
                 .addName("%colony%", getName()));
         }
+
+        // LarryDGray's Mods: this method runs in its own later pass,
+        // after csNewTurn() already synced this colony's state to the
+        // client once earlier in the same overall turn - so a change
+        // made only here (like the wastedGoods reset just above) is
+        // never seen by the client unless something else in this
+        // method happens to add a message that turn too. On a quiet
+        // turn with nothing to report, the server-side reset from
+        // true back to false would otherwise never reach the client,
+        // leaving the "!" badge stuck showing forever once it first
+        // appears (caught live: a colony with zero messages this turn
+        // still showed "!" from an earlier turn's real waste).
+        cs.add(See.only(owner), this);
     }
 
 
@@ -684,6 +1234,11 @@ public class ServerColony extends Colony implements TurnTaker {
             owner.csDisposeSettlement(this, cs);
             return;
         }
+
+        // LarryDGray's Mods: apply this colony's Manager goal (if
+        // any) before production for this turn is snapshotted below,
+        // so this turn's production already reflects any reassignment.
+        csApplyManager(cs);
 
         boolean tileDirty = false;
         boolean newUnitBorn = false;
@@ -728,6 +1283,17 @@ public class ServerColony extends Colony implements TurnTaker {
         // production changes.
         List<BuildQueue<? extends BuildableType>> built = new ArrayList<>();
         for (BuildQueue<?> queue : queues) {
+            // LarryDGray's Mods: Food's "Overflow to Carrier" checkbox
+            // also pauses population growth (see csNewTurnWarnings())
+            // - skip the population queue's own completion check here
+            // too, since it would otherwise see enough food (this
+            // turn's production included) and build a colonist before
+            // csNewTurnWarnings() ever gets a chance to cap Food back
+            // down. The normal build queue is untouched.
+            if (queue == this.populationQueue
+                && getExportData(spec.getPrimaryFoodType()).isOverflowToCarrier()) {
+                continue;
+            }
             ProductionInfo info = getProductionInfo(queue);
             if (info == null) continue;
             if (!info.getConsumption().isEmpty()) {
@@ -857,7 +1423,8 @@ public class ServerColony extends Colony implements TurnTaker {
                 if (amount <= 0) continue;
                 int oldGold = owner.getGold();
                 int marketAmount = owner.sellInEurope(random, container,
-                                                      type, amount);
+                                                      type, amount,
+                                                      GoldCategory.CUSTOMS_HOUSE);
                 if (marketAmount > 0) {
                     owner.addExtraTrade(new AbstractGoods(type, marketAmount));
                 }

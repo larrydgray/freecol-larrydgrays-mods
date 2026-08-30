@@ -30,6 +30,7 @@ import net.sf.freecol.common.model.Ability;
 import net.sf.freecol.common.model.FreeColGameObject;
 import net.sf.freecol.common.model.FreeColObject;
 import net.sf.freecol.common.model.Game;
+import net.sf.freecol.common.model.GoldJournalSample;
 import net.sf.freecol.common.model.HistoryEvent;
 import net.sf.freecol.common.model.LastSale;
 import net.sf.freecol.common.model.ModelMessage;
@@ -95,6 +96,9 @@ public class FeatureChangeMessage extends ObjectMessage {
                     fco.readFromXML(xr);
                 } else if (LastSale.TAG.equals(tag)) {
                     fco = new LastSale();
+                    fco.readFromXML(xr);
+                } else if (GoldJournalSample.TAG.equals(tag)) {
+                    fco = new GoldJournalSample();
                     fco.readFromXML(xr);
                 } else if (ModelMessage.TAG.equals(tag)) {
                     fco = new ModelMessage();

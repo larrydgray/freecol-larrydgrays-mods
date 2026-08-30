@@ -40,7 +40,9 @@ import net.sf.freecol.common.i18n.Messages;
 import net.sf.freecol.common.model.Ability;
 import net.sf.freecol.common.model.AbstractGoods;
 import net.sf.freecol.common.model.AbstractUnit;
+import net.sf.freecol.common.model.AutoExploreDecider;
 import net.sf.freecol.common.model.BuildableType;
+import net.sf.freecol.common.model.Direction;
 import net.sf.freecol.common.model.Colony;
 import net.sf.freecol.common.model.CombatModel.CombatEffectType;
 import net.sf.freecol.common.model.Constants.IndianDemandAction;
@@ -55,6 +57,7 @@ import net.sf.freecol.common.model.Force;
 import net.sf.freecol.common.model.FreeColGameObject;
 import net.sf.freecol.common.model.FreeColObject;
 import net.sf.freecol.common.model.Game;
+import net.sf.freecol.common.model.GoldCategory;
 import net.sf.freecol.common.model.Goods;
 import net.sf.freecol.common.model.GoodsContainer;
 import net.sf.freecol.common.model.GoodsLocation;
@@ -116,6 +119,7 @@ import net.sf.freecol.common.networking.NationSummaryMessage;
 import net.sf.freecol.common.networking.NativeTradeMessage;
 import net.sf.freecol.common.networking.NewTradeRouteMessage;
 import net.sf.freecol.common.networking.RearrangeColonyMessage.Arrangement;
+import net.sf.freecol.common.networking.RequestBoundaryTraceMessage;
 import net.sf.freecol.common.networking.ScoutSpeakToChiefMessage;
 import net.sf.freecol.common.networking.SetCurrentPlayerMessage;
 import static net.sf.freecol.common.util.CollectionUtils.*;
@@ -408,8 +412,8 @@ public final class InGameController extends Controller {
         unit.csVisit((ServerPlayer)owner, sis, 0, cs);
         GoodsLocation.moveGoods(sis, goods.getType(), goods.getAmount(), unit);
         cs.add(See.perhaps(), unit);
-        sis.getOwner().modifyGold(price);
-        owner.modifyGold(-price);
+        sis.getOwner().modifyGold(price, GoldCategory.TRADE_NATIVE);
+        owner.modifyGold(-price, GoldCategory.TRADE_NATIVE);
         sis.csModifyAlarm(owner, alarmBonus, true, cs);
         sis.updateWantedGoods();
         final Tile tile = sis.getTile();
@@ -440,8 +444,8 @@ public final class InGameController extends Controller {
         unit.csVisit((ServerPlayer)owner, sis, 0, cs);
         GoodsLocation.moveGoods(unit, goods.getType(), goods.getAmount(), sis);
         cs.add(See.perhaps(), unit);
-        sis.getOwner().modifyGold(-price);
-        owner.modifyGold(price);
+        sis.getOwner().modifyGold(-price, GoldCategory.TRADE_NATIVE);
+        owner.modifyGold(price, GoldCategory.TRADE_NATIVE);
         sis.csModifyAlarm(owner, alarmBonus, true, cs);
         sis.updateWantedGoods();
         final Tile tile = sis.getTile();
@@ -733,7 +737,7 @@ public final class InGameController extends Controller {
                 warGold = spec.getInteger(GameOptions.WAR_SUPPORT_GOLD);
                 warGold += (warGold/10) * (randomInt(logger, "War support gold",
                                                      random, 5) - 2);
-                serverPlayer.modifyGold(warGold);
+                serverPlayer.modifyGold(warGold, GoldCategory.MONARCH);
                 cs.addPartial(See.only(serverPlayer), serverPlayer,
                     "gold", String.valueOf(serverPlayer.getGold()),
                     "score", String.valueOf(serverPlayer.getScore()));
@@ -1015,7 +1019,27 @@ public final class InGameController extends Controller {
         unit.setMovesLeft(0);
 
         // Update with settlement tile, and newly owned tiles.
-        cs.add(See.perhaps(), settlement.getOwnedTiles());
+        // LarryDGray's Mods: settlement.getOwnedTiles() deliberately
+        // does NOT include the settlement's own center tile (that
+        // tile's Settlement reference is tracked separately via
+        // Tile.setSettlement(), not the ownedTiles set - confirmed by
+        // reading Settlement.dispose(), which clears the two
+        // separately). Founding a colony on a tile the player's own
+        // unit had already explored/seen on a previous turn (i.e. not
+        // newly sighted by the settlement's own visibility radius)
+        // meant collectNewTiles() above also excluded it (it isn't
+        // "new" to the player), so this tile - the ONE tile that just
+        // gained the actual new Settlement object - was never
+        // included in any update sent to the founding player at all.
+        // Confirmed live: the founder ends up correctly IN_COLONY
+        // server-side (a real, working colony, counted correctly in
+        // NationSummary) while the client's own map/tile/colony list
+        // never learn it exists, leaving the founding unit looking
+        // permanently stuck. Fixed by always including the
+        // settlement's own tile alongside its owned tiles.
+        Set<Tile> tilesToUpdate = new HashSet<>(settlement.getOwnedTiles());
+        tilesToUpdate.add(tile);
+        cs.add(See.perhaps(), tilesToUpdate);
         serverPlayer.invalidateCanSeeTiles();//+vis(serverPlayer)
 
         // Others can see tile changes.
@@ -1088,7 +1112,7 @@ public final class InGameController extends Controller {
             messageId = "cashInTreasureTrain.independent";
         }
 
-        serverPlayer.modifyGold(cashInAmount);
+        serverPlayer.modifyGold(cashInAmount, GoldCategory.TREASURE);
         cs.addPartial(See.only(serverPlayer), serverPlayer,
             "gold", String.valueOf(serverPlayer.getGold()),
             "score", String.valueOf(serverPlayer.getScore()));
@@ -1830,8 +1854,8 @@ public final class InGameController extends Controller {
         is.setLastTribute(year);
         ModelMessage m;
         if (gold > 0) {
-            indianPlayer.modifyGold(-gold);
-            serverPlayer.modifyGold(gold);
+            indianPlayer.modifyGold(-gold, GoldCategory.TRIBUTE);
+            serverPlayer.modifyGold(gold, GoldCategory.TRIBUTE);
             cs.addPartial(See.only(serverPlayer), serverPlayer,
                 "gold", String.valueOf(serverPlayer.getGold()),
                 "score", String.valueOf(serverPlayer.getScore()));
@@ -2594,8 +2618,8 @@ public final class InGameController extends Controller {
                 Tension.WAR_MODIFIER, cs);//+til
             ((ServerPlayer)enemy).csModifyTension(serverPlayer,
                 Tension.TENSION_ADD_WAR_INCITER, cs);//+til
-            serverPlayer.modifyGold(-gold);
-            nativePlayer.modifyGold(gold);
+            serverPlayer.modifyGold(-gold, GoldCategory.INCITEMENT);
+            nativePlayer.modifyGold(gold, GoldCategory.INCITEMENT);
             cs.addMessage(serverPlayer,
                 new ModelMessage(MessageType.FOREIGN_DIPLOMACY,
                                  "missionarySettlement.inciteSuccess",
@@ -3350,7 +3374,7 @@ public final class InGameController extends Controller {
 
         ChangeSet cs = new ChangeSet();
         Market market = serverPlayer.getMarket();
-        serverPlayer.modifyGold(-arrears);
+        serverPlayer.modifyGold(-arrears, GoldCategory.ARREARS);
         market.setArrears(type, 0);
         cs.addPartial(See.only(serverPlayer), serverPlayer,
             "gold", String.valueOf(serverPlayer.getGold()));
@@ -3388,8 +3412,8 @@ public final class InGameController extends Controller {
         // Save the correct final gold for the player, as we are going to
         // use buy() below, but it deducts the normal uninflated price for
         // the goods being bought.  We restore this correct amount later.
-        int savedGold = serverPlayer.modifyGold(-price);
-        serverPlayer.modifyGold(price);
+        int savedGold = serverPlayer.modifyGold(-price, GoldCategory.OTHER);
+        serverPlayer.modifyGold(price, GoldCategory.OTHER);
 
         ChangeSet cs = new ChangeSet();
         GoodsContainer container = colony.getGoodsContainer();
@@ -3632,8 +3656,12 @@ public final class InGameController extends Controller {
                     if (sUnit.hasAbility(Ability.EXPERT_SCOUT)) {
                         gold = (gold * 11) / 10; // FIXME: magic number
                     }
-                    serverPlayer.modifyGold(gold);
-                    is.getOwner().modifyGold(-gold);
+                    // LarryDGray's Mods: a friendly gift of beads from
+                    // the chief on first speaking to them - not
+                    // demanded tribute (see demandTribute() above for
+                    // that), so it gets its own Gold Journal category.
+                    serverPlayer.modifyGold(gold, GoldCategory.CHIEF_GIFT);
+                    is.getOwner().modifyGold(-gold, GoldCategory.CHIEF_GIFT);
                     result = Integer.toString(gold);
                     cs.addPartial(See.only(serverPlayer), serverPlayer,
                         "gold", String.valueOf(serverPlayer.getGold()),
@@ -3796,6 +3824,65 @@ public final class InGameController extends Controller {
         return new ChangeSet().add(See.only(serverPlayer), unit);
     }
 
+    /**
+     * LarryDGray's Mods: start or stop a unit's Auto Explore order.
+     *
+     * @param serverPlayer The {@code ServerPlayer} that owns the unit.
+     * @param unit The {@code Unit} to direct.
+     * @param start True to start, false to stop.
+     * @return A {@code ChangeSet} encapsulating this action.
+     */
+    public ChangeSet setAutoExplore(ServerPlayer serverPlayer, Unit unit,
+                                    boolean start) {
+        unit.setAutoExploring(start);
+        if (start) {
+            unit.setDestination(null);
+            unit.setTradeRoute(null);
+            unit.setAutoExplorePhase(Unit.AutoExplorePhase.OPEN_OCEAN);
+            unit.setAutoExploreHeading(null);
+        }
+
+        // LarryDGray's Mods: a full cs.add(unit) here was found, via
+        // live evidence in FreeCol.log (three separate stop attempts
+        // that all succeeded server-side but never reached the
+        // client's actual Unit object), to be unreliable for this
+        // field - same class of bug already fixed for
+        // Colony.managerGoal and Player's gold journal history.
+        // addPartial resolves the unit by id and updates it in place
+        // instead. Others can not see an Auto Explore change.
+        return new ChangeSet().addPartial(See.only(serverPlayer), unit,
+            "autoExploring", String.valueOf(start));
+    }
+
+    /**
+     * LarryDGray's Mods: compute a ground-truth Auto Explore boundary
+     * trace for a unit, using the server's own full-map data (no
+     * fog-of-war restriction applies here - that's the whole point).
+     * The response carries only a bare sequence of compass directions,
+     * nothing about what is actually at each tile, so this never
+     * reveals any real map data to the requesting player ahead of
+     * their ship actually sailing there.
+     *
+     * @param serverPlayer The {@code ServerPlayer} requesting the trace.
+     * @param unit The {@code Unit} to trace a boundary for.
+     * @param wallMode Which boundary type to trace.
+     * @param heading The unit's current committed heading, or null.
+     * @param recentTiles The unit's own recent-tile history, resolved
+     *     to this server's own {@code Tile} objects - tiles to avoid
+     *     looping back onto, since the server's copy of the unit never
+     *     sees this client-only tracking otherwise.
+     * @return A {@code ChangeSet} carrying the response.
+     */
+    public ChangeSet requestBoundaryTrace(ServerPlayer serverPlayer, Unit unit,
+                                          Unit.AutoExploreMode wallMode,
+                                          Direction heading, List<Tile> recentTiles) {
+        final Predicate<Tile> isWall = AutoExploreDecider.wallPredicateForMode(wallMode);
+        final List<Direction> path = AutoExploreDecider.buildBoundaryTrace(
+            unit.getTile(), heading, isWall, true, recentTiles);
+        return ChangeSet.simpleChange(serverPlayer,
+            new RequestBoundaryTraceMessage(unit, path));
+    }
+
 
     /**
      * Set goods levels.
@@ -3809,6 +3896,59 @@ public final class InGameController extends Controller {
                                     ExportData exportData) {
         colony.setExportData(exportData);
         return new ChangeSet().add(See.only(serverPlayer), colony);
+    }
+
+    /**
+     * LarryDGray's Mods: set a colony's Manager goal.
+     *
+     * @param serverPlayer The {@code ServerPlayer} that owns the colony.
+     * @param colony The {@code Colony} whose Manager goal is set.
+     * @param goal The new {@code Colony.ManagerGoal}.
+     * @return A {@code ChangeSet} encapsulating this action.
+     */
+    public ChangeSet setColonyManager(ServerPlayer serverPlayer, Colony colony,
+                                      Colony.ManagerGoal goal) {
+        colony.setManagerGoal(goal);
+        ChangeSet cs = new ChangeSet();
+        // LarryDGray's Mods: a full cs.add(colony) here was found (via
+        // live diagnostic logging - identity-hashed every step) to
+        // deserialize into a brand new, orphaned Colony object on the
+        // client every time, never touching the actual long-lived
+        // object the open ColonyPanel and the rest of the client
+        // reference - so the goal change silently never reached
+        // anywhere visible. addPartial's client handler explicitly
+        // looks the object up by id from the game's real registry
+        // (PartialMessage.clientHandler -> game.getFreeColGameObject)
+        // and sets the field on THAT object via reflection (Enum
+        // setters are natively supported, see Introspector.setter) -
+        // same proven mechanism already used elsewhere in this
+        // codebase for e.g. unit experience.
+        cs.addPartial(See.only(serverPlayer), colony,
+            "managerGoal", goal.name());
+        // LarryDGray's Mods: apply the new goal right away rather than
+        // waiting for next turn's processing, so picking a goal (or
+        // Apply to All) has an immediate, visible effect.
+        if (colony instanceof ServerColony) {
+            ((ServerColony)colony).csApplyManager(cs);
+        }
+        return cs;
+    }
+
+    /**
+     * LarryDGray's Mods: undo a colony's most recent automatic
+     * Manager reassignment.
+     *
+     * @param serverPlayer The {@code ServerPlayer} that owns the colony.
+     * @param colony The {@code Colony} to undo the Manager change for.
+     * @return A {@code ChangeSet} encapsulating this action.
+     */
+    public ChangeSet undoColonyManager(ServerPlayer serverPlayer, Colony colony) {
+        if (!(colony instanceof ServerColony)) {
+            return serverPlayer.clientError("Not a server colony: " + colony.getId());
+        }
+        ChangeSet cs = new ChangeSet();
+        ((ServerColony)colony).csUndoManager(serverPlayer, cs);
+        return cs;
     }
 
 
@@ -3924,7 +4064,13 @@ public final class InGameController extends Controller {
         Unit unit = new ServerUnit(game, europe, serverPlayer, type,
                                    role);//-vis: safe, Europe
         unit.setName(serverPlayer.getNameForUnit(type, random));
-        serverPlayer.modifyGold(-price);
+        // LarryDGray's Mods: distinct from GoldCategory.RECRUITMENT -
+        // this is paying for a SPECIFIC expert unit type directly,
+        // not recruiting whichever colonist is currently in the
+        // immigration pool. Larry's Gold Journal totals table
+        // surfaced these as one indistinguishable lump; split for
+        // clarity.
+        serverPlayer.modifyGold(-price, GoldCategory.TRAINING);
         ((ServerEurope)europe).increasePrice(type, price);
 
         // Only visible in Europe

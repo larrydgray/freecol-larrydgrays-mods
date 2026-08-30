@@ -36,6 +36,7 @@ import static net.sf.freecol.common.util.CollectionUtils.transform;
 import static net.sf.freecol.common.util.StringUtils.getEnumKey;
 import static net.sf.freecol.common.util.StringUtils.lastPart;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -208,6 +209,50 @@ public class Unit extends GoodsLocation
         }
     }
 
+    /**
+     * LarryDGray's Mods: the phase of an in-progress "Auto Explore"
+     * order (ships only, for now) - null on {@link #autoExplorePhase}
+     * means not auto-exploring at all. See {@code AutoExploreDecider}
+     * for the actual movement logic driven by these phases.
+     */
+    public static enum AutoExplorePhase {
+        /** Searching open water for unexplored territory. */
+        OPEN_OCEAN,
+        /** Following a landmass coastline. */
+        COAST_HUGGING,
+        /** Following the map's polar edge. */
+        ARCTIC_HUGGING,
+        /** Following the ocean/high seas boundary. */
+        OCEAN_BOUNDARY;
+    }
+
+    /**
+     * LarryDGray's Mods: which single boundary type (if any) an Auto
+     * Explore order is currently targeting - chosen by the player once,
+     * when the order is started, via a modal dialog. Replaces the old
+     * automatic land&gt;arctic&gt;ocean priority-guessing that used to
+     * live in {@code AutoExploreDecider.updatePhase()}, which was a
+     * repeated source of circling bugs (it could misdetect which
+     * boundary type to prioritise at a corner where two types meet).
+     */
+    public static enum AutoExploreMode {
+        /** Seek out and hug the nearest known coastline. */
+        COASTLINE,
+        /** Seek out and hug the map's polar edge. */
+        ARCTIC,
+        /** Seek out and hug the ocean/high-seas boundary. */
+        DEEP_WATER,
+        /** Never hug anything - always steer toward the nearest fog. */
+        NEAREST_FOG,
+        /**
+         * LarryDGray's Mods: just keep going in one fixed, player-
+         * chosen compass direction, chosen once at order start, until
+         * land or the map's edge blocks it - then disengage. No
+         * hugging, no fog-seeking, no further prompts.
+         */
+        DIRECTION;
+    }
+
     /** Internal state for findIntermediatePort. */
     private static enum PortMode {
         LAKE,
@@ -297,6 +342,110 @@ public class Unit extends GoodsLocation
 
     /** Which stop in a trade route the unit is going to. */
     protected int currentStop = -1;
+
+    /**
+     * LarryDGray's Mods: is this unit currently following an Auto
+     * Explore order? The single authoritative on/off signal, synced
+     * to the client via a targeted addPartial() boolean update (see
+     * server InGameController.setAutoExplore()) - a full-object
+     * cs.add() of the Unit was found, via live evidence in
+     * FreeCol.log, to reliably reach the client for some field
+     * changes but not for this one (same class of orphaned-update bug
+     * fixed earlier for Colony.managerGoal and Player's gold journal
+     * history) - a plain boolean has no null-enum ambiguity for
+     * addPartial's Introspector-based setter, unlike autoExplorePhase.
+     */
+    protected boolean autoExploring = false;
+
+    /**
+     * LarryDGray's Mods: this unit's current Auto Explore phase.
+     * Meaningless while {@link #autoExploring} is false. Driven
+     * entirely client-side turn to turn (see AutoExploreDecider) -
+     * only the on/off flag above needs to be network-authoritative.
+     */
+    protected AutoExplorePhase autoExplorePhase = AutoExplorePhase.OPEN_OCEAN;
+
+    /**
+     * LarryDGray's Mods: the last heading used while boundary-hugging
+     * during Auto Explore, so the wall-follower can resume smoothly
+     * from turn to turn instead of re-detecting its heading from
+     * scratch. Null when not in a hugging phase.
+     */
+    protected Direction autoExploreHeading = null;
+
+    /**
+     * LarryDGray's Mods: the tile this unit is currently steering
+     * toward while in {@code OPEN_OCEAN} phase (a known coastline/
+     * arctic edge, or the nearest patch of fog) - committed to and
+     * reused across calls rather than recomputed fresh every move.
+     * Without this, "nearest" target selection could flip to a
+     * different, marginally-closer tile after every single step (the
+     * ship's own movement constantly changes which candidate is
+     * nearest), producing a visible back-and-forth oscillation
+     * instead of steady progress toward one place. Deliberately not
+     * persisted to the save file - purely a client-side navigation
+     * hint, harmless to recompute fresh after a reload.
+     */
+    protected transient Tile autoExploreTargetTile = null;
+
+    /**
+     * LarryDGray's Mods: which single boundary type this unit's Auto
+     * Explore order is seeking/hugging - chosen once by the player when
+     * the order starts (see GUI.getAutoExploreModeChoice()). Client-only,
+     * same treatment as autoExplorePhase/autoExploreHeading: never
+     * server-synced beyond the on/off autoExploring flag, but persisted
+     * to XML so a save/reload resumes the right mode.
+     */
+    protected AutoExploreMode autoExploreMode = AutoExploreMode.NEAREST_FOG;
+
+    /**
+     * LarryDGray's Mods: true while the ship is inside a boundary fork
+     * (river mouth/narrows - 2+ separate confirmed continuation paths)
+     * it has already been asked about, so AutoExploreDecider only
+     * prompts on the rising edge of entering a fork, not on every tile
+     * while still inside a wide one. Transient: purely a step-to-step
+     * navigation hint, harmless to lose on reload (worst case, one
+     * extra prompt next time the ship is mid-fork after a reload).
+     */
+    protected transient boolean autoExploreInBranch = false;
+
+    /**
+     * LarryDGray's Mods: a precomputed sequence of headings to walk,
+     * one real step per turn, along a boundary stretch that's already
+     * fully explored - built once by {@code AutoExploreDecider.
+     * buildBoundaryTrace()} rather than re-decided one tile at a time,
+     * which is what let the ship re-guess its way (and occasionally
+     * circle) through territory the game already has complete
+     * information about. Transient: purely a client-side navigation
+     * hint, harmless to lose on reload (worst case, one extra trace
+     * rebuild, which is cheap).
+     */
+    protected transient List<Direction> autoExplorePath = null;
+
+    /**
+     * LarryDGray's Mods: how many recently-visited tiles {@link
+     * #autoExploreRecentTiles} remembers - confirmed live as a real,
+     * multi-call cycle: a single {@code buildBoundaryTrace()} call's
+     * own cycle detection only sees loops entirely within ONE trace,
+     * but a real observed loop spanned 3 separate tiles across 3
+     * separate trace-build calls (each individually short and
+     * cycle-free on its own). A handful of tiles is enough to break
+     * any short loop while still allowing a ship to legitimately
+     * revisit ground much later (e.g. completing a full
+     * circumnavigation).
+     */
+    private static final int AUTO_EXPLORE_RECENT_TILES_MAX = 8;
+
+    /**
+     * LarryDGray's Mods: the last few tiles this unit has actually
+     * stood on while Auto Exploring, oldest last - used to stop
+     * {@code AutoExploreDecider.buildBoundaryTrace()} from planning a
+     * route back onto ground it only just left, even across separate
+     * trace-build calls (a single call's own internal cycle check only
+     * catches a loop within that one call). Transient: purely a
+     * client-side navigation hint, harmless to lose on reload.
+     */
+    protected transient List<Tile> autoExploreRecentTiles = new ArrayList<>();
 
     /** To be used only for type == TREASURE_TRAIN */
     protected int treasureAmount;
@@ -1761,6 +1910,209 @@ public class Unit extends GoodsLocation
     }
 
     /**
+     * LarryDGray's Mods: is this unit currently following an Auto
+     * Explore order? The single authoritative on/off signal - see
+     * the field's own doc comment for why this is kept separate from
+     * {@link #autoExplorePhase}.
+     *
+     * @return True if so.
+     */
+    public final boolean isAutoExploring() {
+        return this.autoExploring;
+    }
+
+    /**
+     * LarryDGray's Mods: same value as {@link #isAutoExploring()} -
+     * required in addition to it because {@code addPartial()}'s
+     * {@code Introspector} resolves a field's getter as strictly
+     * {@code "get" + Capitalized(field)}, with no fallback to the
+     * {@code isXxx()} boolean convention (confirmed by reading
+     * {@code Introspector.getGetMethod()}), so the reflection-based
+     * partial-update path needs this exact method name to exist.
+     *
+     * @return True if this unit is auto-exploring.
+     */
+    public final boolean getAutoExploring() {
+        return this.autoExploring;
+    }
+
+    /**
+     * LarryDGray's Mods: start or stop this unit's Auto Explore order.
+     *
+     * @param autoExploring True to start, false to stop.
+     */
+    public final void setAutoExploring(boolean autoExploring) {
+        this.autoExploring = autoExploring;
+    }
+
+    /**
+     * LarryDGray's Mods: get this unit's current Auto Explore phase.
+     * Meaningless unless {@link #isAutoExploring()} is true.
+     *
+     * @return The {@code AutoExplorePhase}.
+     */
+    public final AutoExplorePhase getAutoExplorePhase() {
+        return this.autoExplorePhase;
+    }
+
+    /**
+     * LarryDGray's Mods: set this unit's Auto Explore phase.
+     *
+     * @param autoExplorePhase The new {@code AutoExplorePhase}.
+     */
+    public final void setAutoExplorePhase(AutoExplorePhase autoExplorePhase) {
+        this.autoExplorePhase = (autoExplorePhase == null)
+            ? AutoExplorePhase.OPEN_OCEAN : autoExplorePhase;
+    }
+
+    /**
+     * LarryDGray's Mods: get the heading this unit last used while
+     * boundary-hugging during Auto Explore.
+     *
+     * @return The {@code Direction}, or null if not hugging a boundary.
+     */
+    public final Direction getAutoExploreHeading() {
+        return this.autoExploreHeading;
+    }
+
+    /**
+     * LarryDGray's Mods: set the heading this unit is using while
+     * boundary-hugging during Auto Explore.
+     *
+     * @param autoExploreHeading The new heading {@code Direction}.
+     */
+    public final void setAutoExploreHeading(Direction autoExploreHeading) {
+        this.autoExploreHeading = autoExploreHeading;
+    }
+
+    /**
+     * LarryDGray's Mods: get the tile this unit is currently steering
+     * toward in {@code OPEN_OCEAN} phase during Auto Explore.
+     *
+     * @return The target {@code Tile}, or null if none committed.
+     */
+    public final Tile getAutoExploreTargetTile() {
+        return this.autoExploreTargetTile;
+    }
+
+    /**
+     * LarryDGray's Mods: set the tile this unit is steering toward in
+     * {@code OPEN_OCEAN} phase during Auto Explore.
+     *
+     * @param autoExploreTargetTile The new target {@code Tile}.
+     */
+    public final void setAutoExploreTargetTile(Tile autoExploreTargetTile) {
+        this.autoExploreTargetTile = autoExploreTargetTile;
+    }
+
+    /**
+     * LarryDGray's Mods: get which single boundary type this unit's
+     * Auto Explore order is seeking/hugging.
+     *
+     * @return The {@code AutoExploreMode}.
+     */
+    public final AutoExploreMode getAutoExploreMode() {
+        return this.autoExploreMode;
+    }
+
+    /**
+     * LarryDGray's Mods: set which single boundary type this unit's
+     * Auto Explore order should seek/hug.
+     *
+     * @param autoExploreMode The new {@code AutoExploreMode}.
+     */
+    public final void setAutoExploreMode(AutoExploreMode autoExploreMode) {
+        this.autoExploreMode = (autoExploreMode == null)
+            ? AutoExploreMode.NEAREST_FOG : autoExploreMode;
+    }
+
+    /**
+     * LarryDGray's Mods: is this unit currently inside a boundary fork
+     * it has already been asked to choose a direction for?
+     *
+     * @return True if so.
+     */
+    public final boolean isAutoExploreInBranch() {
+        return this.autoExploreInBranch;
+    }
+
+    /**
+     * LarryDGray's Mods: set whether this unit is currently inside a
+     * boundary fork it has already been asked to choose a direction
+     * for.
+     *
+     * @param autoExploreInBranch The new value.
+     */
+    public final void setAutoExploreInBranch(boolean autoExploreInBranch) {
+        this.autoExploreInBranch = autoExploreInBranch;
+    }
+
+    /**
+     * LarryDGray's Mods: get this unit's precomputed sequence of
+     * headings for walking an already-fully-explored boundary stretch,
+     * oldest-first - see {@code AutoExploreDecider.buildBoundaryTrace()}.
+     *
+     * @return The path, or null/empty if none is currently planned.
+     */
+    public final List<Direction> getAutoExplorePath() {
+        return this.autoExplorePath;
+    }
+
+    /**
+     * LarryDGray's Mods: set this unit's precomputed Auto Explore path.
+     *
+     * @param autoExplorePath The new path, or null/empty to clear it.
+     */
+    public final void setAutoExplorePath(List<Direction> autoExplorePath) {
+        this.autoExplorePath = autoExplorePath;
+    }
+
+    /**
+     * LarryDGray's Mods: get the last few tiles this unit has actually
+     * stood on while Auto Exploring, most recent first - see {@link
+     * #AUTO_EXPLORE_RECENT_TILES_MAX} and {@code AutoExploreDecider.
+     * buildBoundaryTrace()}.
+     *
+     * @return The recent-tiles list (never null, possibly empty).
+     */
+    public final List<Tile> getAutoExploreRecentTiles() {
+        return this.autoExploreRecentTiles;
+    }
+
+    /**
+     * LarryDGray's Mods: record that this unit is now standing on
+     * {@code tile} - call once per real Auto Explore step, before any
+     * routing decision is made for that step.
+     *
+     * @param tile The {@code Tile} the unit is now on.
+     */
+    public final void recordAutoExploreTile(Tile tile) {
+        if (tile == null) return;
+        this.autoExploreRecentTiles.remove(tile); // avoid duplicate entries
+        this.autoExploreRecentTiles.add(0, tile);
+        while (this.autoExploreRecentTiles.size() > AUTO_EXPLORE_RECENT_TILES_MAX) {
+            this.autoExploreRecentTiles.remove(this.autoExploreRecentTiles.size() - 1);
+        }
+    }
+
+    /**
+     * LarryDGray's Mods: is this unit a candidate for the per-turn
+     * Auto Explore driver? Mirrors {@link #goingToDestination()}
+     * exactly - a manual destination or trade route always takes
+     * priority and implicitly means Auto Explore is not active (the
+     * two are kept mutually exclusive at assignment time).
+     *
+     * @return True if this unit should be processed by the Auto
+     *     Explore per-turn loop.
+     */
+    public boolean autoExploringUnit() {
+        return readyAndAble()
+            && getTradeRoute() == null
+            && getDestination() == null
+            && isAutoExploring();
+    }
+
+    /**
      * Get the stop the unit is heading for or at.
      *
      * @return The target {@code TradeRouteStop}.
@@ -2781,7 +3133,12 @@ public class Unit extends GoodsLocation
     public boolean couldMove() {
         return readyAndAble()
             && getDestination() == null
-            && getTradeRoute() == null;
+            && getTradeRoute() == null
+            // LarryDGray's Mods: an auto-exploring unit is driven
+            // automatically every turn just like a destination/trade
+            // route unit - it must not also flash as "needs orders"
+            // during ordinary active-unit cycling.
+            && !isAutoExploring();
     }
 
     /**
@@ -3762,6 +4119,13 @@ public class Unit extends GoodsLocation
                 } else {
                     ret = StringTemplate.key("model.unit.occupation.underRepair");
                 }
+            } else if (isAutoExploring()) {
+                // LarryDGray's Mods: shows as "A" on the occupation
+                // indicator chip, same single-letter convention as
+                // "G" (going somewhere) / "T" (trade route) / "R"
+                // (under repair) above - "X" is already taken by
+                // Skipped (model.unit.unitState.skipped).
+                ret = StringTemplate.key("model.unit.occupation.autoExploring");
             } else if (tradeRoute != null) {
                 if (full) {
                     ret = StringTemplate.label(":")
@@ -4763,6 +5127,10 @@ public class Unit extends GoodsLocation
     // Serialization
 
     private static final String ATTRITION_TAG = "attrition";
+    private static final String AUTO_EXPLORING_TAG = "autoExploring";
+    private static final String AUTO_EXPLORE_PHASE_TAG = "autoExplorePhase";
+    private static final String AUTO_EXPLORE_HEADING_TAG = "autoExploreHeading";
+    private static final String AUTO_EXPLORE_MODE_TAG = "autoExploreMode";
     private static final String COUNT_TAG = "count";
     private static final String CURRENT_STOP_TAG = "currentStop";
     private static final String DESTINATION_TAG = "destination";
@@ -4875,6 +5243,16 @@ public class Unit extends GoodsLocation
                 xw.writeAttribute(CURRENT_STOP_TAG, currentStop);
             }
 
+            if (autoExploring) {
+                xw.writeAttribute(AUTO_EXPLORING_TAG, autoExploring);
+                xw.writeAttribute(AUTO_EXPLORE_PHASE_TAG, autoExplorePhase);
+                xw.writeAttribute(AUTO_EXPLORE_MODE_TAG, autoExploreMode);
+                if (autoExploreHeading != null) {
+                    xw.writeAttribute(AUTO_EXPLORE_HEADING_TAG,
+                                      autoExploreHeading);
+                }
+            }
+
         } else {
             if (getType().canCarryGoods()) {
                 xw.writeAttribute(VISIBLE_GOODS_COUNT_TAG, getVisibleGoodsCount());
@@ -4958,6 +5336,29 @@ public class Unit extends GoodsLocation
 
         currentStop = (tradeRoute == null) ? -1
             : xr.getAttribute(CURRENT_STOP_TAG, 0);
+
+        autoExploring = xr.getAttribute(AUTO_EXPLORING_TAG, false);
+        autoExplorePhase = xr.getAttribute(AUTO_EXPLORE_PHASE_TAG,
+            AutoExplorePhase.class, AutoExplorePhase.OPEN_OCEAN);
+        autoExploreHeading = xr.getAttribute(AUTO_EXPLORE_HEADING_TAG,
+            Direction.class, (Direction)null);
+        autoExploreMode = xr.getAttribute(AUTO_EXPLORE_MODE_TAG,
+            AutoExploreMode.class, (AutoExploreMode)null);
+        if (autoExploreMode == null) {
+            // LarryDGray's Mods: pre-redesign save with no mode
+            // attribute - infer one from the phase the ship already
+            // carries, so an in-progress hug resumes in the matching
+            // mode instead of silently reverting to fog-seeking
+            // mid-hug. A ship not yet touching anything (OPEN_OCEAN)
+            // defaults to the least assumption of the four: just find
+            // and clear the nearest fog.
+            switch (autoExplorePhase) {
+            case COAST_HUGGING:  autoExploreMode = AutoExploreMode.COASTLINE; break;
+            case ARCTIC_HUGGING: autoExploreMode = AutoExploreMode.ARCTIC; break;
+            case OCEAN_BOUNDARY: autoExploreMode = AutoExploreMode.DEEP_WATER; break;
+            default:             autoExploreMode = AutoExploreMode.NEAREST_FOG; break;
+            }
+        }
 
         experienceType = xr.getType(spec, EXPERIENCE_TYPE_TAG,
                                     GoodsType.class, (GoodsType)null);

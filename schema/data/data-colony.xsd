@@ -74,6 +74,8 @@
                     default="-1"/>
       <xs:attribute name="wastedGoods" type="xs:boolean" use="optional"
                     default="false"/>
+      <xs:attribute name="manager" type="xs:string" use="optional"
+                    default="UNMANAGED"/>
     </xs:complexType>
   </xs:element>
 

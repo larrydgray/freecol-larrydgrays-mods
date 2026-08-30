@@ -89,6 +89,7 @@ public class ActionManager extends OptionGroup {
         // keep this list alphabetized.
         add(new AboutAction(freeColClient));
         add(new AssignTradeRouteAction(freeColClient));
+        add(new AutoExploreAction(freeColClient));
         add(new BuildColonyAction(freeColClient));
         add(new CenterAction(freeColClient));
         add(new ChangeAction(freeColClient));
@@ -160,6 +161,7 @@ public class ActionManager extends OptionGroup {
         add(new ReportRequirementsAction(freeColClient));
         add(new ReportTradeAction(freeColClient));
         add(new ReportTradeHistoryAction(freeColClient));
+        add(new ReportGoldJournalAction(freeColClient));
         add(new ReportTurnAction(freeColClient));
         add(new RetireAction(freeColClient));
         add(new SaveAction(freeColClient));

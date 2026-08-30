@@ -10,6 +10,11 @@ These mods are modifications to FreeCol's existing GPL v2 source, not a
 separate library - so, same as upstream FreeCol, they're licensed under
 the **GPL v2**, per the [LICENSE](LICENSE) file in this repo.
 
+## Community
+
+Public Telegram group for players of this mod:
+[LarryDGray_FreeCol_Moded](https://t.me/LarryDGray_FreeCol_Moded).
+
 ## Before you play: game options vs. client options
 
 FreeCol has two kinds of settings, and the mods below use both:
@@ -34,7 +39,16 @@ dismissed" toggle, and starvation warnings sorted to the top.
 
 ### Colony Stat Toolbar *(client option)*
 A toggleable two-row bar under every owned colony's name on the map,
-showing a warehouse-goods or unit-type count of your choosing.
+showing a warehouse-goods or unit-type count of your choosing. Row 1:
+**DU** (Defending Units - soldiers + dragoons + artillery combined),
+**AD** (Artillery Defence - 1/0 for whether the Coastal Defence Bonus
+is currently active here: artillery present, or an armed ship docked),
+Soldiers, Dragoons, Artillery, **Sc** (Scouts - equipped as scout, or
+a Seasoned Scout regardless of current role), **P** (cargo ships only)
+and **G** (Gunships - combat-capable ships: frigate/privateer/man-o-
+war), Wagon Trains, the usual warehouse goods, and **Bd** (Current
+Production - the front item of the colony's build queue, e.g.
+`wagonTrain`, or `-` if nothing is queued).
 
 ### Colony Building Badges *(always on, display-only)*
 Always-on letter badges under a colony's name showing key
@@ -47,6 +61,152 @@ Adds `!`/`+` to the Colony Building Badges line, independently
 toggleable from it: `!` if the colony actively wasted goods to
 overflow last turn, `+` if any goods type is currently sitting at a
 full warehouse slot.
+
+### Overflow Product Icons *(client option, default on)*
+A row of tiny goods icons under the Colony Building Badges line - one
+icon per 100 combined units (warehouse stock plus whatever's parked on
+a fortified, non-trade-route carrier at the colony's tile) a storable
+goods type currently has, capped at 3 icons before switching to a
+single icon with a small `×N` overlay. Independent toggle from the
+badges above, settable either in Options or via the "OI" button on the
+Colony Stat Toolbar (see below) for quick access mid-game.
+
+### Warehouse Overflow to Carrier *(game option, default on; per-goods/colony checkboxes, default off)*
+Rather than destroying goods that overflow a full warehouse, redirect
+them into an idle wagon train or ship parked (fortified) at the
+colony, if one has room - skips any carrier currently assigned to a
+trade route. The reverse also happens automatically: once the
+warehouse has room again for that goods type (consumed in production,
+picked up by a trade route, etc.), it's pulled back in from the
+parked carrier. Each goods type has its own "Overflow to Carrier"
+checkbox in the Warehouse dialog (off by default, like Export).
+Greyed out entirely if the "Warehouse Overflow to Carrier" game
+option is off (New Game screen, off requires starting a fresh game).
+
+On the Food row this same checkbox does double duty. Food is normally
+exempt from warehouse capacity entirely, since it needs to accumulate
+past it to reach a new colonist's required amount (200 in the classic
+ruleset) - turning the checkbox on for Food opts it back in to the
+same capacity/redirect/drain-in handling as every other good, so it
+scales with Warehouse/Warehouse Expansion (rising as high as 300 with
+an Expansion built) - but never drops *below* one under the colonist
+requirement even at a bare Depot, so flipping the checkbox on never
+suddenly wastes or redirects food that was already safely stockpiled
+toward 200. Separately, population growth for that colony is paused
+for as long as the checkbox stays on, regardless of how high its
+effective cap turns out to be - no dedicated "pause growth" checkbox
+needed. Turn the checkbox back off and the very next time stored Food
+is at or above 200, a colonist is born as normal, consuming exactly
+200 and leaving the remainder in the warehouse.
+
+### Town Magistrate *(game option, default on; per-colony dropdown, default Unmanaged)*
+A dropdown in the Colony screen next to the colony name lets you set
+a colony to auto-optimize toward one goal - Food, Lumber, Ore,
+Crosses, or Liberty Bells. While set, every turn the colony reshuffles
+its own workers (pulling refined-goods producers first, then other
+non-essential workers, and only as a last resort food producers or
+workers feeding the current build queue item) to maximize net
+production of that one good. Applies immediately when you pick a
+goal, not just on the next turn. "Apply to All Colonies" copies the
+current dropdown's setting to every colony you own. "Undo Magistrate"
+reverts the colony's most recent automatic reassignment (server-side
+only, lost on reload). Off entirely if the "Town Magistrate" game
+option is off (New Game screen, off requires starting a fresh game).
+Also added: `<`/`>` buttons next to the colony name dropdown to step
+to the previous/next colony without opening the list.
+
+### Auto Explore *(game option, default on; ships only)*
+A new standing order for ships - toggle it from the Orders menu (`X`
+key), the unit's right-click menu, or the ship's own menu entry.
+Starting it asks which strategy to use: follow coastlines, follow the
+arctic edge, follow the deep water/high-seas edge, just find and clear
+the nearest fog (never hugging anything), or go one fixed compass
+direction (picked once, immediately) until land or the map's edge
+blocks it, then stop - no hugging, no further prompts, useful for just
+sending a ship straight out to see what's there. Once running, the ship
+moves on its own every turn with no further input - it silently steers
+toward the nearest known instance of its chosen boundary type (or the
+nearest fog, in "nearest fog" mode), and only interrupts to ask a
+direction question at genuinely ambiguous points: first contact with
+the boundary (normally just 2 choices - the two ways along it - widened
+automatically at a real fork, like a river mouth or a narrows between
+two landmasses, where more than 2 continuations are actually open), or
+later reaching a *new* such fork. Once answered, it commits and keeps
+going silently in that direction with no more nagging until the next
+ambiguous point. This replaced an earlier version that tried to
+auto-detect which way to turn and which boundary to prioritize, which
+was the source of persistent "circling" bugs - the redesign removes
+that guessing entirely by asking instead.
+
+The arctic edge needs none of the above once a direction (east or
+west) is picked - the polar band is a fixed row-range with no
+curvature, so the ship just keeps going that way until land or the
+map's edge stops it, with no wall-following logic to get wrong at all.
+Coastline and deep-water/high-seas hugging, which both curve
+unpredictably, map out the entire stretch of boundary in one go and
+walk it exactly once, rather than re-deciding tile by tile - a stretch
+the ship is going to sail anyway is never re-guessed, which is what
+caused most of the remaining circling. When the already-explored map
+isn't enough to plan the whole stretch, it asks the server (which
+always has the true, full map) to work out the real route and hands
+back only a bare list of directions to follow - never any map data
+itself, so nothing is shown to the player ahead of the ship actually
+sailing there. Your own fog-of-war reveal is completely unaffected:
+tiles still fill in one at a time, in the same order, exactly as the
+ship physically visits them - the only thing that changes is the ship
+no longer has to guess or backtrack while doing it. It only asks the
+player again at a genuine fork, which the server-computed route
+correctly stops at too.
+
+Shows as an "A" on the unit's occupation indicator while active. Does
+NOT stop for sighting another nation's unit or settlement - it sails
+past them the same as anything else. Any manual move or destination
+cancels it. Scouts get the same treatment as a planned follow-up. Off
+entirely if the "Auto Explore" game option is off (New Game screen, off
+requires starting a fresh game).
+
+### Minimum Colony Distance *(game option, default 1 = off; Colony Options tab)*
+An integer option (1-5) requiring a newly founded colony to be at least
+that many tiles from every one of your other colonies. At 1 (the
+default) nothing changes from vanilla - colonies may be founded
+directly adjacent. Raised to 2 or more, this guarantees colonies' work
+radii (each 1 tile out from its own center) never overlap, so two
+colonies can never compete for the same resource tile. Lives in the
+vanilla "Colony Options" tab rather than the LarryDGray's Mods tab,
+alongside the other colony-founding rules it's most related to.
+Requires a new game (New Game screen) since it's a new spec option.
+
+### Colony Manager *(game option, default on)*
+A per-colony auto-worker-optimizer. Set a colony's Manager goal
+(Food/Lumber/Ore/Crosses/Bells) from its colony panel and it
+re-optimizes toward that goal every turn - pulling workers off other
+jobs in priority order (refined-goods producers first, other
+non-essential workers next, food/current-buildable-input producers
+only as a last resort) toward whichever tile/building improves net
+production of the target good the most. A real Undo button reverts the
+colony's entire worker arrangement to how it was immediately before
+the Manager's last reassignment pass. An "Apply to All Colonies"
+button sets every owned colony to the same goal at once.
+
+Never makes a move that would cause a colonist to starve within the
+current turn or the next (added after it did exactly that chasing an
+Ore goal) - if the "ideal" move would drop food into that danger zone,
+it first looks for a second, currently-available unit it can pull onto
+food to keep the colony safe, and only applies the original move
+alongside that compensating one. If no such rescue exists anywhere in
+the colony, the risky move is skipped entirely rather than applied. A
+Food-goal Manager is unaffected by any of this, since increasing food
+production can't itself cause a food deficit.
+
+### Warn Before Starvation *(game option, default on; Colony Options tab)*
+Ending the turn first checks whether any owned colony is about to lose
+a colonist to starvation *this* turn (not next turn - only the
+immediate case) and, if so, shows a dialog naming which settlement(s),
+with "End Turn Anyway" or "Cancel." Click a listed colony to open its
+panel. Runs before the existing "units still have moves left" end-turn
+dialog, so both can appear in sequence on the same turn if both apply.
+Lives in the vanilla "Colony Options" tab, like Minimum Colony
+Distance above.
 
 ### Trade Advisor Sorting *(client option)*
 In the Trade Advisor (F9), click a goods column header to sort colonies
@@ -76,10 +236,13 @@ original icon grid.
 ### Colony Growth Report *(client option, default on)*
 New Reports menu entry showing a full turn-by-turn timeline, not just
 the current turn's snapshot: population, citizens, settlements, Sons
-of Liberty %, liberty, land military units, ships & wagons, and each
-colony's own population plotted as a separate line. History is sampled
-once per turn (server-side, so it survives save/reload) and the report
-picks up right where a reloaded save left off.
+of Liberty %, liberty, land military units, ships & wagons, each
+colony's own population plotted as a separate line, and a combined
+"Total Armed Land Units" chart that also plots a **Total Gunships**
+line (frigates/privateers/men-o-war, same split as the Colony Stat
+Toolbar's P/G). History is sampled once per turn (server-side, so it
+survives save/reload) and the report picks up right where a reloaded
+save left off.
 
 ### Nation Comparison Report *(client option, default on)*
 The same full-timeline treatment as Colony Growth, but for every
@@ -93,6 +256,40 @@ or Refined Goods, then a metric (On Hand, Production, Net Production,
 Sales, Units Bought, Units Sold, Income Before/After Taxes, or Units In
 Cargo), and see every good in that group plotted together over the
 whole game's turn history.
+
+### Gold Journal Report *(always on, display-only)*
+New Reports menu entry, a real per-turn ledger rather than a chart:
+Turn / In / Out / Net / Balance, plus a **Notes** column breaking down
+exactly what happened that turn by category - Europe Trade, Native
+Trade, Customs House, Upkeep, Treasure, Tribute, Crown (monarch
+gifts/mercenary costs), Plunder, Ruins (Lost City Rumours), Land Claim,
+Recruitment, Diplomacy, Disaster, Arrears, Incitement. Every place in
+the game that changes gold funnels through one method, so this covers
+all of them automatically, including any added in the future. Note:
+unlike the other timeline reports, the current session's most recent
+turns won't show up until the next save/reload - gold deltas are only
+ever counted on the server's authoritative copy of your player, with
+no way for the client to replay them live.
+
+### Build Queue: Add All (No Tools) *(client option, default on)*
+A hammer-icon button next to Buy in the Build Queue dialog - queues
+every currently-buildable building that doesn't require tools, in the
+order the Buildings list shows them. Batches a frequent manual action
+into one click. Its own dedicated toggle, specific to this dialog -
+more buttons may join it there later, each independently switchable.
+
+### Build Queue: Emergency War Effort / Quick Boost to Land Shipping *(client options, default on)*
+Two more buttons in the Build Queue dialog, each its own toggle.
+Unlike the Add All button above, these act empire-wide: "Emergency War
+Effort" moves Artillery to the front of *every* colony's build queue
+that can currently build one; "Quick Boost to Land Shipping" does the
+same for a Wagon Train. If one is already queued somewhere else in a
+colony, it's moved to the front rather than queuing a duplicate.
+
+### Window Title Branding *(always on)*
+The window title bar reads "FreeCol &lt;version&gt; with LarryDGray's
+Mods", so this build is visually distinguishable from stock FreeCol at
+a glance (e.g. in screenshots).
 
 ### Caravan mechanic *(always on)*
 A dragoon, soldier, scout, or wagon train can lead other land units as
@@ -257,3 +454,20 @@ preferences.
   `HashMap.getNode()`, likely an unsynchronized-map concurrency bug. No
   fix yet; force-quitting and reloading the last autosave is the only
   workaround if you hit it.
+- Auto Explore's past "circling" bugs went through several rounds of
+  live-tested fixes: an inconsistent wall-follower turn bias, the
+  open-water "nearest fog" target flip-flopping every step, a fully-
+  explored short coastline/loop having no exit condition, a candidate
+  being accepted as "confirmed" purely because a multi-tile lookahead
+  peeked toward a distant, unrelated landmass rather than the actual
+  coastline being hugged, and a fixed sharpest-turn-first scan order
+  that would tie-break in favour of reversing back through already-
+  explored tiles instead of just continuing straight on a plain
+  stretch of coast. All were ultimately traced to the same root cause:
+  the wall-follower either guessed which way to turn instead of
+  requiring genuine radius-1 wall contact, or broke ties by scan order
+  instead of by which candidate actually kept progress moving forward.
+  Confirmed working well in live play as of the last test - if
+  circling still turns up somewhere, the workaround is unchanged:
+  manually cancel the order (Orders menu, right-click, or the `X` key)
+  and move the ship yourself past whatever spot it's stuck at.

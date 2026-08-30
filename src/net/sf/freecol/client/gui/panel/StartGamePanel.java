@@ -228,7 +228,33 @@ public final class StartGamePanel extends FreeColPanel {
         final boolean isHost = singlePlayer || getMyPlayer().isAdmin();
 
         if (isHost) {
+            // LarryDGray's Mods: updateGameAndMapOptions()'s return
+            // value only reports whether fixGameOptions()/
+            // fixMapGeneratorOptions() had to correct an invalid
+            // value - NOT whether a normal, successful merge from the
+            // saved file happened, which is the common case and
+            // reports false. So the push below must always run, not
+            // be gated on that return value.
             getSpecification().updateGameAndMapOptions();
+            // updateGameAndMapOptions() only merges the reloaded file
+            // into the Specification's own option groups - the same
+            // groups the Game Options/Map Generator Options dialogs
+            // display, which is why a restored value showed up
+            // correctly there. But actually generating the map and
+            // applying the ruleset reads from the separate OptionGroup
+            // objects held by the Game/server, which this never
+            // touched - so a restored option would display correctly
+            // yet silently NOT be used once Start Game was clicked.
+            // Manually confirming a change via either dialog already
+            // does exactly this two-step push (see gameOptionsCmd/
+            // mapGeneratorOptionsCmd above); auto-restoring from disk
+            // needs the identical push.
+            final PreGameController pgc = getFreeColClient().getPreGameController();
+            getGame().setGameOptions(getSpecification().getOptionGroup(GameOptions.TAG));
+            pgc.updateGameOptions();
+            getGame().setMapGeneratorOptions(
+                getSpecification().getOptionGroup(MapGeneratorOptions.TAG));
+            pgc.updateMapGeneratorOptions();
         }
 
         NationOptions nationOptions = getGame().getNationOptions();

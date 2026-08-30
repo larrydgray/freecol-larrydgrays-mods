@@ -60,6 +60,7 @@ import net.sf.freecol.client.gui.panel.FreeColPanel;
 import net.sf.freecol.client.gui.panel.report.ReportTurnPanel;
 import net.sf.freecol.client.gui.report.ColonyGrowthHistory;
 import net.sf.freecol.client.gui.report.NationHistory;
+import net.sf.freecol.client.gui.report.GoldJournalHistory;
 import net.sf.freecol.client.gui.report.TradeHistory;
 import net.sf.freecol.common.FreeColException;
 import net.sf.freecol.common.debug.DebugUtils;
@@ -69,9 +70,11 @@ import net.sf.freecol.common.i18n.NameCache;
 import net.sf.freecol.common.io.FreeColDirectories;
 import net.sf.freecol.common.model.Ability;
 import net.sf.freecol.common.model.AbstractGoods;
+import net.sf.freecol.common.model.AutoExploreDecider;
 import net.sf.freecol.common.model.BuildableType;
 import net.sf.freecol.common.model.Building;
 import net.sf.freecol.common.model.Colony;
+import net.sf.freecol.common.model.Specification;
 import net.sf.freecol.common.model.ColonyWas;
 import net.sf.freecol.common.model.Constants.ArmedUnitSettlementAction;
 import net.sf.freecol.common.model.Constants.ClaimAction;
@@ -94,6 +97,7 @@ import net.sf.freecol.common.model.FreeColGameObject;
 import net.sf.freecol.common.model.FreeColObject;
 import net.sf.freecol.common.model.Game;
 import net.sf.freecol.common.model.Game.LogoutReason;
+import net.sf.freecol.common.model.GoldJournalSample;
 import net.sf.freecol.common.model.GoldTradeItem;
 import net.sf.freecol.common.model.Goods;
 import net.sf.freecol.common.model.GoodsType;
@@ -137,6 +141,7 @@ import net.sf.freecol.common.model.UnitType;
 import net.sf.freecol.common.model.UnitTypeChange;
 import net.sf.freecol.common.model.UnitWas;
 import net.sf.freecol.common.model.WorkLocation;
+import net.sf.freecol.common.option.BooleanOption;
 import net.sf.freecol.common.option.GameOptions;
 import net.sf.freecol.common.util.Introspector;
 import net.sf.freecol.common.util.LogBuilder;
@@ -200,6 +205,12 @@ public final class InGameController extends FreeColClientHolder {
     /** LarryDGray's Mods: turn-by-turn empire-wide goods history, for
      *  the Trade History report. Client-side, session-scoped only. */
     private final TradeHistory tradeHistory = new TradeHistory();
+
+    /** LarryDGray's Mods: turn-by-turn gold in/out/balance history,
+     *  for the Gold Journal report. Client-side, session-scoped only -
+     *  no recordTurn() call here, see GoldJournalHistory's own doc
+     *  comment for why. */
+    private final GoldJournalHistory goldJournalHistory = new GoldJournalHistory();
 
 
     /**
@@ -685,7 +696,8 @@ public final class InGameController extends FreeColClientHolder {
      */
     private boolean askClearGotoOrders(Unit unit) {
         if (!askAssignTradeRoute(unit, null)
-            || !askSetDestination(unit, null)) return false;
+            || !askSetDestination(unit, null)
+            || !askSetAutoExplore(unit, false)) return false;
 
         getGUI().clearGotoPath();
         return true;
@@ -800,6 +812,14 @@ public final class InGameController extends FreeColClientHolder {
         int oldAmount = carrier.getGoodsContainer().getGoodsCount(type);
         if (askServer().loadGoods(loc, type, amount, carrier)
             && carrier.getGoodsContainer().getGoodsCount(type) != oldAmount) {
+            // LarryDGray's Mods: loading goods out of a colony's
+            // warehouse can clear its waste/full warning badges (the
+            // map caches settlement labels per tile and only redraws
+            // on an explicit refresh) - same fix already applied for
+            // turn transitions and login, needed here too since this
+            // is a genuinely different, mid-turn trigger for the same
+            // underlying state change.
+            if (loc instanceof Colony) getGUI().refreshTile(((Colony)loc).getTile());
             return true;
         }
         return false;
@@ -820,6 +840,30 @@ public final class InGameController extends FreeColClientHolder {
     }
 
     /**
+     * LarryDGray's Mods: start or stop a unit's Auto Explore order.
+     *
+     * @param unit The {@code Unit} to direct.
+     * @param start True to start, false to stop.
+     * @return True if the request succeeded (or was already a no-op).
+     */
+    private boolean askSetAutoExplore(Unit unit, boolean start) {
+        if (unit.isAutoExploring() == start) return true;
+
+        boolean ret = askServer().setAutoExplore(unit, start)
+            && unit.isAutoExploring() == start;
+        if (ret && unit.hasTile()) {
+            // LarryDGray's Mods: the occupation indicator chip is
+            // drawn from a per-tile cache (same gotcha already known
+            // for colony building badges) that a plain updateGUI()
+            // does not reliably invalidate on its own, so the "A"/"-"
+            // switch could otherwise sit stale on screen even though
+            // the underlying state is already correct.
+            getGUI().refreshTile(unit.getTile());
+        }
+        return ret;
+    }
+
+    /**
      * Unload some goods from a carrier.
      *
      * @param type The {@code GoodsType} to unload.
@@ -835,6 +879,11 @@ public final class InGameController extends FreeColClientHolder {
         int oldAmount = carrier.getGoodsContainer().getGoodsCount(type);
         if (askServer().unloadGoods(type, amount, carrier)
             && carrier.getGoodsContainer().getGoodsCount(type) != oldAmount) {
+            // LarryDGray's Mods: unloading goods into a colony's
+            // warehouse can set its full-warehouse badge - same
+            // stale-map-label issue as askLoadGoods above, mirrored
+            // here for the opposite direction.
+            getGUI().refreshTile(carrier.getTile());
             return true;
         }
         return false;
@@ -1116,11 +1165,62 @@ public final class InGameController extends FreeColClientHolder {
             // do anything else useful, so do not reselect it below
             if (active == unit) active = null;
         }
+
+        // LarryDGray's Mods: process Auto Exploring units the same
+        // way, once ordinary goto units are done. Guarded defensively
+        // even though the menu action itself is already gated - a
+        // unit could carry a stale autoExplorePhase from a save made
+        // while the option was on, and this stops it from being
+        // driven if the option has since been turned off.
+        if (ret && getSpecification().hasOption(
+                GameOptions.ENABLE_AUTO_EXPLORE, BooleanOption.class)
+            && getSpecification().getBoolean(GameOptions.ENABLE_AUTO_EXPLORE)) {
+            while (player.hasNextAutoExploreUnit()) {
+                Unit unit = player.getNextAutoExploreUnit();
+                changeView(unit, false);
+                if (!autoExploreStep(unit)) {
+                    ret = false;
+                    break;
+                }
+                if (active == unit) active = null;
+            }
+        }
         nextModelMessage(); // Might have LCR messages to display
         if (ret) { // If no unit issues, restore previously active unit 
             changeView(active, false);
         }
         return ret;
+    }
+
+    /**
+     * LarryDGray's Mods: check whether ending the turn now would cost
+     * a colonist to starvation in any owned colony, and if so, show a
+     * warning dialog naming the settlement(s) at risk before letting
+     * the turn actually end. Mirrors the shape of the existing "units
+     * still have moves left" dialog in {@code doEndTurn} exactly -
+     * same non-blocking dialog wiring, same "confirm re-enters via
+     * endTurn(false)" pattern - and is checked first, gated on the
+     * same incoming {@code showDialog} flag so a {@code false}
+     * re-entry (from either this dialog's or the moves-left dialog's
+     * own confirm handler) correctly skips re-showing both.
+     *
+     * @return True if the dialog was shown (caller should return
+     *     without proceeding to {@code doEndTurn} this pass).
+     */
+    private boolean checkEndTurnStarvationWarning() {
+        if (getGUI().isPanelShowing()) return false; // mirror doEndTurn's own guard
+        final Specification spec = getSpecification();
+        if (!spec.hasOption(GameOptions.WARN_BEFORE_END_TURN_STARVATION, BooleanOption.class)
+            || !spec.getBoolean(GameOptions.WARN_BEFORE_END_TURN_STARVATION)) {
+            return false;
+        }
+        List<Colony> starving = transform(getMyPlayer().getColonies(),
+                                          c -> c.getStarvationTurns() == 0);
+        if (starving.isEmpty()) return false;
+        getGUI().showEndTurnStarvationDialog(starving, (Boolean value) -> {
+                if (value != null && value) endTurn(false);
+            });
+        return true;
     }
 
     /**
@@ -1763,8 +1863,17 @@ public final class InGameController extends FreeColClientHolder {
         }
 
         for (Unit u : units) {
-            if (u == leader || u.canCarryUnits() || u.canCarryGoods()
-                || u.canCarryTreasure() || !leader.couldCarry(u)) {
+            // LarryDGray's Mods: only exclude a candidate if it is
+            // ITSELF actively carrying something right now (units or
+            // goods) - that would be genuine carrier-nesting. Merely
+            // having the *ability* to carry (every dragoon/soldier/
+            // scout/wagon train does, since that ability is what
+            // makes them eligible to lead a caravan in the first
+            // place) must not disqualify an otherwise-empty one from
+            // riding along as a passenger under the chosen leader -
+            // that was the actual bug: a second dragoon/soldier/scout/
+            // wagon train could never board at all, leader or not.
+            if (u == leader || u.hasCargo() || !leader.couldCarry(u)) {
                 continue;
             }
             update |= askEmbark(u, leader);
@@ -3231,7 +3340,155 @@ public final class InGameController extends FreeColClientHolder {
         }
         return ret;
     }
-    
+
+    /**
+     * LarryDGray's Mods: toggle a unit's Auto Explore order on or off.
+     *
+     * Called from AutoExploreAction.
+     *
+     * @param unit The {@code Unit} to toggle Auto Explore for.
+     * @return True if the toggle succeeded.
+     */
+    public boolean toggleAutoExplore(Unit unit) {
+        if (!requireOurTurn() || unit == null) return false;
+
+        final boolean start = !unit.isAutoExploring();
+        if (start) {
+            // LarryDGray's Mods: ask the player which strategy to use
+            // before starting - replaces the old automatic land>arctic>
+            // ocean priority-guessing with an explicit, permanent choice
+            // for the life of this order.
+            final Unit.AutoExploreMode mode = getGUI().getAutoExploreModeChoice(unit);
+            if (mode == null) return false; // cancelled - do not start at all
+            unit.setAutoExploreMode(mode);
+            // LarryDGray's Mods: the client's own phase/heading/target/
+            // branch-state fields are never reset by the server round
+            // trip below (only the boolean "autoExploring" flag itself
+            // is networked - see server InGameController.setAutoExplore()),
+            // so restarting without this could silently resume hugging
+            // with state left over from a completely different mode.
+            unit.setAutoExplorePhase(Unit.AutoExplorePhase.OPEN_OCEAN);
+            unit.setAutoExploreHeading(null);
+            unit.setAutoExploreTargetTile(null);
+            unit.setAutoExploreInBranch(false);
+            unit.setAutoExplorePath(null);
+            unit.getAutoExploreRecentTiles().clear();
+            if (mode == Unit.AutoExploreMode.DIRECTION) {
+                // LarryDGray's Mods: DIRECTION mode's heading is fixed
+                // for the life of the order - pick it once, right now,
+                // reusing the same direction-choice dialog normally
+                // shown mid-hug, offered as all 8 compass directions.
+                final Direction heading = getGUI().getAutoExploreDirectionChoice(
+                    unit, Direction.allDirections);
+                if (heading == null) return false; // cancelled - do not start at all
+                unit.setAutoExploreHeading(heading);
+            }
+        }
+
+        UnitWas unitWas = new UnitWas(unit);
+        boolean ret = (start)
+            ? askClearGotoOrders(unit) && askSetAutoExplore(unit, true)
+            : askSetAutoExplore(unit, false);
+        if (ret) {
+            fireChanges(unitWas);
+            updateGUI(null, false);
+        }
+        return ret;
+    }
+
+    /**
+     * LarryDGray's Mods: move an auto-exploring unit one step, chosen
+     * by {@link AutoExploreDecider}. Called once per unit per
+     * doExecuteGotoOrders() pass, mirroring moveToDestination()'s
+     * role for ordinary goto orders. If the ship has just reached an
+     * ambiguous point (first contact with its mode's boundary, or a
+     * genuine fork), blocks on a direction-choice dialog before
+     * computing the move.
+     *
+     * @param unit The auto-exploring {@code Unit} to move.
+     * @return True if all is well with the unit, false if the unit
+     *     should be selected and examined by the user.
+     */
+    private boolean autoExploreStep(Unit unit) {
+        if (!requireOurTurn()
+            || unit.isAtSea()
+            || unit.getMovesLeft() <= 0
+            || unit.getState() == UnitState.SKIPPED) {
+            return true; // invalid, should not be here
+        }
+
+        // LarryDGray's Mods: record where the ship actually is before
+        // any routing decision this step - AutoExploreDecider.
+        // buildBoundaryTrace() uses this recent-tile history to avoid
+        // planning a route back onto ground it only just left, even
+        // across separate trace-build calls (confirmed live: a real
+        // multi-tile cycle that no single trace-build call's own
+        // internal cycle check could catch on its own).
+        unit.recordAutoExploreTile(unit.getTile());
+
+        final List<Direction> pending = AutoExploreDecider.getPendingChoice(unit);
+        if (!pending.isEmpty()) {
+            final Direction chosen = getGUI().getAutoExploreDirectionChoice(unit, pending);
+            if (chosen == null) {
+                showInformationPanel(unit,
+                    StringTemplate.template("info.autoExploreDirectionCancelled")
+                        .addStringTemplate("%unit%",
+                            unit.getLabel(Unit.UnitLabelType.NATIONAL)));
+                return askSetAutoExplore(unit, false);
+            }
+            unit.setAutoExploreHeading(chosen);
+            // LarryDGray's Mods: move in the player's exact chosen
+            // direction THIS step, rather than handing it to
+            // followBoundary() as a bias immediately. followBoundary()
+            // sweeps sharpest-right-first from the committed heading -
+            // correct once genuinely mid-hug (it's what lets the ship
+            // trace into a bay instead of overshooting it), but on the
+            // very first step after a fresh choice, "last heading"
+            // doesn't yet mean "the direction I just moved" - it's
+            // just the player's pick, and a sharp-right candidate can
+            // easily also be confirmed and win the sweep, silently
+            // reversing the player's choice on the spot (observed
+            // live: chose West, ship immediately went northeast back
+            // around already-explored coast). Moving directly in the
+            // chosen direction first makes the committed heading
+            // actually mean "the direction I just moved" by the next
+            // call, which is the precondition followBoundary() was
+            // designed for.
+            return moveDirection(unit, chosen, false);
+        }
+
+        // LarryDGray's Mods: while hugging a curving boundary
+        // (coastline or deep-water/high-seas edge), ask the server for
+        // a ground-truth trace whenever there's no plan left to walk -
+        // the server always has the real map, so this is strictly
+        // better than the client's own already-explored-only trace
+        // (AutoExploreDecider.followTracedBoundary()'s internal
+        // fallback, still there as a safety net if this request ever
+        // fails). The response only ever sets unit.autoExplorePath - a
+        // bare list of compass directions - so this never reveals any
+        // actual map data; the player's own fog-of-war reveal still
+        // happens normally as the ship physically visits each tile.
+        final Unit.AutoExplorePhase phase = unit.getAutoExplorePhase();
+        if ((phase == Unit.AutoExplorePhase.COAST_HUGGING
+                || phase == Unit.AutoExplorePhase.OCEAN_BOUNDARY)
+            && (unit.getAutoExplorePath() == null || unit.getAutoExplorePath().isEmpty())) {
+            askServer().requestBoundaryTrace(unit, unit.getAutoExploreMode(),
+                unit.getAutoExploreHeading());
+        }
+
+        final Direction direction = AutoExploreDecider.chooseDirection(unit);
+        if (direction == null) {
+            // Fully boxed in, or nothing left to explore - stop asking
+            // every turn and let the player decide what to do next.
+            showInformationPanel(unit,
+                StringTemplate.template("info.autoExploreStuck")
+                    .addStringTemplate("%unit%",
+                        unit.getLabel(Unit.UnitLabelType.NATIONAL)));
+            return askSetAutoExplore(unit, false);
+        }
+        return moveDirection(unit, direction, false);
+    }
+
     /**
      * Changes the work type of this {@code Unit}.
      *
@@ -3685,6 +3942,7 @@ public final class InGameController extends FreeColClientHolder {
         if (!requireOurTurn()) {
             return;
         }
+        if (showDialog && checkEndTurnStarvationWarning()) return;
 
         doEndTurn(showDialog && getClientOptions().getBoolean(ClientOptions.SHOW_END_TURN_DIALOG));
     }
@@ -3825,6 +4083,17 @@ public final class InGameController extends FreeColClientHolder {
                 if (parent instanceof Player && add) {
                     Player player = (Player)parent;
                     player.addLastSale((LastSale)fco);
+                } else {
+                    logger.warning("Feature change NYI: "
+                        + parent + "/" + add + "/" + fco);
+                }
+            } else if (fco instanceof GoldJournalSample) {
+                // LarryDGray's Mods: delivers this turn's Gold Journal
+                // sample the same proven way HistoryEvent/LastSale
+                // already arrive - see ChangeSet.addGoldJournalSample().
+                if (parent instanceof Player && add) {
+                    Player player = (Player)parent;
+                    player.addGoldJournalSample((GoldJournalSample)fco);
                 } else {
                     logger.warning("Feature change NYI: "
                         + parent + "/" + add + "/" + fco);
@@ -4796,6 +5065,13 @@ public final class InGameController extends FreeColClientHolder {
             logger.info("LarryDGray's Mods: ENABLE_TRADE_HISTORY_REPORT is OFF, "
                 + "skipping tradeHistory.recordTurn() for turn " + turn);
         }
+        // LarryDGray's Mods: the Gold Journal has no client-side
+        // recordTurn() equivalent (its data can only ever be computed
+        // server-side, see GoldJournalHistory's doc comment) - so
+        // pick up whatever ServerPlayer.csNewTurn() just synced onto
+        // this turn's Player object instead of waiting for the next
+        // login/reload to notice it grew.
+        this.goldJournalHistory.restoreFrom(player);
 
         // LarryDGray's Mods: colony map labels (including the
         // building badges / warehouse warning badges) are cached
@@ -4950,6 +5226,7 @@ public final class InGameController extends FreeColClientHolder {
             && unit.getLocation() == colony.getTile();
         if (ret) {
             fireChanges(colonyWas, unitWas);
+            getGUI().refreshTile(colony.getTile());
             updateGUI(null, false);
         }
         return ret;
@@ -5488,6 +5765,7 @@ public final class InGameController extends FreeColClientHolder {
         this.colonyGrowthHistory.clear();
         this.nationHistory.clear();
         this.tradeHistory.clear();
+        this.goldJournalHistory.clear();
     }
 
     /**
@@ -5521,6 +5799,16 @@ public final class InGameController extends FreeColClientHolder {
     }
 
     /**
+     * LarryDGray's Mods: get the turn-by-turn gold journal history,
+     * for the Gold Journal report.
+     *
+     * @return The {@code GoldJournalHistory}.
+     */
+    public GoldJournalHistory getGoldJournalHistory() {
+        return this.goldJournalHistory;
+    }
+
+    /**
      * Sets the export settings of the custom house.
      *
      * Called from WarehouseDialog
@@ -5534,6 +5822,32 @@ public final class InGameController extends FreeColClientHolder {
 
         return askServer().setGoodsLevels(colony,
                                           colony.getExportData(goodsType));
+    }
+
+    /**
+     * LarryDGray's Mods: set a colony's Manager goal.
+     *
+     * @param colony The {@code Colony} whose Manager goal is set.
+     * @param goal The new {@code Colony.ManagerGoal}.
+     * @return True if the goal was set.
+     */
+    public boolean setColonyManager(Colony colony, Colony.ManagerGoal goal) {
+        if (colony == null || goal == null) return false;
+
+        return askServer().setColonyManager(colony, goal);
+    }
+
+    /**
+     * LarryDGray's Mods: undo a colony's most recent automatic
+     * Manager reassignment.
+     *
+     * @param colony The {@code Colony} to undo the Manager change for.
+     * @return True if the undo request was sent.
+     */
+    public boolean undoColonyManager(Colony colony) {
+        if (colony == null) return false;
+
+        return askServer().undoColonyManager(colony);
     }
 
     /**
@@ -5803,6 +6117,7 @@ public final class InGameController extends FreeColClientHolder {
             && unit.getLocation() == workLocation;
         if (ret) {
             fireChanges(colonyWas, unitWas);
+            getGUI().refreshTile(colony.getTile());
             updateGUI(null, false);
         }
         return ret;

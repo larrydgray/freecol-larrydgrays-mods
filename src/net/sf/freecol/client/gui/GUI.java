@@ -842,6 +842,62 @@ public class GUI extends FreeColClientHolder {
     }
 
     /**
+     * LarryDGray's Mods: get the player's choice of Auto Explore
+     * strategy when starting the order - which single boundary type
+     * (if any) the ship should seek out and hug, replacing the old
+     * automatic land&gt;arctic&gt;ocean priority-guessing.
+     *
+     * @param unit The {@code Unit} (ship) about to start Auto Exploring.
+     * @return The chosen {@code Unit.AutoExploreMode}, or null if
+     *     cancelled (the order should not be started at all).
+     */
+    public Unit.AutoExploreMode getAutoExploreModeChoice(Unit unit) {
+        final StringTemplate template = StringTemplate
+            .template("autoExploreMode.text")
+            .addStringTemplate("%unit%", unit.getLabel(Unit.UnitLabelType.NATIONAL));
+
+        List<ChoiceItem<Unit.AutoExploreMode>> choices = new ArrayList<>();
+        choices.add(new ChoiceItem<>(Messages.message("autoExploreMode.coastline"),
+                Unit.AutoExploreMode.COASTLINE));
+        choices.add(new ChoiceItem<>(Messages.message("autoExploreMode.arctic"),
+                Unit.AutoExploreMode.ARCTIC));
+        choices.add(new ChoiceItem<>(Messages.message("autoExploreMode.deepWater"),
+                Unit.AutoExploreMode.DEEP_WATER));
+        choices.add(new ChoiceItem<>(Messages.message("autoExploreMode.nearestFog"),
+                Unit.AutoExploreMode.NEAREST_FOG));
+        choices.add(new ChoiceItem<>(Messages.message("autoExploreMode.direction"),
+                Unit.AutoExploreMode.DIRECTION));
+
+        return getChoice(unit.getTile(), template, unit, "cancel", choices);
+    }
+
+    /**
+     * LarryDGray's Mods: get the player's choice of which way to start
+     * (or continue) boundary-hugging during Auto Explore - offered
+     * only at first contact with the mode's boundary, or at a genuine
+     * fork. See {@code AutoExploreDecider.getPendingChoice()} for how
+     * candidates are computed.
+     *
+     * @param unit The auto-exploring {@code Unit}.
+     * @param candidates The candidate {@code Direction}s to offer.
+     * @return The chosen {@code Direction}, or null if cancelled (Auto
+     *     Explore should be disengaged entirely).
+     */
+    public Direction getAutoExploreDirectionChoice(Unit unit,
+                                                   List<Direction> candidates) {
+        final StringTemplate template = StringTemplate
+            .template("autoExploreDirection.text")
+            .addStringTemplate("%unit%", unit.getLabel(Unit.UnitLabelType.NATIONAL));
+
+        List<ChoiceItem<Direction>> choices = new ArrayList<>();
+        for (Direction d : candidates) {
+            choices.add(new ChoiceItem<>(Messages.message(d.getNameKey()), d));
+        }
+
+        return getChoice(unit.getTile(), template, unit, "cancel", choices);
+    }
+
+    /**
      * Get the user choice for negotiating a sale to a settlement.
      *
      * @param unit The {@code Unit} that is selling.
@@ -1997,6 +2053,18 @@ public class GUI extends FreeColClientHolder {
                                   DialogHandler<Boolean> handler) {}
 
     /**
+     * LarryDGray's Mods: show a dialog warning that ending the turn
+     * now would cost a colonist to starvation in one or more colonies.
+     *
+     * @param colonies The {@code Colony}s about to lose a colonist to
+     *     starvation this turn.
+     * @param handler A callback to handle the user's end-turn-anyway
+     *     or cancel choice.
+     */
+    public void showEndTurnStarvationDialog(final List<Colony> colonies,
+                                            DialogHandler<Boolean> handler) {}
+
+    /**
      * Show an error panel.
      *
      * @param message The error message to display.
@@ -2374,6 +2442,13 @@ public class GUI extends FreeColClientHolder {
      * @return The panel shown.
      */
     public FreeColPanel showReportTradeHistoryPanel() { return null; }
+
+    /**
+     * LarryDGray's Mods: show the Gold Journal Report.
+     *
+     * @return The panel shown.
+     */
+    public FreeColPanel showReportGoldJournalPanel() { return null; }
 
     /**
      * Show the Turn Report.

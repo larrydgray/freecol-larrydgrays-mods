@@ -976,13 +976,17 @@ public final class FreeColClient {
                 .restoreFrom(player, game.getLiveEuropeanPlayerList());
             this.inGameController.getTradeHistory()
                 .restoreFrom(player);
+            this.inGameController.getGoldJournalHistory()
+                .restoreFrom(player);
             logger.info("LarryDGray's Mods: restored report history on login for "
                 + player.getId() + " - colonyGrowthSamples="
                 + player.getColonyGrowthHistory().size()
                 + ", nationHistorySamples(self)="
                 + player.getNationHistory(player.getId()).size()
                 + ", tradeHistorySamples="
-                + player.getTradeHistory().size());
+                + player.getTradeHistory().size()
+                + ", goldJournalSamples="
+                + player.getGoldJournalHistory().size());
         }
     }
 

@@ -298,6 +298,40 @@ public class ClientOptions extends OptionGroup {
     public static final String SHOW_WAREHOUSE_WARNING_BADGES
         = "model.option.showWarehouseWarningBadges";
 
+    /** Whether to show the row of tiny goods-overflow icons under the
+     *  key-building letter badges: one icon per 100 units a storable
+     *  goods type is currently over combined warehouse+fortified-
+     *  carrier stock, capped at 3 icons then a single icon with a
+     *  "xN" overlay. Independent toggle from SHOW_BUILDING_BADGES. */
+    public static final String SHOW_OVERFLOW_PRODUCT_ICONS
+        = "model.option.showOverflowProductIcons";
+
+    /** Whether to show the Build Queue dialog's "Add All (No Tools)"
+     *  hammer-icon button. Its own dedicated toggle - specific to
+     *  that one dialog, and more buttons may join it there later,
+     *  each independently switchable. */
+    public static final String SHOW_BUILD_QUEUE_ADD_ALL_NO_TOOLS
+        = "model.option.showBuildQueueAddAllNoTools";
+
+    /** LarryDGray's Mods: "Emergency War Effort" button in the Build
+     *  Queue dialog - moves Artillery to the front of every colony's
+     *  queue that can currently build one. */
+    public static final String SHOW_BUILD_QUEUE_CANNON_RUSH
+        = "model.option.showBuildQueueCannonRush";
+
+    /** LarryDGray's Mods: "Quick Boost to Land Shipping" button in the
+     *  Build Queue dialog - moves a Wagon Train to the front of every
+     *  colony's queue that can currently build one. */
+    public static final String SHOW_BUILD_QUEUE_WAGON_RUSH
+        = "model.option.showBuildQueueWagonRush";
+
+    /** LarryDGray's Mods: "Move to Top" button in the Build Queue
+     *  dialog - moves whichever item is currently selected in this
+     *  colony's own queue to the front, without affecting any other
+     *  colony. */
+    public static final String SHOW_BUILD_QUEUE_MOVE_TO_TOP
+        = "model.option.showBuildQueueMoveToTop";
+
     /** Whether clicking a Trade Advisor goods column header sorts
      *  the colonies below by production/total of that good. */
     public static final String ENABLE_TRADE_ADVISOR_SORT
@@ -319,6 +353,12 @@ public class ClientOptions extends OptionGroup {
      *  Fortify, etc.) uses single-word labels instead of full phrases. */
     public static final String CONDENSED_UNIT_MENU
         = "model.option.condensedUnitMenu";
+
+    /** LarryDGray's Mods: whether right-clicking any map tile adds an
+     *  "End Turn" entry to the popup menu, so the turn can be ended
+     *  without reaching for the End Turn button/keyboard shortcut. */
+    public static final String SHOW_END_TURN_IN_TILE_POPUP
+        = "model.option.showEndTurnInTilePopup";
 
     /** Whether to sample each owned colony's population/Sons of
      *  Liberty%/liberty every turn, for the Colony Growth report's

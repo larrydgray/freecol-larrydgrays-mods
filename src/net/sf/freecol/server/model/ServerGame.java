@@ -46,6 +46,7 @@ import net.sf.freecol.common.model.Europe;
 import net.sf.freecol.common.model.Event;
 import net.sf.freecol.common.model.FreeColGameObject;
 import net.sf.freecol.common.model.Game;
+import net.sf.freecol.common.model.GoldCategory;
 import net.sf.freecol.common.model.Goods;
 import net.sf.freecol.common.model.GoodsLocation;
 import net.sf.freecol.common.model.HighSeas;
@@ -606,8 +607,8 @@ public class ServerGame extends Game implements TurnTaker {
             }
             int gold = tradeItem.getGold();
             if (gold > 0) {
-                source.modifyGold(-gold);
-                dest.modifyGold(gold);
+                source.modifyGold(-gold, GoldCategory.DIPLOMACY);
+                dest.modifyGold(gold, GoldCategory.DIPLOMACY);
                 cs.addPartial(See.only(source), source,
                     "gold", String.valueOf(source.getGold()),
                     "score", String.valueOf(source.getScore()));

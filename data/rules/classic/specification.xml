@@ -4789,6 +4789,19 @@
         <!-- Enable natural disasters striking colonies. -->
         <percentageOption id="model.option.naturalDisasters"
                           defaultValue="0"/>
+        <!-- LarryDGray's Mods: minimum distance (in tiles) required
+             between a newly founded colony and any of the founding
+             player's other colonies. 1 imposes no restriction beyond
+             the vanilla rules; raising it to 2+ stops two colonies'
+             work radii from ever overlapping. -->
+        <integerOption id="model.option.minimumColonyDistance"
+                       defaultValue="1" minimumValue="1" maximumValue="5"/>
+        <!-- LarryDGray's Mods: warn on End Turn, naming which
+             settlement(s), if any owned colony is about to lose a
+             colonist to starvation this turn, with an End Turn
+             Anyway/Cancel choice instead of it happening silently. -->
+        <booleanOption id="model.option.warnBeforeEndTurnStarvation"
+                       defaultValue="true"/>
       </optionGroup>
       <optionGroup id="gameOptions.victoryConditions">
         <!-- Victory condition: Should the player who first defeats
@@ -4866,6 +4879,39 @@
              to build, in addition to the vanilla hammers and tools. -->
         <booleanOption id="model.option.shipsRequireCloth"
                        defaultValue="true"/>
+        <!-- LarryDGray's Mods: master switch for redirecting warehouse
+             overflow into an idle, fortified, non-trade-route wagon
+             train or ship instead of wasting it, and for the related
+             per-colony "pause population growth" Food cap. Both are
+             also individually toggled per colony/goods type in the
+             Warehouse dialog - this just gates whether that dialog's
+             checkboxes do anything at all. -->
+        <booleanOption id="model.option.enableWarehouseOverflow"
+                       defaultValue="true"/>
+        <!-- LarryDGray's Mods: master switch for the per-colony
+             "Manager" auto-worker-optimizer - a dropdown in the
+             Colony screen that, when set to a goal (Food/Lumber/Ore/
+             Crosses/Liberty Bells), automatically re-optimizes that
+             colony's worker assignments every turn to maximize net
+             production of that one good. -->
+        <booleanOption id="model.option.enableColonyManager"
+                       defaultValue="true"/>
+        <!-- LarryDGray's Mods: master switch for the ship "Auto
+             Explore" order - a ship searches open water toward
+             unexplored territory, then hugs whatever boundary it runs
+             into (coastline, the polar edge, or the ocean/high seas
+             line), disengaging automatically the moment it contacts
+             another nation's unit or settlement. -->
+        <booleanOption id="model.option.enableAutoExplore"
+                       defaultValue="true"/>
+        <!-- LarryDGray's Mods: allow a ship captain to act as a scout -
+             speak with the chief of a coastal native settlement without
+             disembarking, exactly like a land unit wearing the Scout
+             role. Off by default: this is new gameplay capability that
+             changes core balance, unlike this project's other options
+             which default to preserving existing behaviour. -->
+        <booleanOption id="model.option.enableNavalScouting"
+                       defaultValue="false"/>
       </optionGroup>
     </optionGroup>
 

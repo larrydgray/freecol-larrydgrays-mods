@@ -576,6 +576,25 @@ public abstract class ServerAPI {
     }
 
     /**
+     * LarryDGray's Mods: server query-response for a ground-truth Auto
+     * Explore boundary trace - see {@code AutoExploreDecider.
+     * buildBoundaryTrace(..., ignoreFog=true)}. On success, the answer
+     * is applied as a side effect to {@code unit.getAutoExplorePath()}
+     * by the response message's own client handler - read it after
+     * this call returns, not from this method's own return value.
+     *
+     * @param unit The {@code Unit} to trace a boundary for.
+     * @param wallMode Which boundary type to trace.
+     * @param heading The unit's current committed heading, or null.
+     * @return True if the server interaction succeeded.
+     */
+    public boolean requestBoundaryTrace(Unit unit, Unit.AutoExploreMode wallMode,
+                                        Direction heading) {
+        return ask(new RequestBoundaryTraceMessage(unit, wallMode, heading,
+            unit.getAutoExploreRecentTiles()));
+    }
+
+    /**
      * Server query-response for inciting the natives.
      *
      * @param unit The missionary {@code Unit}.
@@ -945,6 +964,19 @@ public abstract class ServerAPI {
     }
 
     /**
+     * LarryDGray's Mods: server query-response to start/stop a unit's
+     * Auto Explore order.
+     *
+     * @param unit The {@code Unit} to direct.
+     * @param start True to start, false to stop.
+     * @return True if the server interaction succeeded.
+     * @see Unit#setAutoExplorePhase(Unit.AutoExplorePhase)
+     */
+    public boolean setAutoExplore(Unit unit, boolean start) {
+        return ask(new SetAutoExploreMessage(unit, start));
+    }
+
+    /**
      * Server query-response for setting goods levels.
      *
      * @param colony The {@code Colony} where the levels are set.
@@ -953,6 +985,29 @@ public abstract class ServerAPI {
      */
     public boolean setGoodsLevels(Colony colony, ExportData data) {
         return ask(new SetGoodsLevelsMessage(colony, data));
+    }
+
+    /**
+     * LarryDGray's Mods: server query-response for setting a
+     * colony's Manager goal.
+     *
+     * @param colony The {@code Colony} whose Manager goal is set.
+     * @param goal The new {@code Colony.ManagerGoal}.
+     * @return True if the server interaction succeeded.
+     */
+    public boolean setColonyManager(Colony colony, Colony.ManagerGoal goal) {
+        return ask(new SetColonyManagerMessage(colony, goal));
+    }
+
+    /**
+     * LarryDGray's Mods: server query-response for undoing a
+     * colony's most recent automatic Manager reassignment.
+     *
+     * @param colony The {@code Colony} to undo the Manager change for.
+     * @return True if the server interaction succeeded.
+     */
+    public boolean undoColonyManager(Colony colony) {
+        return ask(new UndoColonyManagerMessage(colony));
     }
 
     /**

@@ -713,7 +713,7 @@ public final class MapViewer extends FreeColClientHolder {
                     ColonyStat[] stats = ColonyStat.values();
                     if (statOrdinal >= 0 && statOrdinal < stats.length) {
                         ColonyStat stat = stats[statOrdinal];
-                        String statText = stat.getLetter() + ":" + stat.getValue(colony);
+                        String statText = stat.getLetter() + ":" + stat.getDisplayValue(colony);
                         BufferedImage statImg = this.lib.getStringImage(g2d, statText,
                             new Color(255, 215, 0), mapViewerScaledUtils.getFontNormal());
                         g2d.drawImage(statImg, rop,
@@ -732,6 +732,30 @@ public final class MapViewer extends FreeColClientHolder {
                         g2d.drawImage(badgeImg, rop,
                             (tileBounds.getWidth() - badgeImg.getWidth())/2 + 1,
                             nextY);
+                        nextY += badgeImg.getHeight();
+                    }
+                }
+                // LarryDGray's Mods: row of tiny goods-overflow icons,
+                // its own toggle, drawn below whatever rows came
+                // before it.
+                if (getClientOptions().getBoolean(
+                        ClientOptions.SHOW_OVERFLOW_PRODUCT_ICONS)) {
+                    List<ColonyOverflowIcons.Entry> overflow
+                        = ColonyOverflowIcons.getOverflowCounts(colony);
+                    if (!overflow.isEmpty()) {
+                        Font overlayFont = (mapViewerScaledUtils.getFontTiny() != null)
+                            ? mapViewerScaledUtils.getFontTiny()
+                            : (mapViewerScaledUtils.getFontProduction() != null)
+                                ? mapViewerScaledUtils.getFontProduction()
+                                : mapViewerScaledUtils.getFontNormal();
+                        BufferedImage iconRowImg = ColonyOverflowIcons.buildIconRow(
+                            this.lib, g2d, overflow, new Color(255, 215, 0),
+                            overlayFont, this.lib.scaleInt(2));
+                        if (iconRowImg != null) {
+                            g2d.drawImage(iconRowImg, rop,
+                                (tileBounds.getWidth() - iconRowImg.getWidth())/2 + 1,
+                                nextY);
+                        }
                     }
                 }
             }
@@ -765,7 +789,7 @@ public final class MapViewer extends FreeColClientHolder {
                     ColonyStat[] stats = ColonyStat.values();
                     if (statOrdinal >= 0 && statOrdinal < stats.length) {
                         ColonyStat stat = stats[statOrdinal];
-                        String t = stat.getLetter() + ": " + stat.getValue(colony);
+                        String t = stat.getLetter() + ": " + stat.getDisplayValue(colony);
                         extraSpecs.add(new TextSpecification(t, mapViewerScaledUtils.getFontProduction()));
                     }
                 }
@@ -836,6 +860,33 @@ public final class MapViewer extends FreeColClientHolder {
             if (rightImage != null) {
                 xOffset += nameImage.getWidth() + spacing;
                 g2d.drawImage(rightImage, rop, xOffset, yOffset);
+            }
+            // LarryDGray's Mods: row of tiny goods-overflow icons,
+            // its own toggle, drawn below the whole flattened name
+            // block (TextSpecification/createLabel have no icon slot,
+            // so this can't be folded into extraSpecs above).
+            if (settlement instanceof Colony
+                && settlement.getOwner() == player
+                && getClientOptions().getBoolean(
+                    ClientOptions.SHOW_OVERFLOW_PRODUCT_ICONS)) {
+                Colony overflowColony = (Colony) settlement;
+                List<ColonyOverflowIcons.Entry> overflow
+                    = ColonyOverflowIcons.getOverflowCounts(overflowColony);
+                if (!overflow.isEmpty()) {
+                    Font overlayFont = (mapViewerScaledUtils.getFontTiny() != null)
+                        ? mapViewerScaledUtils.getFontTiny()
+                        : (mapViewerScaledUtils.getFontProduction() != null)
+                            ? mapViewerScaledUtils.getFontProduction()
+                            : mapViewerScaledUtils.getFontNormal();
+                    BufferedImage iconRowImg = ColonyOverflowIcons.buildIconRow(
+                        this.lib, g2d, overflow, new Color(255, 215, 0),
+                        overlayFont, this.lib.scaleInt(2));
+                    if (iconRowImg != null) {
+                        int iconX = tileBounds.getWidth() / 2 - iconRowImg.getWidth() / 2;
+                        int iconY = yOffset + nameImage.getHeight();
+                        g2d.drawImage(iconRowImg, rop, iconX, iconY);
+                    }
+                }
             }
             break;
         }

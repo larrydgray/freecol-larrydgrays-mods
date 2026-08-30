@@ -33,6 +33,11 @@
       <xs:attribute name="lowLevel" type="xs:int" use="required" />
       <xs:attribute name="importLevel" type="xs:int" use="optional" />
       <xs:attribute name="exportLevel" type="xs:int" use="required" />
+
+      <!-- LarryDGray's Mods: warehouse overflow redirect - also used
+           for Food to effectively pause population growth, see
+           ServerColony.csNewTurnWarnings()/csNewTurn(). -->
+      <xs:attribute name="overflowToCarrier" type="xs:boolean" use="optional" />
     </xs:complexType>
   </xs:element>
 

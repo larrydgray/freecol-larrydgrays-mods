@@ -21,10 +21,13 @@ package net.sf.freecol.client.gui.mapviewer;
 
 import java.util.function.Predicate;
 
+import net.sf.freecol.common.model.Ability;
+import net.sf.freecol.common.model.BuildableType;
 import net.sf.freecol.common.model.Colony;
 import net.sf.freecol.common.model.GoodsType;
 import net.sf.freecol.common.model.Specification;
 import net.sf.freecol.common.model.Unit;
+import static net.sf.freecol.common.util.CollectionUtils.any;
 
 
 /**
@@ -41,6 +44,27 @@ public enum ColonyStat {
 
     // Row 1: garrison units (on the colony's tile, not working in it)
     // and warehouse goods.
+    DEFENDING_UNITS("DU", false) {
+        @Override
+        public int getValue(Colony colony) {
+            return countTileUnits(colony, ColonyStat::isLandDefender);
+        }
+    },
+    ARTILLERY_DEFENCE("AD", false) {
+        @Override
+        public int getValue(Colony colony) {
+            // LarryDGray's Mods: mirrors the exact condition
+            // SimpleCombatModel.getDefensiveModifiers() checks to
+            // grant the Coastal Defence Bonus - artillery present, or
+            // an armed/offensive ship docked - which (per Larry's own
+            // earlier design change) applies against land attackers
+            // too, not just naval ones, so this single indicator
+            // covers both.
+            return any(colony.getTile().getUnits(), u ->
+                u.hasAbility(Ability.BOMBARD)
+                || (u.isNaval() && u.isOffensiveUnit())) ? 1 : 0;
+        }
+    },
     SOLDIERS("S", false) {
         @Override
         public int getValue(Colony colony) {
@@ -55,10 +79,40 @@ public enum ColonyStat {
                 && "model.role.dragoon".equals(u.getRole().getId()));
         }
     },
+    ARTILLERY("A", false) {
+        @Override
+        public int getValue(Colony colony) {
+            return countTileUnits(colony, ColonyStat::isArtillery);
+        }
+    },
+    SCOUTS("Sc", false) {
+        @Override
+        public int getValue(Colony colony) {
+            // LarryDGray's Mods: equipped as scout, OR a Seasoned
+            // Scout regardless of current role - same "counts as a
+            // scout either way" rule already established for the
+            // Colony Growth report (see ColonyGrowthSample).
+            return countTileUnits(colony, u -> {
+                String roleId = (u.getRole() == null) ? null : u.getRole().getId();
+                return "model.role.scout".equals(roleId)
+                    || "model.unit.seasonedScout".equals(u.getType().getId());
+            });
+        }
+    },
     SHIPS("P", false) {
         @Override
         public int getValue(Colony colony) {
-            return countTileUnits(colony, Unit::isNaval);
+            // LarryDGray's Mods: cargo ships specifically - combat-
+            // capable ships are split out separately as GUNSHIPS.
+            return countTileUnits(colony,
+                u -> u.isNaval() && !u.isOffensiveUnit());
+        }
+    },
+    GUNSHIPS("G", false) {
+        @Override
+        public int getValue(Colony colony) {
+            return countTileUnits(colony,
+                u -> u.isNaval() && u.isOffensiveUnit());
         }
     },
     WAGON_TRAINS("W", false) {
@@ -66,16 +120,6 @@ public enum ColonyStat {
         public int getValue(Colony colony) {
             return countTileUnits(colony,
                 u -> "model.unit.wagonTrain".equals(u.getType().getId()));
-        }
-    },
-    ARTILLERY("A", false) {
-        @Override
-        public int getValue(Colony colony) {
-            return countTileUnits(colony, u -> {
-                String id = u.getType().getId();
-                return "model.unit.artillery".equals(id)
-                    || "model.unit.damagedArtillery".equals(id);
-            });
         }
     },
     FOOD("F", false) {
@@ -112,6 +156,17 @@ public enum ColonyStat {
         @Override
         public int getValue(Colony colony) {
             return getGoodsCount(colony, "model.goods.horses");
+        }
+    },
+    CURRENT_PRODUCTION("Bd", false) {
+        @Override
+        public int getValue(Colony colony) {
+            return 0; // unused - see getDisplayValue()
+        }
+        @Override
+        public String getDisplayValue(Colony colony) {
+            BuildableType buildable = colony.getCurrentlyBuilding();
+            return (buildable == null) ? "-" : buildable.getSuffix();
         }
     },
 
@@ -211,6 +266,20 @@ public enum ColonyStat {
     public abstract int getValue(Colony colony);
 
     /**
+     * LarryDGray's Mods: the text shown on the toolbar/label for this
+     * stat - defaults to the plain integer from {@link #getValue},
+     * but a stat whose natural value isn't a count (e.g.
+     * {@link #CURRENT_PRODUCTION}, a buildable's name) can override
+     * this instead.
+     *
+     * @param colony The {@code Colony} to check.
+     * @return The text to display.
+     */
+    public String getDisplayValue(Colony colony) {
+        return String.valueOf(getValue(colony));
+    }
+
+    /**
      * Count units on a colony's tile (garrisoned defenders, ships in
      * port, wagon trains -- not colonists working inside the colony)
      * matching a filter.
@@ -225,6 +294,34 @@ public enum ColonyStat {
             if (filter.test(u)) count++;
         }
         return count;
+    }
+
+    /**
+     * LarryDGray's Mods: is this unit an armed land defender -
+     * soldier, dragoon, or (damaged) artillery - for the combined
+     * DEFENDING_UNITS count.
+     *
+     * @param u The {@code Unit} to check.
+     * @return True if this unit counts as a land defender.
+     */
+    private static boolean isLandDefender(Unit u) {
+        if (u.isNaval()) return false;
+        if (isArtillery(u)) return true;
+        String roleId = (u.getRole() == null) ? null : u.getRole().getId();
+        return "model.role.soldier".equals(roleId)
+            || "model.role.dragoon".equals(roleId);
+    }
+
+    /**
+     * LarryDGray's Mods: is this unit artillery or damaged artillery.
+     *
+     * @param u The {@code Unit} to check.
+     * @return True if this unit is (damaged) artillery.
+     */
+    private static boolean isArtillery(Unit u) {
+        String id = u.getType().getId();
+        return "model.unit.artillery".equals(id)
+            || "model.unit.damagedArtillery".equals(id);
     }
 
     /**

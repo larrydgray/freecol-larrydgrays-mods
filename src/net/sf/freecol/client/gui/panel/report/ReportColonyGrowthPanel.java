@@ -22,6 +22,7 @@ package net.sf.freecol.client.gui.panel.report;
 import java.awt.Color;
 import java.awt.event.ActionEvent;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -153,17 +154,7 @@ public final class ReportColonyGrowthPanel extends ReportPanel {
             new StatEntry(Messages.message("report.colonyGrowth.sonsOfLiberty"),
                 s -> s.sonsOfLiberty),
             new StatEntry(Messages.message("report.colonyGrowth.liberty"),
-                s -> s.liberty),
-            // LarryDGray's Mods: combined count across both roles and
-            // both the regular/professional split, for "how many
-            // armed land units do I have in total" at a glance.
-            new StatEntry(Messages.message("report.colonyGrowth.totalArmedLand"),
-                s -> s.unitCounts.getOrDefault(SOLDIER_ROLE_ID, 0)
-                    + s.unitCounts.getOrDefault(
-                        SOLDIER_ROLE_ID + ColonyGrowthHistory.PROFESSIONAL_SUFFIX, 0)
-                    + s.unitCounts.getOrDefault(DRAGOON_ROLE_ID, 0)
-                    + s.unitCounts.getOrDefault(
-                        DRAGOON_ROLE_ID + ColonyGrowthHistory.PROFESSIONAL_SUFFIX, 0))));
+                s -> s.liberty)));
 
         // LarryDGray's Mods: which military unit types (and wagon
         // trains) to offer isn't known ahead of time - collect every
@@ -222,6 +213,36 @@ public final class ReportColonyGrowthPanel extends ReportPanel {
             stats.add(new StatEntry(
                 Messages.message("report.colonyGrowth.shipsAndWagons"), specs, true));
         }
+
+        // LarryDGray's Mods: "Total Armed Land Units" plus "Total
+        // Gunships" and "Total Naval Units" lines all on the same
+        // chart, per Larry's request. Always plotted (even if this
+        // player has never had a gunship, in which case that line is
+        // just flat at 0) rather than gated on gunship history, so
+        // the extra lines don't silently disappear. A gunship is any
+        // naval unit type with a nonzero offence (Frigate, Privateer,
+        // Man-o-War), as opposed to the cargo-only ships (Caravel,
+        // Merchantman, Galleon) also tracked individually on the
+        // Ships & Wagons chart above; Total Naval Units sums every
+        // naval category (gunships and cargo ships alike, excluding
+        // wagon trains).
+        List<SeriesSpec> armedSpecs = new ArrayList<>(List.of(
+            new SeriesSpec(Messages.message("report.colonyGrowth.totalArmedLand"),
+                PALETTE[0], false, false,
+                s -> s.unitCounts.getOrDefault(SOLDIER_ROLE_ID, 0)
+                    + s.unitCounts.getOrDefault(
+                        SOLDIER_ROLE_ID + ColonyGrowthHistory.PROFESSIONAL_SUFFIX, 0)
+                    + s.unitCounts.getOrDefault(DRAGOON_ROLE_ID, 0)
+                    + s.unitCounts.getOrDefault(
+                        DRAGOON_ROLE_ID + ColonyGrowthHistory.PROFESSIONAL_SUFFIX, 0)),
+            new SeriesSpec(Messages.message("report.colonyGrowth.totalGunships"),
+                PALETTE[1], false, false,
+                s -> sumGunships(s, navalLabelToId.values())),
+            new SeriesSpec(Messages.message("report.colonyGrowth.totalNavalUnits"),
+                PALETTE[2], false, false,
+                s -> sumAllNaval(s, navalLabelToId.values()))));
+        stats.add(new StatEntry(
+            Messages.message("report.colonyGrowth.totalArmedLand"), armedSpecs, false));
 
         // LarryDGray's Mods: each colony's own population plotted as
         // its own line, rather than only the empire-wide total above
@@ -286,6 +307,55 @@ public final class ReportColonyGrowthPanel extends ReportPanel {
         String baseId = baseCategoryId(categoryId);
         FreeColSpecObjectType fcot = getSpecification().getType(baseId);
         return (fcot instanceof UnitType) && ((UnitType)fcot).isNaval();
+    }
+
+    /**
+     * LarryDGray's Mods: is the given naval category id a combat-
+     * capable "gunship" (Frigate, Privateer, Man-o-War), as opposed
+     * to a cargo-only ship (Caravel, Merchantman, Galleon)? Matches
+     * the same Ships/Gunships split used by the Colony Stat Toolbar.
+     *
+     * @param categoryId The naval category id to check (never a
+     *     wagon train id or a suffixed land category).
+     * @return True if this is a gunship type.
+     */
+    private boolean isGunshipType(String categoryId) {
+        FreeColSpecObjectType fcot = getSpecification().getType(categoryId);
+        return (fcot instanceof UnitType) && ((UnitType)fcot).getOffence() > 0;
+    }
+
+    /**
+     * LarryDGray's Mods: sum this sample's unit counts across every
+     * gunship category id, for the "Total Gunships" line.
+     *
+     * @param s The {@code ColonyGrowthHistory.Sample} to sum.
+     * @param navalIds Every naval/wagon category id ever seen.
+     * @return The total gunship count for this sample.
+     */
+    private int sumGunships(ColonyGrowthHistory.Sample s, Collection<String> navalIds) {
+        int total = 0;
+        for (String id : navalIds) {
+            if (isGunshipType(id)) total += s.unitCounts.getOrDefault(id, 0);
+        }
+        return total;
+    }
+
+    /**
+     * LarryDGray's Mods: sum this sample's unit counts across every
+     * naval category id (gunships and cargo ships alike, excluding
+     * wagon trains), for the "Total Naval Units" line.
+     *
+     * @param s The {@code ColonyGrowthHistory.Sample} to sum.
+     * @param navalIds Every naval/wagon category id ever seen.
+     * @return The total naval unit count for this sample.
+     */
+    private int sumAllNaval(ColonyGrowthHistory.Sample s, Collection<String> navalIds) {
+        int total = 0;
+        for (String id : navalIds) {
+            if (ColonyGrowthHistory.WAGON_TRAIN_ID.equals(id)) continue;
+            total += s.unitCounts.getOrDefault(id, 0);
+        }
+        return total;
     }
 
     /**

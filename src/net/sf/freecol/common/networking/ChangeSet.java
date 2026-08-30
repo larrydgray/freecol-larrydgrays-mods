@@ -37,6 +37,7 @@ import net.sf.freecol.common.model.FreeColGameObject;
 import net.sf.freecol.common.model.FreeColObject;
 import net.sf.freecol.common.model.Game;
 import net.sf.freecol.common.model.GoodsType;
+import net.sf.freecol.common.model.GoldJournalSample;
 import net.sf.freecol.common.model.HistoryEvent;
 import net.sf.freecol.common.model.LastSale;
 import net.sf.freecol.common.model.Location;
@@ -1272,6 +1273,29 @@ public class ChangeSet {
         changes.add(new FeatureChange(See.only(player), player,
                                       history, true));
         player.addHistory(history);
+        return this;
+    }
+
+    /**
+     * LarryDGray's Mods: helper function to add a Gold Journal sample
+     * to a ChangeSet. Also adds the sample to the owner - mirrors
+     * addHistory() above exactly, on purpose: a full cs.add(player)
+     * resync of the whole Player object was found to never actually
+     * reach the client's canonical Player instance turn after turn
+     * (the report just froze at whatever it showed on last login),
+     * whereas this FeatureChange mechanism - already proven in
+     * production for HistoryEvent/LastSale - resolves the parent by
+     * id and updates it in place instead of risking an orphaned copy.
+     *
+     * @param player The {@code Player} whose gold journal this is.
+     * @param sample The {@code GoldJournalSample} to add.
+     * @return The updated {@code ChangeSet}.
+     */
+    public ChangeSet addGoldJournalSample(Player player,
+                                          GoldJournalSample sample) {
+        changes.add(new FeatureChange(See.only(player), player,
+                                      sample, true));
+        player.addGoldJournalSample(sample);
         return this;
     }
 

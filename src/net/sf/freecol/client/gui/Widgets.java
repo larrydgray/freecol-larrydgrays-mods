@@ -41,6 +41,7 @@ import net.sf.freecol.client.gui.dialog.EditOptionDialog;
 import net.sf.freecol.client.gui.dialog.EditSettlementDialog;
 import net.sf.freecol.client.gui.dialog.EmigrationDialog;
 import net.sf.freecol.client.gui.dialog.EndTurnDialog;
+import net.sf.freecol.client.gui.dialog.EndTurnStarvationDialog;
 import net.sf.freecol.client.gui.dialog.FirstContactDialog;
 import net.sf.freecol.client.gui.dialog.FreeColChoiceDialog;
 import net.sf.freecol.client.gui.dialog.FreeColConfirmDialog;
@@ -109,6 +110,7 @@ import net.sf.freecol.client.gui.panel.report.ReportNavalPanel;
 import net.sf.freecol.client.gui.panel.report.ReportProductionPanel;
 import net.sf.freecol.client.gui.panel.report.ReportReligiousPanel;
 import net.sf.freecol.client.gui.panel.report.ReportRequirementsPanel;
+import net.sf.freecol.client.gui.panel.report.ReportGoldJournalPanel;
 import net.sf.freecol.client.gui.panel.report.ReportTradeHistoryPanel;
 import net.sf.freecol.client.gui.panel.report.ReportTradePanel;
 import net.sf.freecol.client.gui.panel.report.ReportTurnPanel;
@@ -518,6 +520,20 @@ public final class Widgets {
                                   DialogHandler<Boolean> handler) {
         new DialogCallback<>(new EndTurnDialog(this.freeColClient,
                                                getFrame(), units),
+                             null, handler);
+    }
+
+    /**
+     * LarryDGray's Mods: show the EndTurnStarvationDialog with the
+     * colonies about to lose a colonist to starvation this turn.
+     *
+     * @param colonies The {@code Colony}s at risk.
+     * @param handler A {@code DialogHandler} for the dialog response.
+     */
+    public void showEndTurnStarvationDialog(List<Colony> colonies,
+                                            DialogHandler<Boolean> handler) {
+        new DialogCallback<>(new EndTurnStarvationDialog(this.freeColClient,
+                                                         getFrame(), colonies),
                              null, handler);
     }
 
@@ -1335,6 +1351,22 @@ public final class Widgets {
             = this.canvas.getExistingFreeColPanel(ReportTradeHistoryPanel.class);
         if (existing != null) this.canvas.removeFromCanvas(existing);
         ReportTradeHistoryPanel panel = new ReportTradeHistoryPanel(this.freeColClient);
+        this.canvas.showFreeColPanel(panel, PopupPosition.CENTERED, true);
+        return panel;
+    }
+
+    /**
+     * LarryDGray's Mods: show the Gold Journal report.
+     *
+     * @return The panel shown.
+     */
+    public FreeColPanel showReportGoldJournalPanel() {
+        // LarryDGray's Mods: see showReportColonyGrowthPanel() above -
+        // same stale-history-on-reopen issue, same fix.
+        ReportGoldJournalPanel existing
+            = this.canvas.getExistingFreeColPanel(ReportGoldJournalPanel.class);
+        if (existing != null) this.canvas.removeFromCanvas(existing);
+        ReportGoldJournalPanel panel = new ReportGoldJournalPanel(this.freeColClient);
         this.canvas.showFreeColPanel(panel, PopupPosition.CENTERED, true);
         return panel;
     }

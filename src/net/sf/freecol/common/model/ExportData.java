@@ -56,6 +56,13 @@ public class ExportData extends FreeColObject {
     /** Whether to export or not. */
     private boolean exported = false;
 
+    /**
+     * LarryDGray's Mods: whether this goods type's warehouse overflow
+     * should be redirected into an idle, fortified, non-trade-route
+     * wagon train or ship at the colony instead of being wasted.
+     */
+    private boolean overflowToCarrier = false;
+
 
     /**
      * Trivial constructor for Game.newInstance.
@@ -193,6 +200,26 @@ public class ExportData extends FreeColObject {
         this.exported = newExport;
     }
 
+    /**
+     * LarryDGray's Mods: is this goods type's warehouse overflow
+     * redirected into an idle carrier instead of wasted?
+     *
+     * @return True if overflow should be redirected.
+     */
+    public final boolean isOverflowToCarrier() {
+        return this.overflowToCarrier;
+    }
+
+    /**
+     * LarryDGray's Mods: set whether this goods type's warehouse
+     * overflow is redirected into an idle carrier instead of wasted.
+     *
+     * @param newOverflowToCarrier The new setting.
+     */
+    public final void setOverflowToCarrier(final boolean newOverflowToCarrier) {
+        this.overflowToCarrier = newOverflowToCarrier;
+    }
+
 
     // Overide FreeColObject
 
@@ -208,6 +235,7 @@ public class ExportData extends FreeColObject {
         this.importLevel = o.getImportLevel();
         this.exportLevel = o.getExportLevel();
         this.exported = o.getExported();
+        this.overflowToCarrier = o.isOverflowToCarrier();
         return true;
     }
 
@@ -219,6 +247,7 @@ public class ExportData extends FreeColObject {
     private static final String IMPORT_LEVEL_TAG = "importLevel";
     private static final String HIGH_LEVEL_TAG = "highLevel";
     private static final String LOW_LEVEL_TAG = "lowLevel";
+    private static final String OVERFLOW_TO_CARRIER_TAG = "overflowToCarrier";
 
 
     /**
@@ -237,6 +266,8 @@ public class ExportData extends FreeColObject {
         xw.writeAttribute(IMPORT_LEVEL_TAG, importLevel);
 
         xw.writeAttribute(EXPORT_LEVEL_TAG, exportLevel);
+
+        xw.writeAttribute(OVERFLOW_TO_CARRIER_TAG, overflowToCarrier);
     }
 
     /**
@@ -255,6 +286,8 @@ public class ExportData extends FreeColObject {
         importLevel = xr.getAttribute(IMPORT_LEVEL_TAG, -1);
 
         exportLevel = xr.getAttribute(EXPORT_LEVEL_TAG, EXPORT_LEVEL_DEFAULT);
+
+        overflowToCarrier = xr.getAttribute(OVERFLOW_TO_CARRIER_TAG, false);
     }
 
     /**

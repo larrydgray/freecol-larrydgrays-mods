@@ -71,6 +71,7 @@ import net.sf.freecol.client.gui.ImageLibrary;
 import net.sf.freecol.client.gui.label.GoodsLabel;
 import net.sf.freecol.client.gui.label.ProductionLabel;
 import net.sf.freecol.client.gui.label.UnitLabel;
+import net.sf.freecol.client.gui.plaf.FreeColComboBoxRenderer;
 import net.sf.freecol.client.gui.tooltip.RebelToolTip;
 import net.sf.freecol.common.debug.DebugUtils;
 import net.sf.freecol.common.debug.FreeColDebugger;
@@ -154,6 +155,18 @@ public final class ColonyPanel extends PortPanel
     // Only present in debug mode
     private JButton setGoodsButton = null;
     private JButton traceWorkButton = null;
+
+    /** LarryDGray's Mods: navigate to the previous/next owned colony
+     *  without opening the nameBox dropdown. */
+    private JButton prevColonyButton = null;
+    private JButton nextColonyButton = null;
+
+    /** LarryDGray's Mods: per-colony Manager goal selector, plus its
+     *  empire-wide apply and undo buttons. */
+    private final JComboBox<Colony.ManagerGoal> managerBox
+        = new JComboBox<>(Colony.ManagerGoal.values());
+    private JButton applyManagerButton = null;
+    private JButton undoManagerButton = null;
 
     /** The {@code Colony} this panel is displaying. */
     private Colony colony;
@@ -247,6 +260,57 @@ public final class ColonyPanel extends PortPanel
     private final ActionListener occupationCmd =
         ae -> colony.setOccupationTrace(!colony.getOccupationTrace());
 
+    /** LarryDGray's Mods: move to the previous/next colony in the
+     *  nameBox without opening its dropdown - fires the same
+     *  selection-changed event a manual dropdown pick would. */
+    private final ActionListener prevColonyCmd = ae -> {
+        final int n = this.nameBox.getItemCount();
+        if (n == 0) return;
+        final int idx = this.nameBox.getSelectedIndex();
+        this.nameBox.setSelectedIndex((idx - 1 + n) % n);
+    };
+    private final ActionListener nextColonyCmd = ae -> {
+        final int n = this.nameBox.getItemCount();
+        if (n == 0) return;
+        final int idx = this.nameBox.getSelectedIndex();
+        this.nameBox.setSelectedIndex((idx + 1) % n);
+    };
+
+    /** LarryDGray's Mods: push the Manager dropdown's current
+     *  selection to the server for this colony only. Applies
+     *  immediately (server-side), so refresh the buildings/tiles
+     *  display right away rather than leaving stale colonist
+     *  positions until the panel is closed and reopened. */
+    private final ActionListener managerCmd = ae -> {
+        final Colony.ManagerGoal goal
+            = (Colony.ManagerGoal)this.managerBox.getSelectedItem();
+        if (goal != null && goal != colony.getManagerGoal()) {
+            igc().setColonyManager(colony, goal);
+            update();
+        }
+    };
+
+    /** LarryDGray's Mods: push the Manager dropdown's current
+     *  selection to every colony the player owns. Only this open
+     *  colony's own display needs an explicit refresh here - the
+     *  others aren't currently visible. */
+    private final ActionListener applyManagerCmd = ae -> {
+        final Colony.ManagerGoal goal
+            = (Colony.ManagerGoal)this.managerBox.getSelectedItem();
+        if (goal == null) return;
+        for (Colony c : getMyPlayer().getColonyList()) {
+            igc().setColonyManager(c, goal);
+        }
+        update();
+    };
+
+    /** LarryDGray's Mods: revert this colony's most recent automatic
+     *  Manager reassignment. */
+    private final ActionListener undoManagerCmd = ae -> {
+        igc().undoColonyManager(colony);
+        update();
+    };
+
 
     /**
      * The constructor for the panel.
@@ -275,6 +339,35 @@ public final class ColonyPanel extends PortPanel
             setGoodsButton = Utility.localizedButton("colonyPanel.setGoods");
             traceWorkButton = Utility.localizedButton("colonyPanel.traceWork");
         }
+
+        // LarryDGray's Mods: Prev/Next colony buttons and the Manager
+        // controls - only meaningful when this panel can actually be
+        // edited (not while spying on another player's colony).
+        if (editable) {
+            prevColonyButton = Utility.localizedButton("colonyPanel.prevColony");
+            Utility.localizeToolTip(prevColonyButton,
+                "colonyPanel.prevColony.shortDescription");
+            nextColonyButton = Utility.localizedButton("colonyPanel.nextColony");
+            Utility.localizeToolTip(nextColonyButton,
+                "colonyPanel.nextColony.shortDescription");
+            applyManagerButton = Utility.localizedButton("colonyPanel.manager.applyToAll");
+            Utility.localizeToolTip(applyManagerButton,
+                "colonyPanel.manager.applyToAll.shortDescription");
+            undoManagerButton = Utility.localizedButton("colonyPanel.manager.undo");
+            Utility.localizeToolTip(undoManagerButton,
+                "colonyPanel.manager.undo.shortDescription");
+        }
+        Utility.localizeToolTip(this.managerBox,
+            "colonyPanel.manager.shortDescription");
+        this.managerBox.setRenderer(new FreeColComboBoxRenderer<Colony.ManagerGoal>() {
+            @Override
+            protected void setLabelValues(JLabel c, Colony.ManagerGoal value) {
+                c.setText((value == null) ? null
+                    : (value == Colony.ManagerGoal.UNMANAGED)
+                    ? Messages.message("colonyPanel.manager.unmanaged")
+                    : Messages.getName(value.getGoodsType(getSpecification())));
+            }
+        });
 
         // Use ESCAPE for closing the ColonyPanel:
         InputMap closeIM = new ComponentInputMap(okButton);
@@ -471,6 +564,19 @@ public final class ColonyPanel extends PortPanel
         if (traceWorkButton != null) {
             traceWorkButton.addActionListener(occupationCmd);
         }
+        if (prevColonyButton != null) {
+            prevColonyButton.addActionListener(prevColonyCmd);
+        }
+        if (nextColonyButton != null) {
+            nextColonyButton.addActionListener(nextColonyCmd);
+        }
+        if (applyManagerButton != null) {
+            applyManagerButton.addActionListener(applyManagerCmd);
+        }
+        if (undoManagerButton != null) {
+            undoManagerButton.addActionListener(undoManagerCmd);
+        }
+        this.managerBox.addActionListener(managerCmd);
 
         unloadButton.setEnabled(isEditable());
         fillButton.setEnabled(isEditable());
@@ -483,6 +589,26 @@ public final class ColonyPanel extends PortPanel
         if (traceWorkButton != null) {
             traceWorkButton.setEnabled(isEditable());
         }
+        if (prevColonyButton != null) {
+            prevColonyButton.setEnabled(isEditable());
+        }
+        if (nextColonyButton != null) {
+            nextColonyButton.setEnabled(isEditable());
+        }
+        if (applyManagerButton != null) {
+            applyManagerButton.setEnabled(isEditable());
+        }
+        // LarryDGray's Mods: Undo is only ever meaningful once the
+        // Manager has actually changed something - the server-side
+        // snapshot is transient and the client can't see it directly,
+        // so "not Unmanaged" is the best available approximation; a
+        // click when there's nothing to undo is a harmless no-op.
+        if (undoManagerButton != null) {
+            undoManagerButton.setEnabled(isEditable()
+                && colony.getManagerGoal() != Colony.ManagerGoal.UNMANAGED);
+        }
+        this.managerBox.setEnabled(isEditable());
+        this.managerBox.setSelectedItem(colony.getManagerGoal());
 
         final GUI gui = getGUI();
         this.nameBox.setEnabled(isEditable());
@@ -502,7 +628,16 @@ public final class ColonyPanel extends PortPanel
         tilesPanel.initialize();
         warehousePanel.initialize();
 
-        add(this.nameBox, "height 42:, grow");
+        // LarryDGray's Mods: wrap nameBox with Prev/Next colony
+        // buttons, still occupying the same single grid cell this
+        // row's layout expects.
+        JPanel nameRowPanel = new MigPanel(new MigLayout(
+            "insets 0, gap 2 0", "[][fill,grow][]", "[]"));
+        nameRowPanel.setOpaque(false);
+        if (this.prevColonyButton != null) nameRowPanel.add(this.prevColonyButton);
+        nameRowPanel.add(this.nameBox, "grow");
+        if (this.nextColonyButton != null) nameRowPanel.add(this.nextColonyButton);
+        add(nameRowPanel, "height 42:, grow");
         int tmp = (int) (ImageLibrary.ICON_SIZE.height * getImageLibrary().getScaleFactor());
         
         final Dimension tilesScrollDimension = getTilesScrollGuiScaledDimension();
@@ -516,9 +651,11 @@ public final class ColonyPanel extends PortPanel
         add(cargoScroll, "grow, sg, height 60:121:");
         add(outsideColonyScroll, "grow, sg, height 60:121:");
         add(warehouseScroll, "span, height 40:60:, growx");
-        int buttonFields = 6;
+        int buttonFields = 7; // +1 for the always-present managerBox
         if (setGoodsButton != null) buttonFields++;
         if (traceWorkButton != null) buttonFields++;
+        if (applyManagerButton != null) buttonFields++;
+        if (undoManagerButton != null) buttonFields++;
         add(unloadButton, "span, split " + Integer.toString(buttonFields)
             + ", align center");
         add(fillButton);
@@ -527,6 +664,9 @@ public final class ColonyPanel extends PortPanel
         add(colonyUnitsButton);
         if (setGoodsButton != null) add(setGoodsButton);
         if (traceWorkButton != null) add(traceWorkButton);
+        add(this.managerBox);
+        if (applyManagerButton != null) add(applyManagerButton);
+        if (undoManagerButton != null) add(undoManagerButton);
         add(okButton, "gapbefore push"); // tag ok
 
         update();
@@ -547,6 +687,19 @@ public final class ColonyPanel extends PortPanel
         if (traceWorkButton != null) {
             traceWorkButton.removeActionListener(occupationCmd);
         }
+        if (prevColonyButton != null) {
+            prevColonyButton.removeActionListener(prevColonyCmd);
+        }
+        if (nextColonyButton != null) {
+            nextColonyButton.removeActionListener(nextColonyCmd);
+        }
+        if (applyManagerButton != null) {
+            applyManagerButton.removeActionListener(applyManagerCmd);
+        }
+        if (undoManagerButton != null) {
+            undoManagerButton.removeActionListener(undoManagerCmd);
+        }
+        this.managerBox.removeActionListener(managerCmd);
 
         removePropertyChangeListeners();
         if (getSelectedUnit() != null) {
@@ -1098,6 +1251,10 @@ public final class ColonyPanel extends PortPanel
         colonyUnitsButton = null;
         setGoodsButton = null;
         traceWorkButton = null;
+        prevColonyButton = null;
+        nextColonyButton = null;
+        applyManagerButton = null;
+        undoManagerButton = null;
         netProductionPanel = null;
         buildingsPanel = null;
         buildingsScroll = null;

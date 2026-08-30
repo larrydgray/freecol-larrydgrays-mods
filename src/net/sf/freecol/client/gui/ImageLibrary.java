@@ -862,7 +862,7 @@ public final class ImageLibrary {
     public BufferedImage getSmallerGoodsTypeImage(GoodsType gt) {
         return getGoodsTypeImage(gt, scale(ICON_SIZE, SMALLER_SCALE));
     }
-    
+
 
     // Nation image handling
 

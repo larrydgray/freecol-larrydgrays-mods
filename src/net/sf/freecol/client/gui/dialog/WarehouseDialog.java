@@ -43,6 +43,8 @@ import net.sf.freecol.common.model.Colony;
 import net.sf.freecol.common.model.ExportData;
 import net.sf.freecol.common.model.Goods;
 import net.sf.freecol.common.model.GoodsType;
+import net.sf.freecol.common.model.Specification;
+import net.sf.freecol.common.option.BooleanOption;
 import net.sf.freecol.common.option.GameOptions;
 
 
@@ -121,6 +123,12 @@ public final class WarehouseDialog extends FreeColConfirmDialog {
 
         private final JCheckBox export;
 
+        /**
+         * LarryDGray's Mods: redirect this goods type's warehouse
+         * overflow into an idle carrier instead of wasting it.
+         */
+        private final JCheckBox overflowToCarrier;
+
         private final JSpinner lowLevel;
 
         private final JSpinner highLevel;
@@ -171,6 +179,19 @@ public final class WarehouseDialog extends FreeColConfirmDialog {
                 "warehouseDialog.highLevel.shortDescription");
             add(highLevel);
 
+            // LarryDGray's Mods: export checkbox before the import
+            // level spinner (swapped from upstream FreeCol's order)
+            // so this row reads checkbox-then-spinner, matching the
+            // Overflow to Carrier row below it.
+            export = new JCheckBox(Messages.message("warehouseDialog.export"),
+                                   exportData.getExported());
+            Utility.localizeToolTip(export,
+                "warehouseDialog.export.shortDescription");
+            if (!colony.hasAbility(Ability.EXPORT)) {
+                export.setEnabled(false);
+            }
+            add(export);
+
             if (enhancedTradeRoutes) { // import level settings
                 int importInit = exportData.getEffectiveImportLevel(capacity);
                 SpinnerNumberModel importLevelModel
@@ -184,15 +205,34 @@ public final class WarehouseDialog extends FreeColConfirmDialog {
                 importLevel = null;
             }
 
-            // export checkbox
-            export = new JCheckBox(Messages.message("warehouseDialog.export"),
-                                   exportData.getExported());
-            Utility.localizeToolTip(export,
-                "warehouseDialog.export.shortDescription");
-            if (!colony.hasAbility(Ability.EXPORT)) {
-                export.setEnabled(false);
-            }
-            add(export);
+            // LarryDGray's Mods: overflow-to-carrier checkbox, one per
+            // goods type, gated by the master Game Option so an
+            // inert checkbox reads as visibly disabled rather than
+            // silently doing nothing. A continued save's embedded spec
+            // may predate this option entirely - hasOption() first
+            // avoids spec.getBoolean() throwing on old saves. On the
+            // primary food type's panel this checkbox does double
+            // duty: Food is normally exempt from warehouse capacity
+            // so it can accumulate to a new colonist's required
+            // amount, but turning this on for Food caps it one below
+            // that requirement instead and redirects the surplus -
+            // which, as a side effect, also stops new colonists from
+            // being spawned. Larry's own realization: no separate
+            // "pause growth" checkbox needed, see
+            // ServerColony.csNewTurnWarnings()/csNewTurn().
+            final Specification spec = colony.getSpecification();
+            final boolean warehouseOverflowEnabled =
+                spec.hasOption(GameOptions.ENABLE_WAREHOUSE_OVERFLOW, BooleanOption.class)
+                && spec.getBoolean(GameOptions.ENABLE_WAREHOUSE_OVERFLOW);
+            overflowToCarrier = new JCheckBox(
+                Messages.message("warehouseDialog.overflowToCarrier"),
+                exportData.isOverflowToCarrier());
+            Utility.localizeToolTip(overflowToCarrier,
+                (goodsType == spec.getPrimaryFoodType())
+                    ? "warehouseDialog.overflowToCarrier.food.shortDescription"
+                    : "warehouseDialog.overflowToCarrier.shortDescription");
+            overflowToCarrier.setEnabled(warehouseOverflowEnabled);
+            add(overflowToCarrier);
 
             // export level settings
             SpinnerNumberModel exportLevelModel
@@ -222,12 +262,14 @@ public final class WarehouseDialog extends FreeColConfirmDialog {
                 || (lowLevelValue != exportData.getLowLevel())
                 || (highLevelValue != exportData.getHighLevel())
                 || (importLevel != null && importLevelValue != importValue)
-                || (exportLevelValue != exportData.getExportLevel());
+                || (exportLevelValue != exportData.getExportLevel())
+                || (overflowToCarrier.isSelected() != exportData.isOverflowToCarrier());
             exportData.setExported(export.isSelected());
             exportData.setLowLevel(lowLevelValue);
             exportData.setHighLevel(highLevelValue);
             exportData.setImportLevel(importLevelValue);
             exportData.setExportLevel(exportLevelValue);
+            exportData.setOverflowToCarrier(overflowToCarrier.isSelected());
             if (changed) {
                 freeColClient.getInGameController()
                     .setGoodsLevels(colony, goodsType);

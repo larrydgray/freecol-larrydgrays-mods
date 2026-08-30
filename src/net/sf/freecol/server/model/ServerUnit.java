@@ -35,6 +35,7 @@ import net.sf.freecol.common.model.CombatModel;
 import net.sf.freecol.common.model.Europe;
 import net.sf.freecol.common.model.FreeColGameObject;
 import net.sf.freecol.common.model.Game;
+import net.sf.freecol.common.model.GoldCategory;
 import net.sf.freecol.common.model.GoodsContainer;
 import net.sf.freecol.common.model.GoodsType;
 import net.sf.freecol.common.model.HighSeas;
@@ -540,7 +541,7 @@ public class ServerUnit extends Unit implements TurnTaker {
         case TRIBAL_CHIEF:
             int chiefAmount = randomInt(logger, "Chief base amount",
                                         random, dx * 10) + dx * 5;
-            owner.modifyGold(chiefAmount);
+            owner.modifyGold(chiefAmount, GoldCategory.LOST_CITY_RUMOUR);
             cs.addPartial(See.only(owner), owner,
                 "gold", String.valueOf(owner.getGold()),
                 "score", String.valueOf(owner.getScore()));
@@ -590,7 +591,7 @@ public class ServerUnit extends Unit implements TurnTaker {
             int ruinsAmount = randomInt(logger, "Base ruins amount", random,
                                         dx * 2) * 300 + 50;
             if (ruinsAmount < 500) { // FIXME: remove magic number
-                owner.modifyGold(ruinsAmount);
+                owner.modifyGold(ruinsAmount, GoldCategory.LOST_CITY_RUMOUR);
                 cs.addPartial(See.only(owner), owner,
                     "gold", String.valueOf(owner.getGold()),
                     "score", String.valueOf(owner.getScore()));

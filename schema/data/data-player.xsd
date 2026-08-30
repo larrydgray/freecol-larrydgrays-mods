@@ -75,6 +75,25 @@
           </xs:complexType>
         </xs:element>
 
+        <xs:element name="goldJournalSample">
+          <xs:annotation>
+            <xs:documentation>
+              LarryDGray's Mods: one turn's worth of this player's
+              Gold Journal report history - gold gained/lost this
+              turn and the resulting balance.
+            </xs:documentation>
+          </xs:annotation>
+          <xs:complexType>
+            <xs:attribute name="id" type="xs:string" use="optional"/>
+            <xs:attribute name="turn" type="xs:int" use="optional" default="0"/>
+            <xs:attribute name="goldIn" type="xs:int" use="optional" default="0"/>
+            <xs:attribute name="goldOut" type="xs:int" use="optional" default="0"/>
+            <xs:attribute name="balance" type="xs:int" use="optional" default="0"/>
+            <xs:attribute name="goldInByCategory" type="xs:string" use="optional"/>
+            <xs:attribute name="goldOutByCategory" type="xs:string" use="optional"/>
+          </xs:complexType>
+        </xs:element>
+
         <xs:element ref="highSeas" />
         <xs:element ref="historyEvent" />
 

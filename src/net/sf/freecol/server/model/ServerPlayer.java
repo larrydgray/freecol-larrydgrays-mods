@@ -75,6 +75,8 @@ import net.sf.freecol.common.model.Building;
 import net.sf.freecol.common.model.BuildingType;
 import net.sf.freecol.common.model.Colony;
 import net.sf.freecol.common.model.ColonyGrowthSample;
+import net.sf.freecol.common.model.GoldCategory;
+import net.sf.freecol.common.model.GoldJournalSample;
 import net.sf.freecol.common.model.CombatModel;
 import net.sf.freecol.common.model.CombatModel.CombatEffectType;
 import net.sf.freecol.common.model.CombatModel.CombatResult;
@@ -390,7 +392,7 @@ public class ServerPlayer extends Player implements TurnTaker {
             Modifier.RELIGIOUS_UNREST_BONUS);
 
         // Add initial gold
-        modifyGold(spec.getInteger(GameOptions.STARTING_MONEY));
+        modifyGold(spec.getInteger(GameOptions.STARTING_MONEY), GoldCategory.OTHER);
 
         // Choose starting immigrants
         ((ServerEurope)getEurope()).initializeMigration(random);
@@ -1259,7 +1261,7 @@ public class ServerPlayer extends Player implements TurnTaker {
                 if (marketAmount == 0) return -1;
                 break;
             }
-            modifyGold(-price);
+            modifyGold(-price, GoldCategory.TRADE_EUROPE);
             market.modifySales(type, -a);
             market.modifyUnitsBought(type, a);
             if (container != null) container.addGoods(type, a);
@@ -1287,6 +1289,28 @@ public class ServerPlayer extends Player implements TurnTaker {
      */
     public int sellInEurope(Random random, GoodsContainer container,
                             GoodsType type, int amount) {
+        return sellInEurope(random, container, type, amount,
+                            GoldCategory.TRADE_EUROPE);
+    }
+
+    /**
+     * LarryDGray's Mods: sell goods in Europe, tagging the resulting
+     * gold with a specific {@link GoldCategory} for the Gold Journal
+     * report - e.g. an automatic Custom House sale should show up as
+     * "Customs House", not be indistinguishable from a manually
+     * initiated Europe trade.
+     *
+     * @param random A pseudo-random number source.
+     * @param container An optional {@code GoodsContainer}
+     *     carrying the goods.
+     * @param type The {@code GoodsType} to sell.
+     * @param amount The amount of goods to sell.
+     * @param category The {@code GoldCategory} to tag the sale with.
+     * @return The amount actually added to the market, or negative on failure.
+     */
+    public int sellInEurope(Random random, GoodsContainer container,
+                            GoodsType type, int amount,
+                            GoldCategory category) {
         final Market market = getMarket();
         final int tax = getTax();
         int marketAmount = 0;
@@ -1322,9 +1346,9 @@ public class ServerPlayer extends Player implements TurnTaker {
                         tradeProfitMultiplierCheat * ((double) tradeProfitMultiplierCheatTurns - getGame().getTurn().getNumber()) / tradeProfitMultiplierCheatTurns);
                 
                 final int adjustedGoldAfterCheating = (int) (incomeAfterTaxes * currentMultiplier);
-                modifyGold(adjustedGoldAfterCheating);
+                modifyGold(adjustedGoldAfterCheating, category);
             } else {
-                modifyGold(incomeAfterTaxes);
+                modifyGold(incomeAfterTaxes, category);
             }
             
             market.modifySales(type, a);
@@ -1471,7 +1495,7 @@ public class ServerPlayer extends Player implements TurnTaker {
         boolean changed = false;
         int upkeep = sum(getSettlements(), Settlement::getUpkeep);
         if (checkGold(upkeep)) {
-            modifyGold(-upkeep);
+            modifyGold(-upkeep, GoldCategory.UPKEEP);
             if (getBankrupt()) {
                 setBankrupt(false);
                 changed = true;
@@ -1486,7 +1510,7 @@ public class ServerPlayer extends Player implements TurnTaker {
                                      this));
             }
         } else {
-            modifyGold(-getGold());
+            modifyGold(-getGold(), GoldCategory.UPKEEP);
             if (!getBankrupt()) {
                 setBankrupt(true);
                 changed = true;
@@ -1614,7 +1638,7 @@ outer:  for (Effect effect : effects) {
                     switch (effect.getId()) {
                     case Effect.LOSS_OF_MONEY:
                         int plunder = Math.max(1, colony.getPlunder(null, random) / 5);
-                        modifyGold(-plunder);
+                        modifyGold(-plunder, GoldCategory.DISASTER);
                         cs.addPartial(See.only(this), this,
                             "gold", String.valueOf(this.getGold()));
                         mm = new ModelMessage(MessageType.DISASTERS,
@@ -2171,8 +2195,8 @@ outer:  for (Effect effect : effects) {
         // gold if a price was paid.
         cs.add(See.perhaps(), tile);
         if (price > 0) {
-            modifyGold(-price);
-            owner.modifyGold(price);
+            modifyGold(-price, GoldCategory.LAND_CLAIM);
+            owner.modifyGold(price, GoldCategory.LAND_CLAIM);
             cs.addPartial(See.only(this), this,
                 "gold", String.valueOf(this.getGold()));
         } else if (price < 0 && owner.isIndian()) {
@@ -2220,7 +2244,7 @@ outer:  for (Effect effect : effects) {
             setRemainingEmigrants(getRemainingEmigrants() - 1);
             break;
         case RECRUIT:
-            modifyGold(-europe.getCurrentRecruitPrice());
+            modifyGold(-europe.getCurrentRecruitPrice(), GoldCategory.RECRUITMENT);
             cs.addPartial(See.only(this), this,
                 "gold", String.valueOf(this.getGold()));
             europe.increaseRecruitmentDifficulty();
@@ -2887,8 +2911,8 @@ outer:  for (Effect effect : effects) {
 
         // Allocate some plunder
         if (plunder > 0) {
-            attackerPlayer.modifyGold(plunder);
-            colonyPlayer.modifyGold(-plunder);
+            attackerPlayer.modifyGold(plunder, GoldCategory.PLUNDER);
+            colonyPlayer.modifyGold(-plunder, GoldCategory.PLUNDER);
             cs.addPartial(See.only(attackerPlayer), attackerPlayer,
                 "gold", String.valueOf(attackerPlayer.getGold()));
             cs.addPartial(See.only(colonyPlayer), colonyPlayer,
@@ -3301,8 +3325,8 @@ outer:  for (Effect effect : effects) {
 
         // Allocate some plunder.
         if (plunder > 0) {
-            attackerPlayer.modifyGold(plunder);
-            colonyPlayer.modifyGold(-plunder);
+            attackerPlayer.modifyGold(plunder, GoldCategory.PLUNDER);
+            colonyPlayer.modifyGold(-plunder, GoldCategory.PLUNDER);
             cs.addPartial(See.only(attackerPlayer), attackerPlayer,
                 "gold", String.valueOf(attackerPlayer.getGold()));
             cs.addPartial(See.only(colonyPlayer), colonyPlayer,
@@ -3745,8 +3769,8 @@ outer:  for (Effect effect : effects) {
 
         } else {
             int plunder = Math.max(1, colony.getPlunder(attacker, random) / 5);
-            colonyPlayer.modifyGold(-plunder);
-            attackerPlayer.modifyGold(plunder);
+            colonyPlayer.modifyGold(-plunder, GoldCategory.PLUNDER);
+            attackerPlayer.modifyGold(plunder, GoldCategory.PLUNDER);
             cs.addPartial(See.only(colonyPlayer), colonyPlayer,
                 "gold", String.valueOf(colonyPlayer.getGold()));
             cs.addMessage(colonyPlayer,
@@ -4217,7 +4241,7 @@ outer:  for (Effect effect : effects) {
                                  "model.player.mercenariesArrived", this)
                     .addStringTemplate("%location%",
                                        dst.up().getLocationLabelFor(this)));
-            modifyGold(-price);
+            modifyGold(-price, GoldCategory.MONARCH);
             cs.addPartial(See.only(this), this,
                           "gold", String.valueOf(this.getGold()));
         } else {
@@ -4423,8 +4447,8 @@ outer:  for (Effect effect : effects) {
 
         if (result == IndianDemandAction.INDIAN_DEMAND_ACCEPT) {
             if (type == null) {
-                this.modifyGold(-amount);
-                demandPlayer.modifyGold(amount);
+                this.modifyGold(-amount, GoldCategory.TRIBUTE);
+                demandPlayer.modifyGold(amount, GoldCategory.TRIBUTE);
                 cs.addPartial(See.only(this), this,
                     "gold", String.valueOf(this.getGold()));
                 cs.addPartial(See.only(demandPlayer), demandPlayer,
@@ -4659,6 +4683,24 @@ outer:  for (Effect effect : effects) {
                 }
                 addTradeHistorySample(new TradeHistorySample(
                     game.getTurn().getNumber(), this));
+                // LarryDGray's Mods: unlike the other three report
+                // histories above, the Gold Journal has no client-side
+                // equivalent to independently recompute each turn (see
+                // GoldJournalHistory's doc comment) - its samples only
+                // ever exist here, on the server's authoritative
+                // Player. A prior fix attempt used a full
+                // cs.add(See.only(this), this) to resync the whole
+                // Player object, but that never actually reached the
+                // client's canonical Player instance (same class of
+                // bug found and fixed for Colony/ManagerGoal earlier -
+                // the report just silently froze at whatever it showed
+                // on last login/reload). cs.addGoldJournalSample()
+                // uses the same FeatureChange mechanism already proven
+                // for HistoryEvent/LastSale, which resolves the parent
+                // by id and updates it in place instead.
+                cs.addGoldJournalSample(this, new GoldJournalSample(
+                    game.getTurn().getNumber(), this));
+                resetGoldJournalAccumulators();
             }
         }
 

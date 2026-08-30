@@ -86,8 +86,30 @@ public class ColonyStatToolBar extends JPanel {
             (stat.isSecondRow() ? row2 : row1).add(button);
         }
 
+        // LarryDGray's Mods: independent on/off toggles that live on
+        // this same toolbar but aren't part of the single-stat
+        // selection above - not added to `group`, so this can be on
+        // (or off) regardless of which stat (if any) is selected.
+        // More independent toggles may join this row later.
+        final JPanel row3 = new JPanel(new FlowLayout(FlowLayout.LEFT, 2, 2));
+        row3.setOpaque(false);
+        final JToggleButton overflowIconsButton = new JToggleButton(
+            Messages.message("colonyStatToolBar.overflowIcons"));
+        overflowIconsButton.setToolTipText(
+            Messages.message("colonyStatToolBar.overflowIcons.shortDescription"));
+        overflowIconsButton.setSelected(freeColClient.getClientOptions()
+            .getBoolean(ClientOptions.SHOW_OVERFLOW_PRODUCT_ICONS));
+        overflowIconsButton.addActionListener((ActionEvent ae) -> {
+                freeColClient.getClientOptions().setBoolean(
+                    ClientOptions.SHOW_OVERFLOW_PRODUCT_ICONS,
+                    overflowIconsButton.isSelected());
+                freeColClient.getGUI().refresh();
+            });
+        row3.add(overflowIconsButton);
+
         add(row1);
         add(row2);
+        add(row3);
         setSize(getPreferredSize());
     }
 

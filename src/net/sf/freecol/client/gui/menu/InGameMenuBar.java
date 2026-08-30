@@ -39,6 +39,7 @@ import net.sf.freecol.client.FreeColClient;
 import net.sf.freecol.client.gui.FontLibrary;
 import net.sf.freecol.client.gui.action.AssignTradeRouteAction;
 import net.sf.freecol.client.gui.action.AttackRangedAction;
+import net.sf.freecol.client.gui.action.AutoExploreAction;
 import net.sf.freecol.client.gui.action.BuildColonyAction;
 import net.sf.freecol.client.gui.action.CenterAction;
 import net.sf.freecol.client.gui.action.ChangeAction;
@@ -86,6 +87,7 @@ import net.sf.freecol.client.gui.action.ReportProductionAction;
 import net.sf.freecol.client.gui.action.ReportReligionAction;
 import net.sf.freecol.client.gui.action.ReportRequirementsAction;
 import net.sf.freecol.client.gui.action.ReportTradeAction;
+import net.sf.freecol.client.gui.action.ReportGoldJournalAction;
 import net.sf.freecol.client.gui.action.ReportTradeHistoryAction;
 import net.sf.freecol.client.gui.action.ReportTurnAction;
 import net.sf.freecol.client.gui.action.RetireAction;
@@ -244,6 +246,7 @@ public class InGameMenuBar extends FreeColMenuBar {
         
         menu.add(getMenuItem(SentryAction.id));
         menu.add(getMenuItem(FortifyAction.id));
+        menu.add(getMenuItem(AutoExploreAction.id));
 
         menu.addSeparator();
 
@@ -300,6 +303,7 @@ public class InGameMenuBar extends FreeColMenuBar {
         menu.add(getMenuItem(ReportNavalAction.id));
         menu.add(getMenuItem(ReportTradeAction.id));
         menu.add(indentSubReport(getMenuItem(ReportTradeHistoryAction.id)));
+        menu.add(indentSubReport(getMenuItem(ReportGoldJournalAction.id)));
         menu.add(getMenuItem(ReportTurnAction.id));
         menu.add(getMenuItem(ReportRequirementsAction.id));
         menu.add(getMenuItem(ReportCargoAction.id));

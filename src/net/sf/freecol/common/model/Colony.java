@@ -149,6 +149,40 @@ public class Colony extends Settlement implements TradeLocation {
      */
     protected boolean wastedGoods = false;
 
+    /**
+     * LarryDGray's Mods: which goods type (if any) this colony's
+     * workers are automatically reassigned to maximize each turn.
+     * See ServerColony.csApplyManager().
+     */
+    public static enum ManagerGoal {
+        UNMANAGED(null),
+        FOOD("model.goods.food"),
+        LUMBER("model.goods.lumber"),
+        ORE("model.goods.ore"),
+        CROSSES("model.goods.crosses"),
+        BELLS("model.goods.bells");
+
+        private final String goodsTypeId;
+
+        ManagerGoal(String goodsTypeId) {
+            this.goodsTypeId = goodsTypeId;
+        }
+
+        /**
+         * Get the goods type this goal targets.
+         *
+         * @param spec The {@code Specification} to look up the type in.
+         * @return The target {@code GoodsType}, or null for UNMANAGED.
+         */
+        public GoodsType getGoodsType(Specification spec) {
+            return (this.goodsTypeId == null) ? null
+                : spec.getGoodsType(this.goodsTypeId);
+        }
+    }
+
+    /** LarryDGray's Mods: this colony's current Manager goal. */
+    protected ManagerGoal managerGoal = ManagerGoal.UNMANAGED;
+
     /** A list of items to be built. */
     protected final BuildQueue<BuildableType> buildQueue
             = new BuildQueue<>(this,
@@ -386,6 +420,24 @@ public class Colony extends Settlement implements TradeLocation {
      */
     public void setWastedGoods(boolean wastedGoods) {
         this.wastedGoods = wastedGoods;
+    }
+
+    /**
+     * LarryDGray's Mods: get this colony's current Manager goal.
+     *
+     * @return The {@code ManagerGoal}.
+     */
+    public ManagerGoal getManagerGoal() {
+        return this.managerGoal;
+    }
+
+    /**
+     * LarryDGray's Mods: set this colony's Manager goal.
+     *
+     * @param managerGoal The new {@code ManagerGoal}.
+     */
+    public void setManagerGoal(ManagerGoal managerGoal) {
+        this.managerGoal = (managerGoal == null) ? ManagerGoal.UNMANAGED : managerGoal;
     }
 
     /**
@@ -3108,6 +3160,7 @@ public class Colony extends Settlement implements TradeLocation {
     private static final String TORIES_TAG = "tories";
     private static final String UNIT_COUNT_TAG = "unitCount";
     private static final String WASTED_GOODS_TAG = "wastedGoods";
+    private static final String MANAGER_TAG = "manager";
 
 
     /**
@@ -3125,6 +3178,15 @@ public class Colony extends Settlement implements TradeLocation {
         // SoL has to be visible for the popular support bonus to be
         // visible to an attacking rebel player.
         xw.writeAttribute(SONS_OF_LIBERTY_TAG, sonsOfLiberty);
+
+        // LarryDGray's Mods: written unconditionally (not gated
+        // behind the owner-only block below) so it's never silently
+        // reset to the UNMANAGED default by a narrower-visibility
+        // update to this same colony that omits it - caught live:
+        // the Manager goal reverted to Unmanaged on reopen even
+        // though the reassignment itself had genuinely happened and
+        // persisted.
+        xw.writeAttribute(MANAGER_TAG, managerGoal);
 
         if (xw.validFor(getOwner())) {
 
@@ -3225,6 +3287,8 @@ public class Colony extends Settlement implements TradeLocation {
         productionBonus = xr.getAttribute(PRODUCTION_BONUS_TAG, 0);
 
         wastedGoods = xr.getAttribute(WASTED_GOODS_TAG, false);
+
+        managerGoal = xr.getAttribute(MANAGER_TAG, ManagerGoal.class, ManagerGoal.UNMANAGED);
 
         displayUnitCount = xr.getAttribute(UNIT_COUNT_TAG, -1);
     }

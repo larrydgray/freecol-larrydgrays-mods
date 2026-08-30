@@ -142,9 +142,13 @@ public class FreeColFrame extends JFrame {
     /**
      * Get the standard name for the main frame.
      *
+     * LarryDGray's Mods: appends "with LarryDGray's Mods" to the
+     * title bar, so this build is visually distinguishable from
+     * stock FreeCol at a glance (e.g. in screenshots).
+     *
      * @return The standard frame name.
      */
     private static String getFrameName() {
-        return "FreeCol " + FreeCol.getVersion();
+        return "FreeCol " + FreeCol.getVersion() + " with LarryDGray's Mods";
     }
 }

@@ -71,6 +71,7 @@ import javax.swing.TransferHandler;
 import javax.swing.plaf.PanelUI;
 
 import net.miginfocom.swing.MigLayout;
+import net.sf.freecol.client.ClientOptions;
 import net.sf.freecol.client.FreeColClient;
 import net.sf.freecol.client.gui.FontLibrary;
 import net.sf.freecol.client.gui.ImageLibrary;
@@ -85,6 +86,7 @@ import net.sf.freecol.common.model.BuildingType;
 import net.sf.freecol.common.model.Colony;
 import net.sf.freecol.common.model.FeatureContainer;
 import net.sf.freecol.common.model.FreeColSpecObjectType;
+import net.sf.freecol.common.model.GoodsType;
 import net.sf.freecol.common.model.Limit;
 import net.sf.freecol.common.model.Named;
 import net.sf.freecol.common.model.Specification;
@@ -540,6 +542,26 @@ public class BuildQueuePanel extends FreeColPanel implements ItemListener {
     /** A button to buy the current buildable. */
     private final JButton buyBuildable;
 
+    /** LarryDGray's Mods: a button to queue every currently-buildable
+     *  building that doesn't require tools, in the order they're
+     *  listed - Larry's own frequent manual action, batched into one
+     *  click. */
+    private final JButton addAllNoToolsButton;
+
+    /** LarryDGray's Mods: "Emergency War Effort" - move Artillery to
+     *  the front of every colony's build queue that can currently
+     *  build one. */
+    private final JButton cannonRushButton;
+
+    /** LarryDGray's Mods: "Quick Boost to Land Shipping" - move a
+     *  Wagon Train to the front of every colony's build queue that
+     *  can currently build one. */
+    private final JButton wagonRushButton;
+
+    /** LarryDGray's Mods: move whichever item is currently selected
+     *  in this colony's own build queue to the front. */
+    private final JButton moveToTopButton;
+
     /** The check box to enable compact mode. */
     private final JCheckBox compactBox;
 
@@ -666,6 +688,69 @@ public class BuildQueuePanel extends FreeColPanel implements ItemListener {
         this.buyBuildable.setActionCommand(BUY);
         this.buyBuildable.addActionListener(this);
 
+        // LarryDGray's Mods: hammer-icon button, no text needed - the
+        // icon matches the hammer amounts already shown per building
+        // in the list above it. Its own dedicated toggle - null (and
+        // left out of the layout below) when switched off.
+        if (freeColClient.getClientOptions()
+                .getBoolean(ClientOptions.SHOW_BUILD_QUEUE_ADD_ALL_NO_TOOLS)) {
+            GoodsType hammersType = getSpecification().getGoodsType("model.goods.hammers");
+            this.addAllNoToolsButton = new JButton(new ImageIcon(
+                getImageLibrary().getSmallGoodsTypeImage(hammersType)));
+            this.addAllNoToolsButton.setToolTipText(
+                Messages.message("buildQueuePanel.addAllNoTools"));
+            this.addAllNoToolsButton.addActionListener(
+                (ActionEvent ae) -> addAllWithoutTools());
+        } else {
+            this.addAllNoToolsButton = null;
+        }
+
+        // LarryDGray's Mods: two more empire-wide "rush" buttons, each
+        // its own dedicated toggle. Unlike addAllNoToolsButton these
+        // act across every one of the player's colonies at once, not
+        // just this dialog's colony - see queueUnitTypeFirstEmpireWide().
+        if (freeColClient.getClientOptions()
+                .getBoolean(ClientOptions.SHOW_BUILD_QUEUE_CANNON_RUSH)) {
+            UnitType artilleryType = getSpecification().getUnitType("model.unit.artillery");
+            this.cannonRushButton = new JButton(new ImageIcon(
+                getImageLibrary().getSmallUnitTypeImage(artilleryType)));
+            this.cannonRushButton.setToolTipText(
+                Messages.message("buildQueuePanel.cannonRush"));
+            this.cannonRushButton.addActionListener(
+                (ActionEvent ae) -> queueUnitTypeFirstEmpireWide(artilleryType));
+        } else {
+            this.cannonRushButton = null;
+        }
+        if (freeColClient.getClientOptions()
+                .getBoolean(ClientOptions.SHOW_BUILD_QUEUE_WAGON_RUSH)) {
+            UnitType wagonTrainType = getSpecification().getUnitType("model.unit.wagonTrain");
+            this.wagonRushButton = new JButton(new ImageIcon(
+                getImageLibrary().getSmallUnitTypeImage(wagonTrainType)));
+            this.wagonRushButton.setToolTipText(
+                Messages.message("buildQueuePanel.wagonRush"));
+            this.wagonRushButton.addActionListener(
+                (ActionEvent ae) -> queueUnitTypeFirstEmpireWide(wagonTrainType));
+        } else {
+            this.wagonRushButton = null;
+        }
+
+        // LarryDGray's Mods: "Move to Top" - unlike the two rush
+        // buttons above, this only ever touches this dialog's own
+        // colony/queue selection, so it is a plain text button (no
+        // natural in-game icon for a generic reordering action) that
+        // just reorders the already-staged local list model.
+        if (freeColClient.getClientOptions()
+                .getBoolean(ClientOptions.SHOW_BUILD_QUEUE_MOVE_TO_TOP)) {
+            this.moveToTopButton = Utility.localizedButton(
+                "buildQueuePanel.moveToTopButton");
+            this.moveToTopButton.setToolTipText(
+                Messages.message("buildQueuePanel.moveToTop"));
+            this.moveToTopButton.addActionListener(
+                (ActionEvent ae) -> moveSelectedToTop());
+        } else {
+            this.moveToTopButton = null;
+        }
+
         this.compactBox
             = new JCheckBox(Messages.message("buildQueuePanel.compactView"));
         this.compactBox.addItemListener(this);
@@ -688,7 +773,15 @@ public class BuildQueuePanel extends FreeColPanel implements ItemListener {
         add(this.constructionPanel, "split 2, flowy");
         add(new JScrollPane(this.buildQueueList), "grow");
         add(new JScrollPane(this.buildingList), "grow, wrap 20");
-        add(this.buyBuildable, "span, split 4");
+        int extraButtons = (this.addAllNoToolsButton == null ? 0 : 1)
+            + (this.cannonRushButton == null ? 0 : 1)
+            + (this.wagonRushButton == null ? 0 : 1)
+            + (this.moveToTopButton == null ? 0 : 1);
+        add(this.buyBuildable, "span, split " + (4 + extraButtons));
+        if (this.addAllNoToolsButton != null) add(this.addAllNoToolsButton);
+        if (this.cannonRushButton != null) add(this.cannonRushButton);
+        if (this.wagonRushButton != null) add(this.wagonRushButton);
+        if (this.moveToTopButton != null) add(this.moveToTopButton);
         add(this.compactBox);
         add(this.showAllBox);
         add(okButton, "tag ok");
@@ -732,6 +825,91 @@ public class BuildQueuePanel extends FreeColPanel implements ItemListener {
         DefaultListModel<BuildableType> model
             = (DefaultListModel<BuildableType>)this.buildQueueList.getModel();
         model.removeElement(type);
+    }
+
+    /**
+     * LarryDGray's Mods: queue every currently-buildable building
+     * that doesn't require tools, in the order the Buildings list
+     * shows them - Larry's own frequent manual action ("I add all
+     * buildings listed in order that don't require tools"), batched
+     * into one click. Locked buildings (visible only via "Show all")
+     * are skipped, same as a normal add would refuse them.
+     */
+    private void addAllWithoutTools() {
+        final DefaultListModel<BuildableType> queueModel
+            = (DefaultListModel<BuildableType>)this.buildQueueList.getModel();
+        final ListModel<BuildingType> buildingModel = this.buildingList.getModel();
+        for (int i = 0; i < buildingModel.getSize(); i++) {
+            BuildingType bt = buildingModel.getElementAt(i);
+            if (this.lockReasons.get(bt) != null) continue;
+            if (requiresTools(bt)) continue;
+            queueModel.addElement(bt);
+        }
+        updateAllLists();
+    }
+
+    /**
+     * LarryDGray's Mods: "Emergency War Effort" / "Quick Boost to
+     * Land Shipping" - move the given unit type to the front of
+     * every one of the player's colonies that can currently build
+     * it, in one click. If it's already queued somewhere else in a
+     * colony's queue, that entry is moved to the front rather than
+     * adding a duplicate.
+     *
+     * This dialog's own colony is staged into the local list model,
+     * committed on OK like every other edit here; every other colony
+     * has no open dialog to conflict with, so it's committed
+     * immediately via {@code setBuildQueue}.
+     *
+     * @param unitType The {@code UnitType} to rush to the front.
+     */
+    private void queueUnitTypeFirstEmpireWide(UnitType unitType) {
+        for (Colony c : getMyPlayer().getColonyList()) {
+            if (!c.canBuild(unitType)) continue;
+            if (c == this.colony) {
+                DefaultListModel<BuildableType> queueModel
+                    = (DefaultListModel<BuildableType>)this.buildQueueList.getModel();
+                queueModel.removeElement(unitType);
+                queueModel.add(0, unitType);
+            } else {
+                List<BuildableType> newQueue = new ArrayList<>(c.getBuildQueue());
+                newQueue.remove(unitType);
+                newQueue.add(0, unitType);
+                igc().setBuildQueue(c, newQueue);
+            }
+        }
+        updateAllLists();
+    }
+
+    /**
+     * LarryDGray's Mods: move whichever item is currently selected in
+     * this colony's build queue to the front. A no-op if nothing is
+     * selected or it is already at the front. Only touches the local
+     * list model, like every other edit in this dialog - committed to
+     * the server on OK via the existing setBuildQueue() call.
+     */
+    private void moveSelectedToTop() {
+        final BuildableType selected = this.buildQueueList.getSelectedValue();
+        if (selected == null) return;
+        final DefaultListModel<BuildableType> queueModel
+            = (DefaultListModel<BuildableType>)this.buildQueueList.getModel();
+        queueModel.removeElement(selected);
+        queueModel.add(0, selected);
+        this.buildQueueList.setSelectedValue(selected, true);
+        updateAllLists();
+    }
+
+    /**
+     * LarryDGray's Mods: does this buildable require tools?
+     *
+     * @param bt The {@code BuildableType} to check.
+     * @return True if any of its required goods is tools.
+     */
+    private static boolean requiresTools(BuildableType bt) {
+        for (AbstractGoods goods : bt.getRequiredGoodsList()) {
+            if ("model.goods.tools".equals(goods.getType().getId())) return true;
+        }
+        return false;
     }
 
     private boolean checkAbilities(BuildableType bt, List<String> lockReason) {

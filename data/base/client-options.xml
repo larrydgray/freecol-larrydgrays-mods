@@ -434,6 +434,36 @@
              switched separately. -->
         <booleanOption id="model.option.showWarehouseWarningBadges"
                        defaultValue="true"/>
+        <!-- LarryDGray's Mods: row of tiny goods icons under the
+             key-building letter badges - one icon per 100 units a
+             storable goods type is currently over combined warehouse
+             + fortified-carrier stock, capped at 3 icons then a
+             single icon with a "xN" overlay. Independent toggle from
+             the badges above. -->
+        <booleanOption id="model.option.showOverflowProductIcons"
+                       defaultValue="true"/>
+        <!-- Build Queue dialog: hammer-icon "Add All (No Tools)"
+             button next to Buy. Its own dedicated toggle, specific to
+             that dialog - more buttons may join it there later, each
+             independently switchable. -->
+        <booleanOption id="model.option.showBuildQueueAddAllNoTools"
+                       defaultValue="true"/>
+        <!-- LarryDGray's Mods: "Emergency War Effort" button in the
+             Build Queue dialog - moves Artillery to the front of
+             every colony's queue that can currently build one. -->
+        <booleanOption id="model.option.showBuildQueueCannonRush"
+                       defaultValue="true"/>
+        <!-- LarryDGray's Mods: "Quick Boost to Land Shipping" button
+             in the Build Queue dialog - moves a Wagon Train to the
+             front of every colony's queue that can currently build
+             one. -->
+        <booleanOption id="model.option.showBuildQueueWagonRush"
+                       defaultValue="true"/>
+        <!-- LarryDGray's Mods: "Move to Top" button in the Build
+             Queue dialog - moves whichever item is currently selected
+             in this colony's own queue to the front. -->
+        <booleanOption id="model.option.showBuildQueueMoveToTop"
+                       defaultValue="true"/>
         <!-- Trade Advisor (F9): click a goods column header to sort
              colonies by production (or, on a second click, total on
              hand) of that good. -->
@@ -455,6 +485,11 @@
              Activate, Clear orders -> Orders, Remove all equipment
              -> Unequip, etc.) instead of full phrases. -->
         <booleanOption id="model.option.condensedUnitMenu"
+                       defaultValue="true"/>
+        <!-- LarryDGray's Mods: adds an "End Turn" entry to the
+             right-click popup menu on any map tile, so the turn can be
+             ended from wherever the mouse already is. -->
+        <booleanOption id="model.option.showEndTurnInTilePopup"
                        defaultValue="true"/>
         <!-- LarryDGray's Mods: sample each owned colony's
              population/Sons of Liberty%/liberty every turn for the

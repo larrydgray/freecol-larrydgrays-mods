@@ -2014,6 +2014,15 @@ public class SwingGUI extends GUI {
      * {@inheritDoc}
      */
     @Override
+    public void showEndTurnStarvationDialog(final List<Colony> colonies,
+                                            DialogHandler<Boolean> handler) {
+        this.widgets.showEndTurnStarvationDialog(colonies, handler);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public FreeColPanel showErrorPanel(String message, Runnable callback) {
         return this.widgets.showErrorPanel(message)
             .addClosingCallback(callback);
@@ -2465,6 +2474,14 @@ public class SwingGUI extends GUI {
     @Override
     public FreeColPanel showReportTradeHistoryPanel() {
         return this.widgets.showReportTradeHistoryPanel();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public FreeColPanel showReportGoldJournalPanel() {
+        return this.widgets.showReportGoldJournalPanel();
     }
 
     /**

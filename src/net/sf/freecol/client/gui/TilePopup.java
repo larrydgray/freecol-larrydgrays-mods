@@ -31,6 +31,7 @@ import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import javax.swing.JSeparator;
 
+import net.sf.freecol.client.ClientOptions;
 import net.sf.freecol.client.FreeColClient;
 import net.sf.freecol.client.control.InGameController;
 import net.sf.freecol.client.gui.action.UnloadAction;
@@ -49,6 +50,8 @@ import net.sf.freecol.common.model.StringTemplate;
 import net.sf.freecol.common.model.Tile;
 import net.sf.freecol.common.model.Unit;
 import net.sf.freecol.common.model.Unit.UnitState;
+import net.sf.freecol.common.option.BooleanOption;
+import net.sf.freecol.common.option.GameOptions;
 import static net.sf.freecol.common.util.CollectionUtils.*;
 import net.sf.freecol.common.util.LogBuilder;
 
@@ -154,6 +157,23 @@ public final class TilePopup extends JPopupMenu {
                         hasAnItem = true;
                     }
 
+                    // LarryDGray's Mods: Auto Explore, ships only,
+                    // gated on the game option (same check as
+                    // AutoExploreAction's shouldBeEnabled()).
+                    if (activeUnit.isNaval() && !activeUnit.isAutoExploring()
+                        && freeColClient.getGame().getSpecification()
+                               .hasOption(GameOptions.ENABLE_AUTO_EXPLORE,
+                                         BooleanOption.class)
+                        && freeColClient.getGame().getSpecification()
+                               .getBoolean(GameOptions.ENABLE_AUTO_EXPLORE)) {
+                        ji = Utility.localizedMenuItem("autoExplore");
+                        ji.addActionListener((ActionEvent ae) -> {
+                                igc.toggleAutoExplore(activeUnit);
+                            });
+                        add(ji);
+                        hasAnItem = true;
+                    }
+
                     // Treasure train cashin
                     if (activeUnit.canCarryTreasure()
                         && activeUnit.canCashInTreasureTrain()) {
@@ -166,8 +186,10 @@ public final class TilePopup extends JPopupMenu {
                         hasAnItem = true;
                     }
                     
-                    // Clear orders is possible if there is a destination
-                    if (activeUnit.getDestination() != null) {
+                    // Clear orders is possible if there is a destination,
+                    // or (LarryDGray's Mods) an active Auto Explore order.
+                    if (activeUnit.getDestination() != null
+                        || activeUnit.isAutoExploring()) {
                         ji = Utility.localizedMenuItem("clearOrders");
                         ji.addActionListener((ActionEvent ae) -> {
                                 igc.clearOrders(activeUnit);
@@ -272,6 +294,19 @@ public final class TilePopup extends JPopupMenu {
         if (FreeColDebugger.isInDebugMode(FreeColDebugger.DebugMode.MENUS)
             && freeColClient.getFreeColServer() != null) {
             addDebugItems(freeColClient, tile);
+        }
+
+        // LarryDGray's Mods: "End Turn" available from any tile's
+        // right-click menu, not just the End Turn button/Enter key.
+        if (player != null && freeColClient.currentPlayerIsMyPlayer()
+            && freeColClient.getClientOptions()
+                .getBoolean(ClientOptions.SHOW_END_TURN_IN_TILE_POPUP)) {
+            addSeparator();
+            JMenuItem endTurnItem = Utility.localizedMenuItem("endTurnAction.name");
+            endTurnItem.addActionListener((ActionEvent ae) -> {
+                    igc.endTurn(true);
+                });
+            add(endTurnItem);
         }
 
         Component lastComponent = getComponent(getComponentCount() - 1);
