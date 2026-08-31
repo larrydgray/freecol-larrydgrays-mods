@@ -469,6 +469,15 @@ isn't listed here.)
   vanishing. Intent is faster conversions - the ruleset already grants
   `Ability.EXPERT_MISSIONARY` to better missionary types, presumably
   feeding into conversion speed.
+- **Missionary survives settlement destruction** - today, destroying a
+  native settlement kills any missionary stationed there outright
+  (confirmed in `ServerPlayer.csDisposeSettlement()`) - no capture, no
+  ejection, just gone with a "mission destroyed" message. This mod
+  would let the missionary survive and appear outside instead.
+- **Abandon Mission before attacking** - a player-issued order to
+  voluntarily withdraw your own missionary from a settlement before
+  assaulting it, so attacking doesn't cost you the missionary as a
+  side effect if you want to keep them.
 - **Build Queue named/saved worklists** - save a specific build sequence
   as a named template, reload it later. A more general version of the
   "Add All (No Tools)" button above.
