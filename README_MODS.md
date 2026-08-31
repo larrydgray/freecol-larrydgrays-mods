@@ -462,6 +462,13 @@ commitments, just a record so they don't get lost. (AI Difficulty
 Levels is its own much larger, separately-tracked design effort and
 isn't listed here.)
 
+- **Missionary auto-upgrade** - once a mission is established, if a
+  better missionary (e.g. an actual expert Missionary) becomes
+  available, swap them into the mission automatically; the displaced
+  missionary appears back outside the settlement instead of just
+  vanishing. Intent is faster conversions - the ruleset already grants
+  `Ability.EXPERT_MISSIONARY` to better missionary types, presumably
+  feeding into conversion speed.
 - **Build Queue named/saved worklists** - save a specific build sequence
   as a named template, reload it later. A more general version of the
   "Add All (No Tools)" button above.
