@@ -512,7 +512,11 @@ isn't listed here.)
   passenger (i.e. the Scout doesn't have to disembark to speak with the
   chief - having one aboard is what unlocks it for that ship). Likely
   shape: replace the current boolean game option with a multi-choice
-  one.
+  one. Confirmed a combat-capable ship (a gunship) keeps full normal
+  attack capability under any of these variants - scouting is checked
+  before the attack move-type in `getNavalMoveType()`, so an armed ship
+  just gets offered Attack/Speak/Tribute instead of auto-bombarding,
+  never losing its ability to fight.
 - **Build Queue named/saved worklists** - save a specific build sequence
   as a named template, reload it later. A more general version of the
   "Add All (No Tools)" button above.
