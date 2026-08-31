@@ -484,6 +484,13 @@ isn't listed here.)
   all. There's currently no way for a player to learn how many braves
   defend a native settlement short of attacking it outright - this
   would extend Spy to work against native settlements too.
+- **"Custer's Last Stand" ambush event** - random chance that attacking
+  a native settlement triggers nearby braves appearing on all sides and
+  counter-attacking, instead of the fight staying contained to just the
+  settlement itself. Punishes attacking a native settlement blind - ties
+  directly into the "no intel on defenders" gap above (Spy on native
+  settlements), since scouting first would be the way to avoid getting
+  ambushed.
 - **Build Queue named/saved worklists** - save a specific build sequence
   as a named template, reload it later. A more general version of the
   "Add All (No Tools)" button above.
