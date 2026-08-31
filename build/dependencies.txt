@@ -16504,12 +16504,16 @@ net.sf.freecol.client.gui.GUI
 net.sf.freecol.client.gui.action.ZoomOutAction
 net.sf.freecol.client.gui.action.ZoomInAction
 net.sf.freecol.client.gui.action.FreeColAction
-||:net.sf.freecol.client.gui.panel.report.ReportTradePanel$4
+||:net.sf.freecol.client.gui.panel.report.ReportTradePanel$5
 java.lang.Object
 net.sf.freecol.client.gui.panel.report.ReportTradePanel
-net.sf.freecol.client.gui.panel.report.ReportTradePanel$4
+net.sf.freecol.client.gui.panel.report.ReportTradePanel$5
 net.sf.freecol.client.gui.panel.report.ReportTradePanel$TradeDisplayMode
 java.lang.NoSuchFieldError
+||:net.sf.freecol.client.gui.panel.report.ReportTradePanel$4
+java.awt.event.MouseAdapter
+net.sf.freecol.client.gui.panel.report.ReportTradePanel
+net.sf.freecol.client.gui.panel.report.ReportTradePanel$4
 ||:net.sf.freecol.client.gui.action.ReportIndianAction
 net.sf.freecol.client.gui.action.ReportIndianAction
 net.sf.freecol.client.gui.GUI
@@ -22351,6 +22355,7 @@ net.sf.freecol.client.gui.panel.Utility
 java.lang.invoke.LambdaMetafactory
 net.sf.freecol.common.model.Colony
 javax.swing.border.EmptyBorder
+net.sf.freecol.client.gui.panel.report.ReportTradePanel$5
 net.sf.freecol.client.gui.panel.report.ReportTradePanel$TradeDisplayMode
 net.sf.freecol.client.gui.panel.report.ReportTradePanel$4
 net.sf.freecol.common.model.TypeCountMap

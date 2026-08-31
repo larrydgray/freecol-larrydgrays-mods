@@ -129,6 +129,22 @@ public final class ReportTradePanel extends ReportPanel {
     }
 
     /**
+     * LarryDGray's Mods: handle a click on the Max Rebels column
+     * header - sorts colonies by number of Sons of Liberty, highest
+     * first. Mirrors sortByCitySizeClicked exactly - not a goods type,
+     * so bypasses sortColumnClicked's GoodsType-based mechanism.
+     *
+     * @param freeColClient The {@code FreeColClient} for the game.
+     */
+    private void sortByMaxRebelsClicked(FreeColClient freeColClient) {
+        this.lastSortColumn = null;
+        this.colonies.sort(Comparator.comparingInt((Colony c)
+                -> Colony.calculateRebelCount(c.getUnitCount(), c.getSonsOfLiberty()))
+            .reversed().thenComparing(Colony::getName));
+        buildPanel(freeColClient, null);
+    }
+
+    /**
      * LarryDGray's Mods: handle a click on one of the Compact View
      * On Hand / Production / Net Production buttons.
      *
@@ -243,6 +259,8 @@ public final class ReportTradePanel extends ReportPanel {
         String columnConstraints = "[25%!, fill]["
             + (int)Math.round(ImageLibrary.ICON_SIZE.width * 2.5)
             + "!, fill]["
+            + (int)Math.round(ImageLibrary.ICON_SIZE.width * 2.0)
+            + "!, fill]["
             + (int)Math.round(ImageLibrary.ICON_SIZE.width * 1.25)
             + "!, fill]";
         String rowConstraints = "[fill]";
@@ -311,7 +329,28 @@ public final class ReportTradePanel extends ReportPanel {
         }
         goodsHeader.add(citySizeHeader);
 
-        int column = citySizeColumn;
+        // LarryDGray's Mods: Max Rebels column - like City Size, not a
+        // GoodsType-backed trade item, so built the same standalone
+        // way, placed right after City Size.
+        final int maxRebelsColumn = citySizeColumn + 1;
+        JLabel maxRebelsHeader = Utility.localizedLabel("report.trade.maxRebelsShort");
+        maxRebelsHeader.setBorder(Utility.getTopCellBorder());
+        maxRebelsHeader.setToolTipText(Messages.message("report.trade.maxRebels"));
+        if (freeColClient.getClientOptions()
+                .getBoolean(ClientOptions.ENABLE_TRADE_ADVISOR_SORT)) {
+            maxRebelsHeader.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            maxRebelsHeader.setToolTipText(
+                Messages.message("report.trade.sortByMaxRebels"));
+            maxRebelsHeader.addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseClicked(MouseEvent e) {
+                    sortByMaxRebelsClicked(freeColClient);
+                }
+            });
+        }
+        goodsHeader.add(maxRebelsHeader);
+
+        int column = maxRebelsColumn;
         for (GoodsType goodsType : allColumns) {
             column++;
             final boolean isMarketGood = storableGoods.contains(goodsType);
@@ -394,7 +433,14 @@ public final class ReportTradePanel extends ReportPanel {
             reportPanel.add(citySizeLabel, "cell " + citySizeColumn + " " + row
                 + " 1 " + (compactView ? 1 : 2));
 
-            column = citySizeColumn;
+            JLabel maxRebelsLabel = createNumberLabel(
+                Colony.calculateRebelCount(colony.getUnitCount(), colony.getSonsOfLiberty()));
+            maxRebelsLabel.setBorder((first) ? Utility.getTopCellBorder()
+                : Utility.getCellBorder());
+            reportPanel.add(maxRebelsLabel, "cell " + maxRebelsColumn + " " + row
+                + " 1 " + (compactView ? 1 : 2));
+
+            column = maxRebelsColumn;
             for (GoodsType goodsType : allColumns) {
                 column++;
                 final boolean isMarketGood = storableGoods.contains(goodsType);
@@ -509,7 +555,7 @@ public final class ReportTradePanel extends ReportPanel {
         reportPanel.add(Utility.localizedLabel("report.trade.hasCustomHouse"),
                         "cell 0 " + row + ", span");
 
-        column = citySizeColumn;
+        column = maxRebelsColumn;
         for (GoodsType goodsType : storableGoods) {
             column++;
             reportPanel.add(createNumberLabelBlankZero(totalUnits.getCount(goodsType)),
