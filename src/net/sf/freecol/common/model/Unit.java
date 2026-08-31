@@ -58,6 +58,7 @@ import net.sf.freecol.common.model.pathfinding.CostDecider;
 import net.sf.freecol.common.model.pathfinding.CostDeciders;
 import net.sf.freecol.common.model.pathfinding.GoalDecider;
 import net.sf.freecol.common.model.pathfinding.GoalDeciders;
+import net.sf.freecol.common.option.BooleanOption;
 import net.sf.freecol.common.option.GameOptions;
 import net.sf.freecol.common.util.LogBuilder;
 
@@ -826,6 +827,28 @@ public class Unit extends GoodsLocation
      */
     public boolean isTradingUnit() {
         return canCarryGoods() && owner.isEuropean();
+    }
+
+    /**
+     * LarryDGray's Mods: checks if this {@code Unit} can speak with an
+     * Indian settlement's chief - true for a land unit with the normal
+     * {@code Ability.SPEAK_WITH_CHIEF} (a Scout), or for any European-
+     * owned ship when the Naval Scouting game option is on. Naval
+     * ships never gain {@code Ability.SPEAK_WITH_CHIEF} through the
+     * Role system (no ship type is equippable), so this is a
+     * standalone check rather than a role/ability grant - kept as one
+     * shared helper so the move-type check and both scouting messages
+     * (which independently re-validate server-side) all agree on the
+     * same answer.
+     *
+     * @return True if this unit can speak with a native chief.
+     */
+    public boolean canSpeakWithChief() {
+        return hasAbility(Ability.SPEAK_WITH_CHIEF)
+            || (isNaval() && owner.isEuropean()
+                && getSpecification().hasOption(GameOptions.ENABLE_NAVAL_SCOUTING,
+                    BooleanOption.class)
+                && getSpecification().getBoolean(GameOptions.ENABLE_NAVAL_SCOUTING));
     }
 
     /**
@@ -2717,6 +2740,18 @@ public class Unit extends GoodsLocation
                 return MoveType.MOVE_NO_ACCESS_LAND;
             } else if (settlement.getOwner() == getOwner()) {
                 return MoveType.MOVE;
+            } else if (settlement instanceof IndianSettlement
+                && canSpeakWithChief()) {
+                // LarryDGray's Mods: Naval Scouting - checked before
+                // isOffensiveUnit() so an armed, scouting-capable ship
+                // still gets the Attack/Speak/Tribute choice instead of
+                // auto-bombarding, mirroring the land-scout precedent's
+                // same SPEAK_WITH_CHIEF-before-offensive ordering.
+                // allowMoveFrom(from) is deliberately NOT checked here -
+                // it only gates moving from water under the unrelated
+                // AMPHIBIOUS_MOVES option, meaningless for a ship whose
+                // origin is always water.
+                return MoveType.ENTER_INDIAN_SETTLEMENT_WITH_SCOUT;
             } else if (isOffensiveUnit()) {
                 // LarryDGray's Mods: a combat-capable ship may bombard
                 // an enemy coastal settlement, checked before trade so

@@ -8360,7 +8360,6 @@ net.sf.freecol.common.model.Unit$MoveType
 java.lang.invoke.MethodHandles
 net.sf.freecol.common.model.Unit
 net.sf.freecol.common.model.IndianSettlement
-net.sf.freecol.common.model.Ability
 net.sf.freecol.client.FreeColClient
 net.sf.freecol.server.model.ServerUnit
 net.sf.freecol.common.model.Game
@@ -14315,6 +14314,7 @@ net.sf.freecol.common.model.Ownable
 java.lang.RuntimeException
 net.sf.freecol.common.model.TradeRouteStop
 java.util.ArrayList
+net.sf.freecol.common.option.BooleanOption
 java.lang.Class
 java.lang.StringBuilder
 net.sf.freecol.common.util.CollectionUtils
@@ -16045,7 +16045,6 @@ net.sf.freecol.common.model.Unit$MoveType
 java.lang.invoke.MethodHandles
 net.sf.freecol.common.model.Unit
 net.sf.freecol.common.model.IndianSettlement
-net.sf.freecol.common.model.Ability
 net.sf.freecol.server.model.ServerUnit
 java.lang.invoke.StringConcatFactory
 net.sf.freecol.server.model.ServerPlayer

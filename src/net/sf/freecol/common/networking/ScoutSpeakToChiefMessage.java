@@ -23,7 +23,6 @@ import javax.xml.stream.XMLStreamException;
 
 import net.sf.freecol.client.FreeColClient;
 import net.sf.freecol.common.io.FreeColXMLReader;
-import net.sf.freecol.common.model.Ability;
 import net.sf.freecol.common.model.Game;
 import net.sf.freecol.common.model.IndianSettlement;
 import net.sf.freecol.common.model.Unit;
@@ -127,7 +126,7 @@ public class ScoutSpeakToChiefMessage extends AttributeMessage {
         } catch (Exception e) {
             return serverPlayer.clientError(e.getMessage());
         }
-        if (!unit.hasAbility(Ability.SPEAK_WITH_CHIEF)) {
+        if (!unit.canSpeakWithChief()) {
             return serverPlayer.clientError("Unit lacks ability to speak to chief: "
                 + unitId);
         }

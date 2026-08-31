@@ -322,6 +322,14 @@ coastal settlement directly:
   warehouse goods stack, or production is damaged at random (reuses
   FreeCol's existing Disaster system).
 
+### Naval Scouting *(game option, default off)*
+A ship can sail up to a native settlement's coast and speak with the
+chief - the same Attack/Speak/Tribute interaction a land Scout gets -
+without needing to land a Scout first. Off by default since this is new
+gameplay capability rather than a restored/preserved behaviour. An armed
+ship still gets the full dialog (Speak/Tribute/Attack) instead of
+auto-bombarding, so turning this on doesn't cost a warship anything.
+
 ### Artillery Bombardment *(game option, default on)*
 Extends Naval Bombardment's logic to artillery: with the
 **Artillery Bombardment** game option on, a cannon attacking an
