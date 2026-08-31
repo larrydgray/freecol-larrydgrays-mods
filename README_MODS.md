@@ -455,6 +455,52 @@ preferences.
   `getFoodProduction()` helper (originally written for a different
   caller) for the food case specifically.
 
+## Wish List
+
+Ideas that have been floated but aren't scoped or built yet - not
+commitments, just a record so they don't get lost. (AI Difficulty
+Levels is its own much larger, separately-tracked design effort and
+isn't listed here.)
+
+- **Build Queue named/saved worklists** - save a specific build sequence
+  as a named template, reload it later. A more general version of the
+  "Add All (No Tools)" button above.
+- **Warehouse export-level presets** - apply a saved set of per-goods
+  export thresholds at once instead of setting each one by hand.
+- **Gold Journal drill-down** - click a category in the Notes column
+  (e.g. "Europe Trade") to see which goods were bought/sold that turn.
+  Needs new per-goods detail inside each category, not just the
+  per-category totals tracked today.
+- **Real game-option toggles for Naval Bombardment, Caravans/Armadas,
+  and Send Fleet** - these are still always-on, with only a read-only
+  status display; Artillery Bombardment already got the full toggle
+  treatment.
+- **A dedicated "Storage" unit state** for Warehouse Overflow to
+  Carrier, replacing the current design where a carrier's ordinary
+  Fortified state doubles as the "eligible for overflow duty" signal -
+  a player fortifying a ship purely for defense might be surprised it's
+  also become an overflow sink.
+- **"Pin" units** (overflow-storage ships/wagons, or colonists left to
+  gain experience) so they can't be accidentally moved or reassigned by
+  trade routes/goto orders.
+- **Extend Paul Revere's auto-equip** to cover dragoons (muskets +
+  horses), not just soldiers (muskets only).
+- **Sell ships back to Europe** at roughly 2/3 market price - currently
+  ships can only be bought, never sold.
+- **Max unit stack size per tile** to prevent "doom stacks" - floated
+  tentatively, not a firm want yet.
+- **Temporary allied native war parties** - actual native combat units
+  (foot and mounted) fighting alongside the player temporarily, not a
+  permanent addition to the army. The biggest lift on this list - needs
+  a recruitment trigger, a lifecycle for when they leave, and new
+  graphics to distinguish them from a native's own units.
+- **Spy-on-settlement intel** - a chance to learn something extra about
+  a colony (goods, garrison, building tiers) whenever you spy on it.
+- **Field resupply** - a soldier/dragoon that's lost its equipment
+  auto-rearms from a nearby wagon train instead of marching home.
+- **Colopedia/help screens updated** to actually mention what these
+  mods change, instead of only describing stock FreeCol.
+
 ## Known, unresolved issues
 
 - A rare freeze when hovering the population tooltip on a spied (foreign)
