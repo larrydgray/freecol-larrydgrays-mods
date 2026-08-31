@@ -501,6 +501,15 @@ isn't listed here.)
   events (a building destroyed, a unit lost) don't have an obvious
   common unit to total against gold-based ones - worth resolving before
   building this.
+- **Naval Scouting eligibility options** - today's Naval Scouting toggle
+  is all-or-nothing (any European ship, or off). Wishlist is to make
+  that configurable, with options like: all naval units can act as
+  scout (today's behavior); only Galleon; only Galleon and Frigate; or
+  only a naval unit currently carrying an actual land Scout as a
+  passenger (i.e. the Scout doesn't have to disembark to speak with the
+  chief - having one aboard is what unlocks it for that ship). Likely
+  shape: replace the current boolean game option with a multi-choice
+  one.
 - **Build Queue named/saved worklists** - save a specific build sequence
   as a named template, reload it later. A more general version of the
   "Add All (No Tools)" button above.
