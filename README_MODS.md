@@ -517,6 +517,14 @@ isn't listed here.)
   before the attack move-type in `getNavalMoveType()`, so an armed ship
   just gets offered Attack/Speak/Tribute instead of auto-bombarding,
   never losing its ability to fight.
+
+  **Related, broader idea**: "spying on a foreign colony" is today
+  *also* a land-Scout-only action (`Ability.NEGOTIATE`, the
+  `ENTER_FOREIGN_COLONY_WITH_SCOUT` move type) - the same shape native
+  chief-speaking was in before Naval Scouting existed. Worth
+  considering letting a ship do this too, under the same eligibility
+  options and the same combat-preserving ordering, rather than treating
+  native contact and foreign-colony spying as two separate features.
 - **Build Queue named/saved worklists** - save a specific build sequence
   as a named template, reload it later. A more general version of the
   "Add All (No Tools)" button above.
