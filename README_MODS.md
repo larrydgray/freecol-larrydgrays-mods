@@ -504,6 +504,17 @@ isn't listed here.)
   under/alongside the existing (vanilla) History report rather than as
   a fully separate new report screen - worth deciding when this gets
   scoped.
+- **Population Vital Events report** - a "births and deaths" style log
+  of how your colonist count actually changes over time: born from food
+  surplus, died (starvation, combat, disaster), recruited from Europe,
+  trained, granted by the Crown (monarch mercenaries/reinforcements),
+  native converts, captured (both directions - a unit lost to capture,
+  and one gained by capturing an enemy's), and gained from ruins (Lost
+  City Rumour outcomes that hand you a colonist). Larry's own words:
+  "I'm not sure what that might
+  look like yet" - a real idea, but the shape (one combined report vs.
+  folded into the Events History Report above, what the running total
+  even means) isn't decided.
 - **Naval Scouting eligibility options** - today's Naval Scouting toggle
   is all-or-nothing (any European ship, or off). Wishlist is to make
   that configurable, with options like: all naval units can act as
