@@ -506,7 +506,8 @@ isn't listed here.)
   scoped.
 - **Population Vital Events report** - a "births and deaths" style log
   of how your colonist count actually changes over time: born from food
-  surplus, died (starvation, combat, disaster), recruited from Europe,
+  surplus, died (starvation, natural disaster, combat, etc.), recruited
+  from Europe,
   trained, granted by the Crown (monarch mercenaries/reinforcements),
   native converts, captured (both directions - a unit lost to capture,
   and one gained by capturing an enemy's), and gained from ruins (Lost
