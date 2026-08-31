@@ -849,6 +849,16 @@ public class ServerUnit extends Unit implements TurnTaker {
             // Check for new contacts.
             csNewContactCheck(newTile, firstLanding, cs);
         } else { // water
+            // LarryDGray's Mods: a ship never lands, but it still needs
+            // to establish first contact with a coastal nation it
+            // sails past - otherwise Naval Scouting's "speak with
+            // chief" request server-side re-validation (getAdjacentSettlement's
+            // hasContacted check) always fails, since nothing else ever
+            // marks a purely-naval approach as contact. firstLanding is
+            // always false here - that flag only drives the European
+            // "name this new land" flavour text, which is meaningless
+            // for a ship that never actually lands.
+            csNewContactCheck(newTile, false, cs);
             for (Tile t : transform(newTile.getSurroundingTiles(1, 1),
                     nt -> (nt != null && !nt.isLand()
                         && nt.getFirstUnit() != null
