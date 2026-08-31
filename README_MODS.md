@@ -478,6 +478,12 @@ isn't listed here.)
   voluntarily withdraw your own missionary from a settlement before
   assaulting it, so attacking doesn't cost you the missionary as a
   side effect if you want to keep them.
+- **Spy on native settlements** - the existing Spy scouting action only
+  works on European colonies; `SpySettlementMessage.getColony()` is
+  hardcoded to `Colony.class` and can't target an `IndianSettlement` at
+  all. There's currently no way for a player to learn how many braves
+  defend a native settlement short of attacking it outright - this
+  would extend Spy to work against native settlements too.
 - **Build Queue named/saved worklists** - save a specific build sequence
   as a named template, reload it later. A more general version of the
   "Add All (No Tools)" button above.
