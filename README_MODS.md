@@ -500,7 +500,10 @@ isn't listed here.)
   would need its own new sampling, not a reuse of that log. Non-gold
   events (a building destroyed, a unit lost) don't have an obvious
   common unit to total against gold-based ones - worth resolving before
-  building this.
+  building this. Larry's suggestion: this might make more sense living
+  under/alongside the existing (vanilla) History report rather than as
+  a fully separate new report screen - worth deciding when this gets
+  scoped.
 - **Naval Scouting eligibility options** - today's Naval Scouting toggle
   is all-or-nothing (any European ship, or off). Wishlist is to make
   that configurable, with options like: all naval units can act as
