@@ -491,6 +491,16 @@ isn't listed here.)
   directly into the "no intel on defenders" gap above (Spy on native
   settlements), since scouting first would be the way to avoid getting
   ambushed.
+- **Events History Report** - a log of positive and negative events over
+  time (disasters, native gifts/tribute, and similar), with running
+  gain/loss totals - broader than the existing Gold Journal, which is
+  gold-only. The existing `HistoryEvent` log (Report menu) only covers
+  big narrative milestones (colony founded, war declared, founding
+  father joined, etc.), not disasters or native contributions, so this
+  would need its own new sampling, not a reuse of that log. Non-gold
+  events (a building destroyed, a unit lost) don't have an obvious
+  common unit to total against gold-based ones - worth resolving before
+  building this.
 - **Build Queue named/saved worklists** - save a specific build sequence
   as a named template, reload it later. A more general version of the
   "Add All (No Tools)" button above.
