@@ -5444,6 +5444,9 @@ public final class InGameController extends FreeColClientHolder {
         case "die":
             showInformationPanel(is, "scoutSettlement.speakDie");
             break;
+        case "hateful":
+            showInformationPanel(is, "scoutSettlement.speakHateful");
+            break;
         case "expert":
             showInformationPanel(is, StringTemplate
                 .template("scoutSettlement.expertScout")

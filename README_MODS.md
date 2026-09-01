@@ -332,6 +332,10 @@ without needing to land a Scout first. Off by default since this is new
 gameplay capability rather than a restored/preserved behaviour. An armed
 ship still gets the full dialog (Speak/Tribute/Attack) instead of
 auto-bombarding, so turning this on doesn't cost a warship anything.
+A settlement whose tension toward you is Hateful never destroys the
+ship the way it would kill a land Scout in the same situation - the
+chief simply refuses to speak, and the ship sails away safely with
+nothing to show for it.
 
 ### Artillery Bombardment *(game option, default on)*
 Extends Naval Bombardment's logic to artillery: with the

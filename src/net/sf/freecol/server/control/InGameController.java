@@ -3617,15 +3617,26 @@ public final class InGameController extends Controller {
         boolean tileDirty = is.setVisited(serverPlayer);
         String result;
 
-        // Hateful natives kill the scout right away.
+        // Hateful natives kill the scout right away - but never a ship:
+        // losing an entire vessel (and everyone/everything aboard) to
+        // the same instant-death rule written for a single expendable
+        // land scout is a wildly disproportionate consequence. A naval
+        // visitor is simply turned away instead.
         Tension tension = is.getAlarm(serverPlayer);
-        if (tension.getLevel() == Tension.Level.HATEFUL) {
+        if (tension.getLevel() == Tension.Level.HATEFUL && !sUnit.isNaval()) {
             Location loc = sUnit.getLocation();
             cs.add(See.perhaps().always(serverPlayer), (FreeColGameObject)loc);
             sUnit.csRemove(See.perhaps().always(serverPlayer),
                            loc, cs);//-vis(serverPlayer)
             serverPlayer.invalidateCanSeeTiles();//+vis(serverPlayer)
             result = "die";
+        } else if (tension.getLevel() == Tension.Level.HATEFUL) {
+            // LarryDGray's Mods: naval equivalent of the above - the
+            // chief refuses to speak at all, but the ship is safe.
+            sUnit.setMovesLeft(0);
+            cs.addPartial(See.only(serverPlayer), sUnit,
+                "movesLeft", String.valueOf(sUnit.getMovesLeft()));
+            result = "hateful";
         } else {
             // Otherwise player gets to visit, and learn about the settlement.
             List<UnitType> scoutTypes = getGame().getSpecification()
