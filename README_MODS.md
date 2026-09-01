@@ -549,7 +549,10 @@ isn't listed here.)
   presumably boosting Ore/Silver and scoped to Hills/Mountains the way
   Road is scoped away from water. Larry's own words: "game doesn't need
   it but I always wanted one" - a personal wish, not filling any actual
-  gameplay gap.
+  gameplay gap. Should take much longer than Road or Plow - Larry
+  suggested around 20 turns - via a large `add-work-turns` value on top
+  of the terrain's own base (Road uses `add-work-turns="0"`, so this is
+  the same mechanism, just a much bigger number).
 - **Build Queue named/saved worklists** - save a specific build sequence
   as a named template, reload it later. A more general version of the
   "Add All (No Tools)" button above.
