@@ -573,6 +573,13 @@ isn't listed here.)
   any ordinary colonist already gathers a tile's base goods with no
   specialist role being displaced. Shakier footing than Hunter - kept on
   the list as a loose idea, not a confirmed gap.
+- **Trade from any hold in a Caravan/Armada** - when a grouped Caravan
+  (wagons) or Armada (ships) arrives at a foreign nation's port, let a
+  trade session reach into any passenger's cargo, not just the leader's
+  own hold. Confirmed a real gap: `NativeTrade` (the session class
+  backing all foreign/native trade) is scoped to exactly one `Unit`
+  field today - there's no concept of trading on behalf of a group.
+  Larry's own framing: "later" - not urgent.
 - **Build Queue named/saved worklists** - save a specific build sequence
   as a named template, reload it later. A more general version of the
   "Add All (No Tools)" button above.
