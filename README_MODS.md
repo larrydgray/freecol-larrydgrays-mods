@@ -566,9 +566,13 @@ isn't listed here.)
   outperforming it there.
 - **Gatherer expert unit type** - a further food specialist, floated
   right after Hunter half-joking about adding complexity ("to make the
-  game more overly complex ha"). Not detailed yet - a natural next
-  entry in the same "food specialist per terrain" family as Farmer/
-  Fisherman/Hunter, exact niche undecided.
+  game more overly complex ha"), then immediately self-questioned by
+  Larry ("I guess anyone functioned as gatherers") - unlike Farmer/
+  Fisherman/Hunter, which each own a specific resource-tile bonus, there
+  is no dedicated "gathering" production category in the game at all;
+  any ordinary colonist already gathers a tile's base goods with no
+  specialist role being displaced. Shakier footing than Hunter - kept on
+  the list as a loose idea, not a confirmed gap.
 - **Build Queue named/saved worklists** - save a specific build sequence
   as a named template, reload it later. A more general version of the
   "Add All (No Tools)" button above.
