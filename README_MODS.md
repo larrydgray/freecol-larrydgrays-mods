@@ -553,15 +553,22 @@ isn't listed here.)
   suggested around 20 turns - via a large `add-work-turns` value on top
   of the terrain's own base (Road uses `add-work-turns="0"`, so this is
   the same mechanism, just a much bigger number).
-- **Hunter expert unit type** - a new food specialist distinct from
-  Expert Farmer, better specifically in woodlands (Game resource tiles)
-  and on rivers. Confirmed Expert Farmer already gets an explicit extra
-  bonus on Game-resource tiles today (`model.resource.game` grants +2
-  grain generally, +2 more specifically scoped to
-  `model.unit.expertFarmer`) - Larry's own framing acknowledges this
-  ("I guess farmers function this way") but wants a dedicated Hunter
-  type that outperforms Expert Farmer in these specific spots rather
-  than reusing that existing partial bonus.
+- **Hunter expert unit type** - a food specialist filling a real gap
+  between the two existing specialists, which are both narrowly scoped:
+  Expert Farmer to plowed/plowable open land (confirmed also gets an
+  explicit extra bonus on Game-resource tiles today -
+  `model.resource.game` grants +2 grain generally, +2 more scoped to
+  `model.unit.expertFarmer`), Expert Fisherman entirely to water
+  (confirmed its only bonus is scoped to `model.resource.fish`, nothing
+  to do with land at all). A Hunter would be decent almost anywhere,
+  but specifically excellent in woodlands (Game resource) and on
+  rivers - not reusing Farmer's existing partial Game bonus, actually
+  outperforming it there.
+- **Gatherer expert unit type** - a further food specialist, floated
+  right after Hunter half-joking about adding complexity ("to make the
+  game more overly complex ha"). Not detailed yet - a natural next
+  entry in the same "food specialist per terrain" family as Farmer/
+  Fisherman/Hunter, exact niche undecided.
 - **Build Queue named/saved worklists** - save a specific build sequence
   as a named template, reload it later. A more general version of the
   "Add All (No Tools)" button above.
