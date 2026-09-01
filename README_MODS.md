@@ -544,6 +544,12 @@ isn't listed here.)
   drop its equipment and re-role as a scout without returning to a
   colony first. The muskets/horse would presumably just be lost (or,
   for flavor, left behind as a pile on the tile) rather than recovered.
+- **Mine tile improvement** - a new pioneer-built improvement (alongside
+  the existing Road and Plow) adding a production bonus to the tile,
+  presumably boosting Ore/Silver and scoped to Hills/Mountains the way
+  Road is scoped away from water. Larry's own words: "game doesn't need
+  it but I always wanted one" - a personal wish, not filling any actual
+  gameplay gap.
 - **Build Queue named/saved worklists** - save a specific build sequence
   as a named template, reload it later. A more general version of the
   "Add All (No Tools)" button above.
