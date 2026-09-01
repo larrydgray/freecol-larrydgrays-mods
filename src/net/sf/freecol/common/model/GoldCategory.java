@@ -33,6 +33,7 @@ import net.sf.freecol.common.i18n.Messages;
 public enum GoldCategory {
     TRADE_EUROPE,
     TRADE_NATIVE,
+    TRADE_FOREIGN,
     CUSTOMS_HOUSE,
     UPKEEP,
     TREASURE,

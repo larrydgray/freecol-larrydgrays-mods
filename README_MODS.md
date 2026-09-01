@@ -261,9 +261,12 @@ whole game's turn history.
 New Reports menu entry, a real per-turn ledger rather than a chart:
 Turn / In / Out / Net / Balance, plus a **Notes** column breaking down
 exactly what happened that turn by category - Europe Trade, Native
-Trade, Customs House, Upkeep, Treasure, Tribute, Crown (monarch
-gifts/mercenary costs), Plunder, Ruins (Lost City Rumours), Land Claim,
-Recruitment, Diplomacy, Disaster, Arrears, Incitement. Every place in
+Trade, Foreign Trade, Customs House, Upkeep, Treasure, Tribute, Crown
+(monarch gifts/mercenary costs), Plunder, Ruins (Lost City Rumours),
+Land Claim, Recruitment, Diplomacy, Disaster, Arrears, Incitement.
+Foreign Trade specifically covers a diplomatic trade agreement with
+another nation that includes real goods (not just a pure gold
+gift/tribute/reparations, which stays under Diplomacy). Every place in
 the game that changes gold funnels through one method, so this covers
 all of them automatically, including any added in the future. Note:
 unlike the other timeline reports, the current session's most recent

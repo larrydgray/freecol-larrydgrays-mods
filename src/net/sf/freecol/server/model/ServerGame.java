@@ -19,6 +19,7 @@
 
 package net.sf.freecol.server.model;
 
+import static net.sf.freecol.common.util.CollectionUtils.any;
 import static net.sf.freecol.common.util.CollectionUtils.find;
 import static net.sf.freecol.common.util.CollectionUtils.flatten;
 import static net.sf.freecol.common.util.CollectionUtils.forEach;
@@ -586,6 +587,13 @@ public class ServerGame extends Game implements TurnTaker {
         }
         if (fail) return false;
 
+        // LarryDGray's Mods: a gold term bundled alongside real goods
+        // in the same agreement is a trade (Foreign Trade in the Gold
+        // Journal); a pure gold term on its own (a gift, tribute, war
+        // reparations) stays Diplomacy.
+        final GoldCategory goldCategory = any(agreement.getItems(),
+                ti -> ti.getGoods() != null)
+            ? GoldCategory.TRADE_FOREIGN : GoldCategory.DIPLOMACY;
         for (TradeItem tradeItem : agreement.getItems()) {
             final Player source = tradeItem.getSource();
             final Player dest = tradeItem.getDestination();
@@ -607,8 +615,8 @@ public class ServerGame extends Game implements TurnTaker {
             }
             int gold = tradeItem.getGold();
             if (gold > 0) {
-                source.modifyGold(-gold, GoldCategory.DIPLOMACY);
-                dest.modifyGold(gold, GoldCategory.DIPLOMACY);
+                source.modifyGold(-gold, goldCategory);
+                dest.modifyGold(gold, goldCategory);
                 cs.addPartial(See.only(source), source,
                     "gold", String.valueOf(source.getGold()),
                     "score", String.valueOf(source.getScore()));
