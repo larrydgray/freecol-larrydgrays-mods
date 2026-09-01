@@ -516,6 +516,9 @@ isn't listed here.)
   look like yet" - a real idea, but the shape (one combined report vs.
   folded into the Events History Report above, what the running total
   even means) isn't decided.
+- **Sell All button in Europe** - one click to sell every good currently
+  loaded on a docked ship, instead of dragging each cargo slot onto the
+  market individually.
 - **Naval Scouting eligibility options** - today's Naval Scouting toggle
   is all-or-nothing (any European ship, or off). Wishlist is to make
   that configurable, with options like: all naval units can act as
