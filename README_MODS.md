@@ -553,6 +553,15 @@ isn't listed here.)
   suggested around 20 turns - via a large `add-work-turns` value on top
   of the terrain's own base (Road uses `add-work-turns="0"`, so this is
   the same mechanism, just a much bigger number).
+- **Hunter expert unit type** - a new food specialist distinct from
+  Expert Farmer, better specifically in woodlands (Game resource tiles)
+  and on rivers. Confirmed Expert Farmer already gets an explicit extra
+  bonus on Game-resource tiles today (`model.resource.game` grants +2
+  grain generally, +2 more specifically scoped to
+  `model.unit.expertFarmer`) - Larry's own framing acknowledges this
+  ("I guess farmers function this way") but wants a dedicated Hunter
+  type that outperforms Expert Farmer in these specific spots rather
+  than reusing that existing partial bonus.
 - **Build Queue named/saved worklists** - save a specific build sequence
   as a named template, reload it later. A more general version of the
   "Add All (No Tools)" button above.
