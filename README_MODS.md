@@ -540,6 +540,10 @@ isn't listed here.)
   considering letting a ship do this too, under the same eligibility
   options and the same combat-preserving ordering, rather than treating
   native contact and foreign-colony spying as two separate features.
+- **Disarm in the field: dragoon &rarr; scout** - let a dragoon voluntarily
+  drop its equipment and re-role as a scout without returning to a
+  colony first. The muskets/horse would presumably just be lost (or,
+  for flavor, left behind as a pile on the tile) rather than recovered.
 - **Build Queue named/saved worklists** - save a specific build sequence
   as a named template, reload it later. A more general version of the
   "Add All (No Tools)" button above.
