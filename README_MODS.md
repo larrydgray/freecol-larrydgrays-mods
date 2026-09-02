@@ -504,6 +504,14 @@ isn't listed here.)
   voluntarily withdraw your own missionary from a settlement before
   assaulting it, so attacking doesn't cost you the missionary as a
   side effect if you want to keep them.
+- **Rewrite the Gold Journal's turn table as a real `JTable`** - the
+  current pinned-header trick (two separate layouts given identical
+  hardcoded pixel widths) only holds up because both happen to compute
+  the same widths right now; it's not guaranteed across different
+  fonts/DPI/systems. A real `JTable` shares one column model between
+  its header and body, so they align by construction - a genuine
+  rewrite (custom cell renderers for the color-coded amounts, blank-
+  for-zero cells, and the Notes text column), not a quick tweak.
 - **Spy on native settlements** - the existing Spy scouting action only
   works on European colonies; `SpySettlementMessage.getColony()` is
   hardcoded to `Colony.class` and can't target an `IndianSettlement` at
