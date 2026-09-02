@@ -77,11 +77,16 @@ public final class ReportGoldJournalPanel extends ReportPanel {
         // LarryDGray's Mods: the column headers live in the scroll
         // pane's own column-header-view, not in the scrollable body,
         // so they stay pinned in place while the turn list scrolls -
-        // same technique ReportTradePanel's goodsHeader uses. The
-        // column widths below must stay identical between this header
-        // panel and reportPanel's own layout for the columns to align.
-        final String columnConstraints = "[fill, right][fill][fill]"
-            + "[fill, right][fill, right][fill, right][fill, right][fill, left, grow]";
+        // same technique ReportTradePanel's goodsHeader uses. Each
+        // column is LOCKED to an explicit pixel width (the trailing
+        // "!") rather than left to "[fill]" - otherwise the header
+        // panel and the scrollable body, being two separate MigLayout
+        // instances, each size their own columns from their own
+        // content (short header words vs. longer numbers) and drift
+        // out of alignment with each other, exactly as ReportTradePanel
+        // already has to guard against for its own header/body split.
+        final String columnConstraints = "[50!, right][60!][50!, right]"
+            + "[60!, right][60!, right][60!, right][70!, right][fill, left, grow]";
         reportPanel.setLayout(new MigLayout("wrap 8, gap 10 2",
             columnConstraints, "[]"));
 
@@ -274,9 +279,12 @@ public final class ReportGoldJournalPanel extends ReportPanel {
     // wall of "0"s, especially now the category totals table always
     // shows every category (most of which are 0 for any given game) -
     // matches the same blank-instead-of-zero convention already used
-    // in ReportTradePanel.
+    // in ReportTradePanel. A single space rather than a truly empty
+    // string, so the label still reserves its normal line height and
+    // that row doesn't look visually shorter/uneven next to rows with
+    // real numbers in that column.
     private JLabel createAmountLabel(int value, boolean alwaysAddSign) {
-        JLabel result = new JLabel((value == 0) ? "" : String.valueOf(value),
+        JLabel result = new JLabel((value == 0) ? " " : String.valueOf(value),
             JLabel.TRAILING);
         result.setBorder(Utility.getCellBorder());
         if (value < 0) {
