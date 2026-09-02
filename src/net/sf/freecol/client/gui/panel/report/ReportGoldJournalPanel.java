@@ -19,8 +19,8 @@
 
 package net.sf.freecol.client.gui.panel.report;
 
-import java.awt.BorderLayout;
 import java.awt.Color;
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.List;
@@ -125,13 +125,21 @@ public final class ReportGoldJournalPanel extends ReportPanel {
         }
 
         // LarryDGray's Mods: the category totals summary lives outside
-        // the scroll pane entirely (a fixed footer, BorderLayout.SOUTH)
-        // rather than as the last row of the scrollable turn list, so
-        // it's always visible without scrolling all the way down to it.
-        final JPanel wrapper = new JPanel(new BorderLayout());
+        // the scroll pane entirely (a fixed footer) rather than as the
+        // last row of the scrollable turn list, so it's always visible
+        // without scrolling all the way down to it. Uses the same
+        // "[fill]" row-grows-others-don't MigLayout idiom ReportPanel's
+        // own outer layout already uses for its header/scrollpane/OK
+        // rows, rather than BorderLayout - BorderLayout.CENTER should
+        // also grow to fill remaining space in theory, but in practice
+        // left the scroll area sized to its content instead of the
+        // available height, wasting the rest of the dialog as blank
+        // space below the footer.
+        final JPanel wrapper = new JPanel(new MigLayout("wrap 1, insets 0",
+            "[fill, grow]", "[fill, grow]0[]"));
         wrapper.setOpaque(false);
-        wrapper.add(scrollPane, BorderLayout.CENTER);
-        wrapper.add(buildCategoryTotalsPanel(history), BorderLayout.SOUTH);
+        wrapper.add(scrollPane, "grow");
+        wrapper.add(buildCategoryTotalsPanel(history), "growx");
         setMainComponent(wrapper);
 
         // LarryDGray's Mods: open already scrolled to the most recent
@@ -149,10 +157,15 @@ public final class ReportGoldJournalPanel extends ReportPanel {
 
     /**
      * LarryDGray's Mods: build a small totals-by-category table
-     * summing every sampled turn's activity, one row per
-     * {@code GoldCategory} that ever had any, plus a grand-total row -
-     * so the player can see at a glance where their gold has actually
-     * come from/gone to over the whole session, not just per turn.
+     * summing every sampled turn's activity, one row per every
+     * {@code GoldCategory} that exists (not just ones that have had
+     * activity yet - a category with nothing to show still shows a
+     * 0/0/0 row, so the table reads as a complete reference rather
+     * than a shifting list). Split into 3 side-by-side sections (each
+     * with its own header) rather than one long vertical list, both to
+     * use the dialog's spare width and to leave more vertical room for
+     * the scrollable turn list above it - the grand total row appears
+     * only in the last section.
      *
      * @param history The full turn-by-turn history.
      * @return The totals table component.
@@ -171,33 +184,47 @@ public final class ReportGoldJournalPanel extends ReportPanel {
                 totalOut.merge(e.getKey(), e.getValue(), Integer::sum);
             }
         }
-        Set<GoldCategory> categories = EnumSet.noneOf(GoldCategory.class);
-        categories.addAll(totalIn.keySet());
-        categories.addAll(totalOut.keySet());
-
-        JPanel panel = new JPanel(new MigLayout("wrap 4, gap 10 2",
-            "[fill][fill, right][fill, right][fill, right]", "[]"));
-        panel.add(createHeaderLabel("report.goldJournal.category"));
-        panel.add(createHeaderLabel("report.goldJournal.in"));
-        panel.add(createHeaderLabel("report.goldJournal.out"));
-        panel.add(createHeaderLabel("report.goldJournal.net"));
-
+        final List<GoldCategory> all = new ArrayList<>(EnumSet.allOf(GoldCategory.class));
         int grandIn = 0, grandOut = 0;
-        for (GoldCategory category : categories) {
-            int in = totalIn.getOrDefault(category, 0);
-            int out = totalOut.getOrDefault(category, 0);
-            grandIn += in;
-            grandOut += out;
-            panel.add(createCellLabel(category.getDisplayName()));
-            panel.add(createAmountLabel(in, false));
-            panel.add(createAmountLabel(out, false));
-            panel.add(createAmountLabel(in - out, true));
+        for (GoldCategory category : all) {
+            grandIn += totalIn.getOrDefault(category, 0);
+            grandOut += totalOut.getOrDefault(category, 0);
         }
-        panel.add(createCellLabel(Messages.message("report.goldJournal.total")));
-        panel.add(createAmountLabel(grandIn, false));
-        panel.add(createAmountLabel(grandOut, false));
-        panel.add(createAmountLabel(grandIn - grandOut, true));
-        return panel;
+
+        final int sectionCount = 3;
+        final int perSection = (all.size() + sectionCount - 1) / sectionCount;
+
+        JPanel outer = new JPanel(new MigLayout("wrap " + sectionCount + ", gap 30 0",
+            "[fill][fill][fill]", "[top]"));
+        for (int i = 0; i < sectionCount; i++) {
+            final int from = i * perSection;
+            final int to = Math.min(from + perSection, all.size());
+            if (from >= to) continue;
+            final boolean isLast = (i == sectionCount - 1);
+
+            JPanel section = new JPanel(new MigLayout("wrap 4, gap 10 2",
+                "[fill][fill, right][fill, right][fill, right]", "[]"));
+            section.add(createHeaderLabel("report.goldJournal.category"));
+            section.add(createHeaderLabel("report.goldJournal.in"));
+            section.add(createHeaderLabel("report.goldJournal.out"));
+            section.add(createHeaderLabel("report.goldJournal.net"));
+            for (GoldCategory category : all.subList(from, to)) {
+                int in = totalIn.getOrDefault(category, 0);
+                int out = totalOut.getOrDefault(category, 0);
+                section.add(createCellLabel(category.getDisplayName()));
+                section.add(createAmountLabel(in, false));
+                section.add(createAmountLabel(out, false));
+                section.add(createAmountLabel(in - out, true));
+            }
+            if (isLast) {
+                section.add(createCellLabel(Messages.message("report.goldJournal.total")));
+                section.add(createAmountLabel(grandIn, false));
+                section.add(createAmountLabel(grandOut, false));
+                section.add(createAmountLabel(grandIn - grandOut, true));
+            }
+            outer.add(section, "top");
+        }
+        return outer;
     }
 
     /**
@@ -243,12 +270,17 @@ public final class ReportGoldJournalPanel extends ReportPanel {
         return result;
     }
 
+    // LarryDGray's Mods: a blank cell for zero reads cleaner than a
+    // wall of "0"s, especially now the category totals table always
+    // shows every category (most of which are 0 for any given game) -
+    // matches the same blank-instead-of-zero convention already used
+    // in ReportTradePanel.
     private JLabel createAmountLabel(int value, boolean alwaysAddSign) {
-        JLabel result = new JLabel(String.valueOf(value), JLabel.TRAILING);
+        JLabel result = new JLabel((value == 0) ? "" : String.valueOf(value),
+            JLabel.TRAILING);
         result.setBorder(Utility.getCellBorder());
         if (value < 0) {
             result.setForeground(WARN_COLOR);
-            result.setText(String.valueOf(value));
         } else if (alwaysAddSign && value > 0) {
             result.setText("+" + value);
         }

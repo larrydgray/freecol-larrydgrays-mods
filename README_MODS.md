@@ -260,19 +260,23 @@ whole game's turn history.
 ### Gold Journal Report *(always on, display-only)*
 New Reports menu entry, a real per-turn ledger rather than a chart:
 Year / Season / Turn / In / Out / Net / Balance, plus a **Notes** column
-breaking down exactly what happened that turn by category. The column
-headers stay pinned in place while the turn list scrolls, and a
-category totals summary sits fixed below it as its own footer, always
-visible without scrolling all the way down. That summary breaks down
-totals by the same categories - Europe Trade, Native
-Trade, Foreign Trade, Customs House, Upkeep, Treasure, Tribute, Crown
-(monarch gifts/mercenary costs), Plunder, Ruins (Lost City Rumours),
-Land Claim, Recruitment, Diplomacy, Disaster, Arrears, Incitement.
-Foreign Trade specifically covers a diplomatic trade agreement with
-another nation that includes real goods (not just a pure gold
-gift/tribute/reparations, which stays under Diplomacy). Every place in
-the game that changes gold funnels through one method, so this covers
-all of them automatically, including any added in the future. Note:
+breaking down exactly what happened that turn by category (zero
+amounts render as a blank cell rather than "0"). The column headers
+stay pinned in place while the turn list scrolls, and a category
+totals summary sits fixed below it as its own footer, split into 3
+side-by-side sections (each with its own header) rather than one long
+list, with the grand total in the last section - always visible
+without scrolling all the way down. Every one of the 19 categories
+shows up in that summary, even ones with nothing yet (Europe Trade,
+Native Trade, Foreign Trade, Customs House, Upkeep, Treasure, Tribute,
+Crown - monarch gifts/mercenary costs, Plunder, Ruins/Lost City
+Rumours, Land Claim, Recruitment, Paid Training, Diplomacy, Disaster,
+Arrears, Incitement, Other). Foreign Trade specifically covers a
+diplomatic trade agreement with another nation that includes real
+goods (not just a pure gold gift/tribute/reparations, which stays
+under Diplomacy). Every place in the game that changes gold funnels
+through one method, so this covers all of them automatically,
+including any added in the future. Note:
 unlike the other timeline reports, the current session's most recent
 turns won't show up until the next save/reload - gold deltas are only
 ever counted on the server's authoritative copy of your player, with
