@@ -297,6 +297,18 @@ public final class ReportGoldJournalPanel extends ReportPanel {
             if (in > 0) ins.add(category);
             if (out > 0) outs.add(category);
         }
+        // LarryDGray's Mods: each view sorted by ITS OWN value
+        // descending - all 4 lists were built by filtering `all`
+        // (sorted by net descending), which only happened to also be
+        // correct for Gains. Losses came out in ASCENDING magnitude
+        // order (a more negative net sorts later in a descending net
+        // sort), and In/Out order had nothing to do with In/Out size
+        // at all - so the biggest slice wasn't reliably first/at the
+        // top for any view but Gains.
+        gains.sort(Comparator.comparingInt((GoldCategory c) -> gainsValues.get(c)).reversed());
+        losses.sort(Comparator.comparingInt((GoldCategory c) -> lossesValues.get(c)).reversed());
+        ins.sort(Comparator.comparingInt((GoldCategory c) -> totalIn.get(c)).reversed());
+        outs.sort(Comparator.comparingInt((GoldCategory c) -> totalOut.get(c)).reversed());
 
         final JComboBox<String> modeBox = new JComboBox<>(new String[] {
             Messages.message("report.goldJournal.netGains"),
@@ -315,9 +327,15 @@ public final class ReportGoldJournalPanel extends ReportPanel {
             }
         });
 
+        // LarryDGray's Mods: sized to roughly match the left-hand
+        // table's own height, not the report's whole spare width/height
+        // - the pie was taller than the table needed, which just forced
+        // the whole footer (and by extension the scrollable turn list
+        // above it, which gets whatever's left) shorter than it had to
+        // be for no visual benefit.
         JPanel pieBox = new JPanel(new MigLayout("wrap 1, gap 0 10", "[fill]", "[][]"));
         pieBox.add(modeBox);
-        pieBox.add(pieChart, "width 380!, height 340!");
+        pieBox.add(pieChart, "width 280!, height 240!");
 
         JPanel combined = new JPanel(new MigLayout("gap 20 0", "[fill][]", "[top]"));
         combined.add(tables);
