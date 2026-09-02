@@ -788,11 +788,18 @@ public class GUI extends FreeColClientHolder {
      * @param is The {@code IndianSettlement} to be scouted.
      * @param numberString The number of settlements in the settlement
      *     owner nation.
-     * @return The chosen action, speak, tribute, attack or cancel.
+     * @param canTrade LarryDGray's Mods: true if the scouting unit
+     *     could also trade here (has goods cargo, or the
+     *     empty-traders option is on) - offers a Trade choice
+     *     alongside Speak/Tribute/Attack, since Naval Scouting made
+     *     the scout move type take priority over the trading move
+     *     type a ship with cargo would otherwise get.
+     * @return The chosen action, speak, tribute, trade, attack or cancel.
      */
     public ScoutIndianSettlementAction
         getScoutIndianSettlementChoice(IndianSettlement is,
-                                       String numberString) {
+                                       String numberString,
+                                       boolean canTrade) {
         final Player player = getMyPlayer();
         final Player owner = is.getOwner();
 
@@ -833,6 +840,10 @@ public class GUI extends FreeColClientHolder {
             = new ArrayList<>();
         choices.add(new ChoiceItem<>(Messages.message("scoutSettlement.speak"),
                 ScoutIndianSettlementAction.SCOUT_SETTLEMENT_SPEAK));
+        if (canTrade) {
+            choices.add(new ChoiceItem<>(Messages.message("scoutSettlement.tradeAction"),
+                    ScoutIndianSettlementAction.SCOUT_SETTLEMENT_TRADE));
+        }
         choices.add(new ChoiceItem<>(Messages.message("scoutSettlement.tribute"),
                 ScoutIndianSettlementAction.SCOUT_SETTLEMENT_TRIBUTE));
         choices.add(new ChoiceItem<>(Messages.message("scoutSettlement.attack"),

@@ -2400,9 +2400,16 @@ public final class InGameController extends FreeColClientHolder {
         final IndianSettlement is = tile.getIndianSettlement();
         final int count = player.getNationSummary(is.getOwner())
             .getNumberOfSettlements();
+        // LarryDGray's Mods: Naval Scouting made this scout move type
+        // take priority over the trading move type a ship with cargo
+        // would otherwise get - offer Trade here too so that capability
+        // isn't lost.
+        final boolean canTrade = unit.hasGoodsCargo() || getSpecification()
+            .getBoolean(GameOptions.EMPTY_TRADERS);
         ScoutIndianSettlementAction act
             = getGUI().getScoutIndianSettlementChoice(is, (count <= 0)
-                ? Messages.message("many") : Integer.toString(count));
+                ? Messages.message("many") : Integer.toString(count),
+                canTrade);
         if (act == null) return false; // Cancelled
         switch (act) {
         case SCOUT_SETTLEMENT_ATTACK:
@@ -2415,6 +2422,8 @@ public final class InGameController extends FreeColClientHolder {
             moveMode = moveMode.minimize(MoveMode.EXECUTE_GOTO_ORDERS);
             askServer().scoutSpeakToChief(unit, is);
             break;
+        case SCOUT_SETTLEMENT_TRADE:
+            return moveTrade(unit, direction);
         case SCOUT_SETTLEMENT_TRIBUTE:
             return moveTribute(unit, 1, direction);
         default:

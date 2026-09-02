@@ -335,7 +335,10 @@ auto-bombarding, so turning this on doesn't cost a warship anything.
 A settlement whose tension toward you is Hateful never destroys the
 ship the way it would kill a land Scout in the same situation - the
 chief simply refuses to speak, and the ship sails away safely with
-nothing to show for it.
+nothing to show for it. A ship carrying goods (or with Empty Traders
+on) also gets a **Trade** option alongside Speak/Tribute/Attack, so
+turning Naval Scouting on doesn't cost a cargo ship its ability to
+trade with natives.
 
 ### Artillery Bombardment *(game option, default on)*
 Extends Naval Bombardment's logic to artillery: with the

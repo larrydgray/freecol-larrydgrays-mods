@@ -134,7 +134,13 @@ public interface Constants {
     public static enum ScoutIndianSettlementAction {
         SCOUT_SETTLEMENT_SPEAK,
         SCOUT_SETTLEMENT_TRIBUTE,
-        SCOUT_SETTLEMENT_ATTACK
+        SCOUT_SETTLEMENT_ATTACK,
+        // LarryDGray's Mods: Naval Scouting made ENTER_INDIAN_SETTLEMENT_WITH_SCOUT
+        // take priority over the pre-existing trading-unit move type, so
+        // a ship carrying goods lost access to the native trade session
+        // entirely - offered here instead, when the unit actually has
+        // goods cargo to trade.
+        SCOUT_SETTLEMENT_TRADE
     }
 
     /** Price used to denote claiming land by stealing it. */
