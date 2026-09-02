@@ -5911,6 +5911,7 @@ javax.swing.JScrollBar
 java.util.EnumSet
 net.miginfocom.swing.MigLayout
 javax.swing.SwingUtilities
+net.sf.freecol.common.i18n.NameCache
 java.lang.invoke.MethodHandles$Lookup
 java.lang.Integer
 java.lang.String
@@ -5918,6 +5919,7 @@ net.sf.freecol.common.model.GoldCategory
 net.sf.freecol.client.control.InGameController
 java.util.Map$Entry
 java.util.Set
+net.sf.freecol.common.model.Turn
 ||:net.sf.freecol.common.networking.DisconnectMessage
 net.sf.freecol.common.networking.TrivialMessage
 net.sf.freecol.server.control.InGameController

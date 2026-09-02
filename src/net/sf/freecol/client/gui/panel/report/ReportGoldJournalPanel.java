@@ -37,8 +37,10 @@ import net.sf.freecol.client.FreeColClient;
 import net.sf.freecol.common.i18n.Messages;
 import net.sf.freecol.client.gui.panel.Utility;
 import net.sf.freecol.client.gui.report.GoldJournalHistory;
+import net.sf.freecol.common.i18n.NameCache;
 import net.sf.freecol.common.model.GoldCategory;
 import net.sf.freecol.common.model.Player;
+import net.sf.freecol.common.model.Turn;
 
 
 /**
@@ -70,8 +72,8 @@ public final class ReportGoldJournalPanel extends ReportPanel {
         List<GoldJournalHistory.Sample> history
             = igc().getGoldJournalHistory().getHistory(player);
 
-        reportPanel.setLayout(new MigLayout("wrap 6, gap 10 2",
-            "[fill][fill, right][fill, right][fill, right][fill, right][fill, left, grow]",
+        reportPanel.setLayout(new MigLayout("wrap 8, gap 10 2",
+            "[fill, right][fill][fill][fill, right][fill, right][fill, right][fill, right][fill, left, grow]",
             "[]"));
 
         if (history.isEmpty()) {
@@ -80,6 +82,8 @@ public final class ReportGoldJournalPanel extends ReportPanel {
             return;
         }
 
+        reportPanel.add(createHeaderLabel("report.goldJournal.year"));
+        reportPanel.add(createHeaderLabel("report.goldJournal.season"));
         reportPanel.add(createHeaderLabel("report.goldJournal.turn"));
         reportPanel.add(createHeaderLabel("report.goldJournal.in"));
         reportPanel.add(createHeaderLabel("report.goldJournal.out"));
@@ -89,6 +93,15 @@ public final class ReportGoldJournalPanel extends ReportPanel {
 
         for (GoldJournalHistory.Sample s : history) {
             int net = s.goldIn - s.goldOut;
+            // LarryDGray's Mods: Year/Season alongside the raw turn
+            // number, reusing the same conversion the top status bar
+            // uses ("Spring 1600") - Turn.getTurnSeason() returns -1
+            // for turns with no seasons (pre-1600), left blank then.
+            final int season = Turn.getTurnSeason(s.turn);
+            reportPanel.add(createCellLabel(
+                String.valueOf(Turn.getTurnYear(s.turn))));
+            reportPanel.add(createCellLabel(
+                (season < 0) ? "" : NameCache.getSeasonName(season)));
             reportPanel.add(createCellLabel(String.valueOf(s.turn)));
             reportPanel.add(createAmountLabel(s.goldIn, false));
             reportPanel.add(createAmountLabel(s.goldOut, false));
