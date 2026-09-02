@@ -211,13 +211,20 @@ public final class ReportGoldJournalPanel extends ReportPanel {
             grandOut += totalOut.getOrDefault(category, 0);
         }
 
-        // LarryDGray's Mods: one color per category, assigned by
-        // sorted position around the hue wheel so adjacent categories
-        // (similar net size) still read as visually distinct - shared
-        // between the table's swatches and the pie chart's slices.
+        // LarryDGray's Mods: one color per category, shared between the
+        // table's swatches and the pie chart's slices. Uses the golden
+        // angle rather than an even 1/N split around the hue wheel -
+        // an even split put the FIRST and LAST entries (biggest gain
+        // and biggest loss, after the net-descending sort) at opposite
+        // ends of a full circle, which is to say right back next to
+        // each other in hue (0 and 360 are the same red) - exactly the
+        // two categories most important to tell apart at a glance. The
+        // golden angle spreads colors with no such wraparound collision
+        // regardless of how many categories end up with a slice.
         final Map<GoldCategory, Color> colors = new EnumMap<>(GoldCategory.class);
         for (int i = 0; i < all.size(); i++) {
-            colors.put(all.get(i), Color.getHSBColor(i / (float)all.size(), 0.6f, 0.85f));
+            final float hue = (float)((i * 0.618033988749895) % 1.0);
+            colors.put(all.get(i), Color.getHSBColor(hue, 0.6f, 0.85f));
         }
 
         final int sectionCount = 3;
@@ -257,10 +264,33 @@ public final class ReportGoldJournalPanel extends ReportPanel {
             tables.add(section, "top");
         }
 
+        // LarryDGray's Mods: two separate pies, not one mixing signs -
+        // a single pie sized by absolute net muddles "where gains came
+        // from" and "where losses went" into one wedge-count that
+        // doesn't actually sum to anything meaningful. Splitting by
+        // sign gives each pie a real, coherent total (all my net
+        // gains / all my net losses) - Larry's own call once he saw
+        // the biggest gain and biggest loss sitting in the same pie.
+        final List<GoldCategory> gains = new ArrayList<>();
+        final List<GoldCategory> losses = new ArrayList<>();
+        for (GoldCategory category : all) {
+            final int net = totalIn.getOrDefault(category, 0)
+                - totalOut.getOrDefault(category, 0);
+            if (net > 0) gains.add(category);
+            else if (net < 0) losses.add(category);
+        }
+
+        JPanel pies = new JPanel(new MigLayout("wrap 1, gap 0 10", "[fill]", "[][]"));
+        pies.add(Utility.localizedLabel("report.goldJournal.netGains"));
+        pies.add(new GoldCategoryPieChart(gains, colors, totalIn, totalOut),
+            "width 380!, height 320!");
+        pies.add(Utility.localizedLabel("report.goldJournal.netLosses"));
+        pies.add(new GoldCategoryPieChart(losses, colors, totalIn, totalOut),
+            "width 380!, height 320!");
+
         JPanel combined = new JPanel(new MigLayout("gap 20 0", "[fill][]", "[top]"));
         combined.add(tables);
-        combined.add(new GoldCategoryPieChart(all, colors, totalIn, totalOut),
-            "width 220!, height 220!");
+        combined.add(pies);
         return combined;
     }
 
@@ -298,14 +328,17 @@ public final class ReportGoldJournalPanel extends ReportPanel {
     }
 
     /**
-     * LarryDGray's Mods: a hand-drawn pie chart of the Gold Journal's
-     * category totals, sized by the ABSOLUTE value of each category's
-     * net (a pie slice can't represent a signed quantity - the sign is
-     * still visible in the adjoining table's Net column). Categories
-     * with a net of exactly 0 get no slice at all. Each slice is
-     * labelled with its category's short abbreviation
-     * ({@link GoldCategory#getAbbreviation()}), in a text color chosen
-     * for contrast against that slice's own fill color.
+     * LarryDGray's Mods: a hand-drawn pie chart of a subset of the
+     * Gold Journal's category totals (the caller passes only the
+     * gaining categories, or only the losing ones - see
+     * {@link #buildCategoryTotalsPanel} - so one chart's slices always
+     * share the same sign and genuinely sum to something meaningful).
+     * Sized by the absolute value of each category's net. Each slice
+     * is labelled with its category's short abbreviation
+     * ({@link GoldCategory#getAbbreviation()}) at the end of a leader
+     * line drawn out from the slice's edge, rather than inside the
+     * wedge itself - a thin slice is often too narrow to hold even a
+     * 2-3 letter label without overlapping its neighbours.
      */
     private static final class GoldCategoryPieChart extends JComponent {
         private final List<GoldCategory> categories;
@@ -336,12 +369,17 @@ public final class ReportGoldJournalPanel extends ReportPanel {
                 total += Math.abs(net(c));
             }
             if (total > 0) {
-                final int size = Math.min(getWidth(), getHeight()) - 24;
-                final int x = (getWidth() - size) / 2;
-                final int y = (getHeight() - size) / 2;
-                final int cx = x + size / 2;
-                final int cy = y + size / 2;
-                final double labelRadius = size * 0.32;
+                // LarryDGray's Mods: the circle itself is kept fairly
+                // small and biased toward the lower right of the
+                // component, leaving generous room all around for the
+                // leader-line labels below (rather than cramming a
+                // 2-3 letter label inside a slice that might be a
+                // sliver too thin to hold it).
+                final int radius = (int)(Math.min(getWidth(), getHeight()) * 0.26);
+                final int cx = (int)(getWidth() * 0.52);
+                final int cy = (int)(getHeight() * 0.56);
+                final int size = radius * 2;
+                final int leaderLength = 22;
 
                 double startAngle = 90.0;
                 g2.setFont(getFont().deriveFont(Font.BOLD, 11f));
@@ -352,19 +390,34 @@ public final class ReportGoldJournalPanel extends ReportPanel {
                     final double extent = 360.0 * Math.abs(net) / total;
 
                     g2.setColor(colors.get(c));
-                    final Arc2D.Double arc = new Arc2D.Double(x, y, size, size,
-                        startAngle, -extent, Arc2D.PIE);
+                    final Arc2D.Double arc = new Arc2D.Double(cx - radius, cy - radius,
+                        size, size, startAngle, -extent, Arc2D.PIE);
                     g2.fill(arc);
                     g2.setColor(getBackground() == null ? Color.WHITE : getBackground());
                     g2.draw(arc);
 
+                    // LarryDGray's Mods: a straight leader line from
+                    // the slice's edge out to its label, rather than
+                    // drawing the abbreviation inside the wedge - a
+                    // thin slice's own wedge is often too narrow to
+                    // hold even a 2-3 letter label without it
+                    // overlapping its neighbours.
                     final double midAngle = Math.toRadians(startAngle - extent / 2);
-                    final int lx = (int)Math.round(cx + labelRadius * Math.cos(midAngle));
-                    final int ly = (int)Math.round(cy - labelRadius * Math.sin(midAngle));
+                    final double cos = Math.cos(midAngle);
+                    final double sin = Math.sin(midAngle);
+                    final int edgeX = (int)Math.round(cx + radius * cos);
+                    final int edgeY = (int)Math.round(cy - radius * sin);
+                    final int outerX = (int)Math.round(cx + (radius + leaderLength) * cos);
+                    final int outerY = (int)Math.round(cy - (radius + leaderLength) * sin);
+                    g2.setColor(Color.DARK_GRAY);
+                    g2.drawLine(edgeX, edgeY, outerX, outerY);
+
                     final String label = c.getAbbreviation();
                     final int tw = fm.stringWidth(label);
-                    g2.setColor(isDark(colors.get(c)) ? Color.WHITE : Color.BLACK);
-                    g2.drawString(label, lx - tw / 2, ly + fm.getAscent() / 2 - 2);
+                    final int textX = (cos >= 0) ? outerX + 3 : outerX - 3 - tw;
+                    final int textY = outerY + fm.getAscent() / 2 - 2;
+                    g2.setColor(Color.BLACK);
+                    g2.drawString(label, textX, textY);
 
                     startAngle -= extent;
                 }
@@ -374,12 +427,6 @@ public final class ReportGoldJournalPanel extends ReportPanel {
 
         private int net(GoldCategory c) {
             return totalIn.getOrDefault(c, 0) - totalOut.getOrDefault(c, 0);
-        }
-
-        private static boolean isDark(Color c) {
-            final double luminance = (0.299 * c.getRed() + 0.587 * c.getGreen()
-                + 0.114 * c.getBlue()) / 255.0;
-            return luminance < 0.5;
         }
     }
 
