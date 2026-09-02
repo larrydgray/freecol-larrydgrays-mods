@@ -650,6 +650,12 @@ isn't listed here.)
   a colony (goods, garrison, building tiers) whenever you spy on it.
 - **Field resupply** - a soldier/dragoon that's lost its equipment
   auto-rearms from a nearby wagon train instead of marching home.
+- **Equip from a carrier's own hold** - let a unit riding as cargo on a
+  ship or wagon train equip/re-equip (tools, muskets, horses) from
+  goods carried in that same ship/wagon's hold, without needing to be
+  at a colony first. Related to Field Resupply above, but broader -
+  this is about deliberately equipping a passenger mid-transport, not
+  just auto-rearming one that already lost its gear in combat.
 - **Colopedia/help screens updated** to actually mention what these
   mods change, instead of only describing stock FreeCol.
 
