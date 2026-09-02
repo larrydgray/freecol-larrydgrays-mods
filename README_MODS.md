@@ -272,13 +272,14 @@ Native Trade, Foreign Trade, Customs House, Upkeep, Treasure, Tribute,
 Crown - monarch gifts/mercenary costs, Plunder, Ruins/Lost City
 Rumours, Land Claim, Recruitment, Paid Training, Diplomacy, Disaster,
 Arrears, Incitement, Other), sorted by net (highest first). Each
-category gets a color swatch next to its name, matching two pie charts
-shown to the right of the summary - one for Net Gains, one for Net
-Losses, kept separate since mixing gaining and losing categories into
-one pie doesn't sum to anything meaningful. Each slice is sized by
-that category's net and labelled with a short 2-3 letter abbreviation
-at the end of a leader line, rather than crammed inside the wedge
-itself. Foreign Trade specifically covers a
+category gets a color swatch next to its name, matching a pie chart
+shown to the right of the summary with a dropdown to switch between 4
+views - Net Gains (the default), Net Losses, total In, and total Out -
+since the In/Out views can surface a category that nets to roughly
+zero but still moved real money both ways, which neither net-based
+view would ever show. Each slice is labelled with a short 2-3 letter
+abbreviation at the end of a leader line, rather than crammed inside
+the wedge itself. Foreign Trade specifically covers a
 diplomatic trade agreement with another nation that includes real
 goods (not just a pure gold gift/tribute/reparations, which stays
 under Diplomacy). Every place in the game that changes gold funnels

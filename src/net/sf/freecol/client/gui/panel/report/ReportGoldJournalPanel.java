@@ -36,6 +36,7 @@ import java.util.Map;
 import java.util.Set;
 
 import javax.swing.Icon;
+import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -264,33 +265,63 @@ public final class ReportGoldJournalPanel extends ReportPanel {
             tables.add(section, "top");
         }
 
-        // LarryDGray's Mods: two separate pies, not one mixing signs -
-        // a single pie sized by absolute net muddles "where gains came
-        // from" and "where losses went" into one wedge-count that
-        // doesn't actually sum to anything meaningful. Splitting by
-        // sign gives each pie a real, coherent total (all my net
-        // gains / all my net losses) - Larry's own call once he saw
-        // the biggest gain and biggest loss sitting in the same pie.
+        // LarryDGray's Mods: one pie, not several side by side or
+        // stacked - those kept fighting the report's fixed dialog
+        // size (a stacked pair overflowed the bottom in Larry's own
+        // screenshot; side by side needed the whole footer widened).
+        // A dropdown switches between 4 views instead: Net Gains
+        // (categories with positive net, the default), Net Losses
+        // (negative net, sized by magnitude), In (every category's
+        // total inflow, ignoring outflow), Out (every category's
+        // total outflow, ignoring inflow) - the last two surface a
+        // category that nets to ~0 but still moved real money both
+        // ways, which neither of the net-based views would ever show
+        // at all.
         final List<GoldCategory> gains = new ArrayList<>();
         final List<GoldCategory> losses = new ArrayList<>();
+        final List<GoldCategory> ins = new ArrayList<>();
+        final List<GoldCategory> outs = new ArrayList<>();
+        final Map<GoldCategory, Integer> gainsValues = new EnumMap<>(GoldCategory.class);
+        final Map<GoldCategory, Integer> lossesValues = new EnumMap<>(GoldCategory.class);
         for (GoldCategory category : all) {
-            final int net = totalIn.getOrDefault(category, 0)
-                - totalOut.getOrDefault(category, 0);
-            if (net > 0) gains.add(category);
-            else if (net < 0) losses.add(category);
+            final int in = totalIn.getOrDefault(category, 0);
+            final int out = totalOut.getOrDefault(category, 0);
+            final int net = in - out;
+            if (net > 0) {
+                gains.add(category);
+                gainsValues.put(category, net);
+            } else if (net < 0) {
+                losses.add(category);
+                lossesValues.put(category, -net);
+            }
+            if (in > 0) ins.add(category);
+            if (out > 0) outs.add(category);
         }
 
-        JPanel pies = new JPanel(new MigLayout("wrap 1, gap 0 10", "[fill]", "[][]"));
-        pies.add(Utility.localizedLabel("report.goldJournal.netGains"));
-        pies.add(new GoldCategoryPieChart(gains, colors, totalIn, totalOut),
-            "width 380!, height 320!");
-        pies.add(Utility.localizedLabel("report.goldJournal.netLosses"));
-        pies.add(new GoldCategoryPieChart(losses, colors, totalIn, totalOut),
-            "width 380!, height 320!");
+        final JComboBox<String> modeBox = new JComboBox<>(new String[] {
+            Messages.message("report.goldJournal.netGains"),
+            Messages.message("report.goldJournal.netLosses"),
+            Messages.message("report.goldJournal.in"),
+            Messages.message("report.goldJournal.out")
+        });
+        final GoldCategoryPieChart pieChart
+            = new GoldCategoryPieChart(gains, colors, gainsValues);
+        modeBox.addActionListener(ae -> {
+            switch (modeBox.getSelectedIndex()) {
+                case 1: pieChart.setData(losses, lossesValues); break;
+                case 2: pieChart.setData(ins, totalIn); break;
+                case 3: pieChart.setData(outs, totalOut); break;
+                default: pieChart.setData(gains, gainsValues); break;
+            }
+        });
+
+        JPanel pieBox = new JPanel(new MigLayout("wrap 1, gap 0 10", "[fill]", "[][]"));
+        pieBox.add(modeBox);
+        pieBox.add(pieChart, "width 380!, height 340!");
 
         JPanel combined = new JPanel(new MigLayout("gap 20 0", "[fill][]", "[top]"));
         combined.add(tables);
-        combined.add(pies);
+        combined.add(pieBox);
         return combined;
     }
 
@@ -328,33 +359,50 @@ public final class ReportGoldJournalPanel extends ReportPanel {
     }
 
     /**
-     * LarryDGray's Mods: a hand-drawn pie chart of a subset of the
-     * Gold Journal's category totals (the caller passes only the
-     * gaining categories, or only the losing ones - see
-     * {@link #buildCategoryTotalsPanel} - so one chart's slices always
-     * share the same sign and genuinely sum to something meaningful).
-     * Sized by the absolute value of each category's net. Each slice
-     * is labelled with its category's short abbreviation
-     * ({@link GoldCategory#getAbbreviation()}) at the end of a leader
-     * line drawn out from the slice's edge, rather than inside the
-     * wedge itself - a thin slice is often too narrow to hold even a
-     * 2-3 letter label without overlapping its neighbours.
+     * LarryDGray's Mods: a hand-drawn pie chart over an arbitrary
+     * (category, non-negative value) list - genuinely generic over
+     * whichever of the Gold Journal's 4 dropdown views is currently
+     * selected (Net Gains, Net Losses, In, Out - see
+     * {@link #buildCategoryTotalsPanel}), via {@link #setData}. The
+     * caller is responsible for pre-filtering to categories that
+     * belong in the current view and pre-converting to a positive
+     * magnitude (e.g. Net Losses passes each category's net negated) -
+     * this class only ever draws what it's handed, with no notion of
+     * sign itself. Each slice is labelled with its category's short
+     * abbreviation ({@link GoldCategory#getAbbreviation()}) at the end
+     * of a leader line drawn out from the slice's edge, rather than
+     * inside the wedge itself - a thin slice is often too narrow to
+     * hold even a 2-3 letter label without overlapping its neighbours.
      */
     private static final class GoldCategoryPieChart extends JComponent {
-        private final List<GoldCategory> categories;
+        private List<GoldCategory> categories;
         private final Map<GoldCategory, Color> colors;
-        private final Map<GoldCategory, Integer> totalIn;
-        private final Map<GoldCategory, Integer> totalOut;
+        private Map<GoldCategory, Integer> values;
 
         GoldCategoryPieChart(List<GoldCategory> categories,
                              Map<GoldCategory, Color> colors,
-                             Map<GoldCategory, Integer> totalIn,
-                             Map<GoldCategory, Integer> totalOut) {
+                             Map<GoldCategory, Integer> values) {
             this.categories = categories;
             this.colors = colors;
-            this.totalIn = totalIn;
-            this.totalOut = totalOut;
+            this.values = values;
             setOpaque(false);
+        }
+
+        /**
+         * LarryDGray's Mods: switch what this chart displays (one of
+         * the 4 dropdown modes) without rebuilding the component -
+         * every slice's value already comes from a plain lookup, so
+         * whichever map/list the caller hands in just IS the chart,
+         * no per-mode branching needed inside this class at all.
+         *
+         * @param categories The categories to show, already filtered
+         *     to only ones with something to show.
+         * @param values Each category's slice value for this mode.
+         */
+        void setData(List<GoldCategory> categories, Map<GoldCategory, Integer> values) {
+            this.categories = categories;
+            this.values = values;
+            repaint();
         }
 
         @Override
@@ -366,7 +414,7 @@ public final class ReportGoldJournalPanel extends ReportPanel {
 
             double total = 0;
             for (GoldCategory c : categories) {
-                total += Math.abs(net(c));
+                total += values.getOrDefault(c, 0);
             }
             if (total > 0) {
                 // LarryDGray's Mods: the circle itself is kept fairly
@@ -379,15 +427,27 @@ public final class ReportGoldJournalPanel extends ReportPanel {
                 final int cx = (int)(getWidth() * 0.52);
                 final int cy = (int)(getHeight() * 0.56);
                 final int size = radius * 2;
-                final int leaderLength = 22;
+                final int baseLeaderLength = 22;
+                final int staggerStep = 16;
+                // LarryDGray's Mods: a cluster of several small,
+                // similarly-angled slices in a row (categories are
+                // drawn largest-first, so the small ones naturally end
+                // up adjacent) puts their labels on top of each other
+                // at a fixed leader length - stagger progressively
+                // longer leader lengths for consecutive slices whose
+                // midpoint angle is close to the previous one, resetting
+                // back to the base length once the angle gap widens out
+                // again.
+                double prevMidAngleDeg = Double.NaN;
+                int leaderLength = baseLeaderLength;
 
                 double startAngle = 90.0;
                 g2.setFont(getFont().deriveFont(Font.BOLD, 11f));
                 final FontMetrics fm = g2.getFontMetrics();
                 for (GoldCategory c : categories) {
-                    final int net = net(c);
-                    if (net == 0) continue;
-                    final double extent = 360.0 * Math.abs(net) / total;
+                    final int value = values.getOrDefault(c, 0);
+                    if (value == 0) continue;
+                    final double extent = 360.0 * value / total;
 
                     g2.setColor(colors.get(c));
                     final Arc2D.Double arc = new Arc2D.Double(cx - radius, cy - radius,
@@ -402,9 +462,18 @@ public final class ReportGoldJournalPanel extends ReportPanel {
                     // thin slice's own wedge is often too narrow to
                     // hold even a 2-3 letter label without it
                     // overlapping its neighbours.
-                    final double midAngle = Math.toRadians(startAngle - extent / 2);
+                    final double midAngleDeg = startAngle - extent / 2;
+                    final double midAngle = Math.toRadians(midAngleDeg);
                     final double cos = Math.cos(midAngle);
                     final double sin = Math.sin(midAngle);
+                    if (!Double.isNaN(prevMidAngleDeg)
+                        && Math.abs(midAngleDeg - prevMidAngleDeg) < 18.0) {
+                        leaderLength += staggerStep;
+                    } else {
+                        leaderLength = baseLeaderLength;
+                    }
+                    prevMidAngleDeg = midAngleDeg;
+
                     final int edgeX = (int)Math.round(cx + radius * cos);
                     final int edgeY = (int)Math.round(cy - radius * sin);
                     final int outerX = (int)Math.round(cx + (radius + leaderLength) * cos);
@@ -423,10 +492,6 @@ public final class ReportGoldJournalPanel extends ReportPanel {
                 }
             }
             g2.dispose();
-        }
-
-        private int net(GoldCategory c) {
-            return totalIn.getOrDefault(c, 0) - totalOut.getOrDefault(c, 0);
         }
     }
 

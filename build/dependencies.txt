@@ -5898,6 +5898,7 @@ java.lang.invoke.MethodHandles$Lookup
 net.sf.freecol.common.model.Turn
 net.sf.freecol.common.model.Player
 java.lang.invoke.MethodHandles
+javax.swing.JComboBox
 java.lang.Integer
 net.sf.freecol.common.i18n.NameCache
 net.sf.freecol.client.gui.panel.report.ReportPanel
@@ -5920,8 +5921,8 @@ net.sf.freecol.client.gui.panel.MigPanel
 javax.swing.JScrollBar
 javax.swing.JScrollPane
 net.sf.freecol.common.model.GoldCategory
-javax.swing.JLabel
 net.sf.freecol.client.gui.panel.report.ReportGoldJournalPanel$GoldCategoryPieChart
+javax.swing.JLabel
 java.util.EnumSet
 net.sf.freecol.client.control.InGameController
 java.util.EnumMap
@@ -19921,9 +19922,10 @@ java.awt.RenderingHints
 javax.swing.JComponent
 java.lang.Integer
 java.lang.Math
+java.lang.Double
 java.awt.Graphics2D
-java.lang.String
 java.awt.geom.Arc2D$Double
+java.lang.String
 net.sf.freecol.common.model.GoldCategory
 ||:net.sf.freecol.client.gui.action.DisbandUnitAction
 net.sf.freecol.client.gui.action.DisbandUnitAction
