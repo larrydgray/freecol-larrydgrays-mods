@@ -19,6 +19,7 @@
 
 package net.sf.freecol.client.gui.panel.report;
 
+import java.awt.BorderLayout;
 import java.awt.Color;
 import java.util.EnumMap;
 import java.util.EnumSet;
@@ -35,6 +36,7 @@ import javax.swing.SwingUtilities;
 import net.miginfocom.swing.MigLayout;
 import net.sf.freecol.client.FreeColClient;
 import net.sf.freecol.common.i18n.Messages;
+import net.sf.freecol.client.gui.panel.MigPanel;
 import net.sf.freecol.client.gui.panel.Utility;
 import net.sf.freecol.client.gui.report.GoldJournalHistory;
 import net.sf.freecol.common.i18n.NameCache;
@@ -72,9 +74,16 @@ public final class ReportGoldJournalPanel extends ReportPanel {
         List<GoldJournalHistory.Sample> history
             = igc().getGoldJournalHistory().getHistory(player);
 
+        // LarryDGray's Mods: the column headers live in the scroll
+        // pane's own column-header-view, not in the scrollable body,
+        // so they stay pinned in place while the turn list scrolls -
+        // same technique ReportTradePanel's goodsHeader uses. The
+        // column widths below must stay identical between this header
+        // panel and reportPanel's own layout for the columns to align.
+        final String columnConstraints = "[fill, right][fill][fill]"
+            + "[fill, right][fill, right][fill, right][fill, right][fill, left, grow]";
         reportPanel.setLayout(new MigLayout("wrap 8, gap 10 2",
-            "[fill, right][fill][fill][fill, right][fill, right][fill, right][fill, right][fill, left, grow]",
-            "[]"));
+            columnConstraints, "[]"));
 
         if (history.isEmpty()) {
             reportPanel.add(Utility.localizedLabel(
@@ -82,14 +91,19 @@ public final class ReportGoldJournalPanel extends ReportPanel {
             return;
         }
 
-        reportPanel.add(createHeaderLabel("report.goldJournal.year"));
-        reportPanel.add(createHeaderLabel("report.goldJournal.season"));
-        reportPanel.add(createHeaderLabel("report.goldJournal.turn"));
-        reportPanel.add(createHeaderLabel("report.goldJournal.in"));
-        reportPanel.add(createHeaderLabel("report.goldJournal.out"));
-        reportPanel.add(createHeaderLabel("report.goldJournal.net"));
-        reportPanel.add(createHeaderLabel("report.goldJournal.balance"));
-        reportPanel.add(createHeaderLabel("report.goldJournal.notes"));
+        final JPanel header = new MigPanel("ReportPanelUI");
+        header.setLayout(new MigLayout("wrap 8, gap 10 2",
+            columnConstraints, "[]"));
+        header.setOpaque(true);
+        header.add(createHeaderLabel("report.goldJournal.year"));
+        header.add(createHeaderLabel("report.goldJournal.season"));
+        header.add(createHeaderLabel("report.goldJournal.turn"));
+        header.add(createHeaderLabel("report.goldJournal.in"));
+        header.add(createHeaderLabel("report.goldJournal.out"));
+        header.add(createHeaderLabel("report.goldJournal.net"));
+        header.add(createHeaderLabel("report.goldJournal.balance"));
+        header.add(createHeaderLabel("report.goldJournal.notes"));
+        scrollPane.setColumnHeaderView(header);
 
         for (GoldJournalHistory.Sample s : history) {
             int net = s.goldIn - s.goldOut;
@@ -110,7 +124,15 @@ public final class ReportGoldJournalPanel extends ReportPanel {
             reportPanel.add(createNotesLabel(s));
         }
 
-        reportPanel.add(buildCategoryTotalsPanel(history), "span, growx, wrap, gaptop 10");
+        // LarryDGray's Mods: the category totals summary lives outside
+        // the scroll pane entirely (a fixed footer, BorderLayout.SOUTH)
+        // rather than as the last row of the scrollable turn list, so
+        // it's always visible without scrolling all the way down to it.
+        final JPanel wrapper = new JPanel(new BorderLayout());
+        wrapper.setOpaque(false);
+        wrapper.add(scrollPane, BorderLayout.CENTER);
+        wrapper.add(buildCategoryTotalsPanel(history), BorderLayout.SOUTH);
+        setMainComponent(wrapper);
 
         // LarryDGray's Mods: open already scrolled to the most recent
         // turn (the bottom row) instead of the oldest - the whole

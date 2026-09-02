@@ -259,8 +259,12 @@ whole game's turn history.
 
 ### Gold Journal Report *(always on, display-only)*
 New Reports menu entry, a real per-turn ledger rather than a chart:
-Year / Season / Turn / In / Out / Net / Balance, plus a **Notes** column breaking down
-exactly what happened that turn by category - Europe Trade, Native
+Year / Season / Turn / In / Out / Net / Balance, plus a **Notes** column
+breaking down exactly what happened that turn by category. The column
+headers stay pinned in place while the turn list scrolls, and a
+category totals summary sits fixed below it as its own footer, always
+visible without scrolling all the way down. That summary breaks down
+totals by the same categories - Europe Trade, Native
 Trade, Foreign Trade, Customs House, Upkeep, Treasure, Tribute, Crown
 (monarch gifts/mercenary costs), Plunder, Ruins (Lost City Rumours),
 Land Claim, Recruitment, Diplomacy, Disaster, Arrears, Incitement.

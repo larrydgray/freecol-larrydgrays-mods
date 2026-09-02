@@ -5893,6 +5893,7 @@ java.lang.StringBuilder
 java.lang.invoke.MethodHandles
 java.awt.Color
 net.sf.freecol.client.gui.panel.report.ReportGoldJournalPanel
+net.sf.freecol.client.gui.panel.MigPanel
 java.util.List
 net.sf.freecol.common.model.Player
 net.sf.freecol.common.i18n.Messages
@@ -5915,11 +5916,12 @@ net.sf.freecol.common.i18n.NameCache
 java.lang.invoke.MethodHandles$Lookup
 java.lang.Integer
 java.lang.String
-net.sf.freecol.common.model.GoldCategory
 net.sf.freecol.client.control.InGameController
+java.awt.BorderLayout
+net.sf.freecol.common.model.GoldCategory
 java.util.Map$Entry
-java.util.Set
 net.sf.freecol.common.model.Turn
+java.util.Set
 ||:net.sf.freecol.common.networking.DisconnectMessage
 net.sf.freecol.common.networking.TrivialMessage
 net.sf.freecol.server.control.InGameController
