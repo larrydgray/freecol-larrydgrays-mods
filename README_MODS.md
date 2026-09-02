@@ -496,6 +496,9 @@ isn't listed here.)
   voluntarily withdraw your own missionary from a settlement before
   assaulting it, so attacking doesn't cost you the missionary as a
   side effect if you want to keep them.
+- **Gold Journal pie chart** - the category totals summary (Europe
+  Trade, Native Trade, Customs House, etc.) is a natural fit for a pie
+  chart, floated by Larry while polishing that report's layout.
 - **Spy on native settlements** - the existing Spy scouting action only
   works on European colonies; `SpySettlementMessage.getColony()` is
   hardcoded to `Colony.class` and can't target an `IndianSettlement` at
