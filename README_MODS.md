@@ -271,7 +271,12 @@ shows up in that summary, even ones with nothing yet (Europe Trade,
 Native Trade, Foreign Trade, Customs House, Upkeep, Treasure, Tribute,
 Crown - monarch gifts/mercenary costs, Plunder, Ruins/Lost City
 Rumours, Land Claim, Recruitment, Paid Training, Diplomacy, Disaster,
-Arrears, Incitement, Other). Foreign Trade specifically covers a
+Arrears, Incitement, Other), sorted by net (highest first). Each
+category gets a color swatch next to its name, matching a pie chart
+shown to the right of the summary - each slice sized by that
+category's net (loss categories still get a slice, just sized by
+magnitude rather than direction) and labelled with a short 2-3 letter
+abbreviation. Foreign Trade specifically covers a
 diplomatic trade agreement with another nation that includes real
 goods (not just a pure gold gift/tribute/reparations, which stays
 under Diplomacy). Every place in the game that changes gold funnels
@@ -496,9 +501,6 @@ isn't listed here.)
   voluntarily withdraw your own missionary from a settlement before
   assaulting it, so attacking doesn't cost you the missionary as a
   side effect if you want to keep them.
-- **Gold Journal pie chart** - the category totals summary (Europe
-  Trade, Native Trade, Customs House, etc.) is a natural fit for a pie
-  chart, floated by Larry while polishing that report's layout.
 - **Spy on native settlements** - the existing Spy scouting action only
   works on European colonies; `SpySettlementMessage.getColony()` is
   hardcoded to `Colony.class` and can't target an `IndianSettlement` at

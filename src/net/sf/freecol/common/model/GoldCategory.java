@@ -60,4 +60,37 @@ public enum GoldCategory {
     public String getDisplayName() {
         return Messages.message("goldCategory." + name());
     }
+
+    /**
+     * LarryDGray's Mods: a short 2-3 letter designator for this
+     * category, for labelling a pie slice too small to fit the full
+     * display name. Hand-picked (not derived from the display name)
+     * so near-homonyms like Treasure/Tribute or Land Claim/Lost City
+     * Rumour never collide.
+     *
+     * @return The abbreviation.
+     */
+    public String getAbbreviation() {
+        switch (this) {
+            case TRADE_EUROPE: return "EU";
+            case TRADE_NATIVE: return "NAT";
+            case TRADE_FOREIGN: return "FOR";
+            case CUSTOMS_HOUSE: return "CH";
+            case UPKEEP: return "UPK";
+            case TREASURE: return "TRE";
+            case TRIBUTE: return "TRI";
+            case CHIEF_GIFT: return "CG";
+            case MONARCH: return "CR";
+            case PLUNDER: return "PLU";
+            case LOST_CITY_RUMOUR: return "LCR";
+            case LAND_CLAIM: return "LND";
+            case RECRUITMENT: return "REC";
+            case TRAINING: return "TRN";
+            case DIPLOMACY: return "DIP";
+            case DISASTER: return "DIS";
+            case ARREARS: return "ARR";
+            case INCITEMENT: return "INC";
+            default: return "OTH";
+        }
+    }
 }

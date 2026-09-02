@@ -20,13 +20,22 @@
 package net.sf.freecol.client.gui.panel.report;
 
 import java.awt.Color;
+import java.awt.Component;
+import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.geom.Arc2D;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import javax.swing.Icon;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -166,14 +175,17 @@ public final class ReportGoldJournalPanel extends ReportPanel {
      * {@code GoldCategory} that exists (not just ones that have had
      * activity yet - a category with nothing to show still shows a
      * 0/0/0 row, so the table reads as a complete reference rather
-     * than a shifting list). Split into 3 side-by-side sections (each
-     * with its own header) rather than one long vertical list, both to
-     * use the dialog's spare width and to leave more vertical room for
-     * the scrollable turn list above it - the grand total row appears
-     * only in the last section.
+     * than a shifting list), sorted by net descending per Larry's
+     * request. Split into 3 side-by-side sections (each with its own
+     * header) rather than one long vertical list, both to use the
+     * dialog's spare width and to leave more vertical room for the
+     * scrollable turn list above it - the grand total row appears only
+     * in the last section. Each category gets a color swatch next to
+     * its name, matching the same color used for its pie slice in the
+     * chart built alongside this table.
      *
      * @param history The full turn-by-turn history.
-     * @return The totals table component.
+     * @return The totals table + pie chart component.
      */
     private JComponent buildCategoryTotalsPanel(
             List<GoldJournalHistory.Sample> history) {
@@ -190,16 +202,28 @@ public final class ReportGoldJournalPanel extends ReportPanel {
             }
         }
         final List<GoldCategory> all = new ArrayList<>(EnumSet.allOf(GoldCategory.class));
+        all.sort(Comparator.comparingInt((GoldCategory c)
+                -> totalIn.getOrDefault(c, 0) - totalOut.getOrDefault(c, 0))
+            .reversed());
         int grandIn = 0, grandOut = 0;
         for (GoldCategory category : all) {
             grandIn += totalIn.getOrDefault(category, 0);
             grandOut += totalOut.getOrDefault(category, 0);
         }
 
+        // LarryDGray's Mods: one color per category, assigned by
+        // sorted position around the hue wheel so adjacent categories
+        // (similar net size) still read as visually distinct - shared
+        // between the table's swatches and the pie chart's slices.
+        final Map<GoldCategory, Color> colors = new EnumMap<>(GoldCategory.class);
+        for (int i = 0; i < all.size(); i++) {
+            colors.put(all.get(i), Color.getHSBColor(i / (float)all.size(), 0.6f, 0.85f));
+        }
+
         final int sectionCount = 3;
         final int perSection = (all.size() + sectionCount - 1) / sectionCount;
 
-        JPanel outer = new JPanel(new MigLayout("wrap " + sectionCount + ", gap 30 0",
+        JPanel tables = new JPanel(new MigLayout("wrap " + sectionCount + ", gap 30 0",
             "[fill][fill][fill]", "[top]"));
         for (int i = 0; i < sectionCount; i++) {
             final int from = i * perSection;
@@ -216,7 +240,10 @@ public final class ReportGoldJournalPanel extends ReportPanel {
             for (GoldCategory category : all.subList(from, to)) {
                 int in = totalIn.getOrDefault(category, 0);
                 int out = totalOut.getOrDefault(category, 0);
-                section.add(createCellLabel(category.getDisplayName()));
+                JLabel nameLabel = createCellLabel(category.getDisplayName());
+                nameLabel.setIcon(new ColorSwatchIcon(colors.get(category), 10));
+                nameLabel.setIconTextGap(6);
+                section.add(nameLabel);
                 section.add(createAmountLabel(in, false));
                 section.add(createAmountLabel(out, false));
                 section.add(createAmountLabel(in - out, true));
@@ -227,9 +254,133 @@ public final class ReportGoldJournalPanel extends ReportPanel {
                 section.add(createAmountLabel(grandOut, false));
                 section.add(createAmountLabel(grandIn - grandOut, true));
             }
-            outer.add(section, "top");
+            tables.add(section, "top");
         }
-        return outer;
+
+        JPanel combined = new JPanel(new MigLayout("gap 20 0", "[fill][]", "[top]"));
+        combined.add(tables);
+        combined.add(new GoldCategoryPieChart(all, colors, totalIn, totalOut),
+            "width 220!, height 220!");
+        return combined;
+    }
+
+    /**
+     * LarryDGray's Mods: a small solid-color square icon, used as the
+     * legend swatch next to a category name in the totals table -
+     * matches the color of that category's pie slice.
+     */
+    private static final class ColorSwatchIcon implements Icon {
+        private final Color color;
+        private final int size;
+
+        ColorSwatchIcon(Color color, int size) {
+            this.color = color;
+            this.size = size;
+        }
+
+        @Override
+        public int getIconWidth() {
+            return size;
+        }
+
+        @Override
+        public int getIconHeight() {
+            return size;
+        }
+
+        @Override
+        public void paintIcon(Component c, Graphics g, int x, int y) {
+            g.setColor(color);
+            g.fillRect(x, y, size, size);
+            g.setColor(Color.DARK_GRAY);
+            g.drawRect(x, y, size - 1, size - 1);
+        }
+    }
+
+    /**
+     * LarryDGray's Mods: a hand-drawn pie chart of the Gold Journal's
+     * category totals, sized by the ABSOLUTE value of each category's
+     * net (a pie slice can't represent a signed quantity - the sign is
+     * still visible in the adjoining table's Net column). Categories
+     * with a net of exactly 0 get no slice at all. Each slice is
+     * labelled with its category's short abbreviation
+     * ({@link GoldCategory#getAbbreviation()}), in a text color chosen
+     * for contrast against that slice's own fill color.
+     */
+    private static final class GoldCategoryPieChart extends JComponent {
+        private final List<GoldCategory> categories;
+        private final Map<GoldCategory, Color> colors;
+        private final Map<GoldCategory, Integer> totalIn;
+        private final Map<GoldCategory, Integer> totalOut;
+
+        GoldCategoryPieChart(List<GoldCategory> categories,
+                             Map<GoldCategory, Color> colors,
+                             Map<GoldCategory, Integer> totalIn,
+                             Map<GoldCategory, Integer> totalOut) {
+            this.categories = categories;
+            this.colors = colors;
+            this.totalIn = totalIn;
+            this.totalOut = totalOut;
+            setOpaque(false);
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+            final Graphics2D g2 = (Graphics2D)g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                RenderingHints.VALUE_ANTIALIAS_ON);
+
+            double total = 0;
+            for (GoldCategory c : categories) {
+                total += Math.abs(net(c));
+            }
+            if (total > 0) {
+                final int size = Math.min(getWidth(), getHeight()) - 24;
+                final int x = (getWidth() - size) / 2;
+                final int y = (getHeight() - size) / 2;
+                final int cx = x + size / 2;
+                final int cy = y + size / 2;
+                final double labelRadius = size * 0.32;
+
+                double startAngle = 90.0;
+                g2.setFont(getFont().deriveFont(Font.BOLD, 11f));
+                final FontMetrics fm = g2.getFontMetrics();
+                for (GoldCategory c : categories) {
+                    final int net = net(c);
+                    if (net == 0) continue;
+                    final double extent = 360.0 * Math.abs(net) / total;
+
+                    g2.setColor(colors.get(c));
+                    final Arc2D.Double arc = new Arc2D.Double(x, y, size, size,
+                        startAngle, -extent, Arc2D.PIE);
+                    g2.fill(arc);
+                    g2.setColor(getBackground() == null ? Color.WHITE : getBackground());
+                    g2.draw(arc);
+
+                    final double midAngle = Math.toRadians(startAngle - extent / 2);
+                    final int lx = (int)Math.round(cx + labelRadius * Math.cos(midAngle));
+                    final int ly = (int)Math.round(cy - labelRadius * Math.sin(midAngle));
+                    final String label = c.getAbbreviation();
+                    final int tw = fm.stringWidth(label);
+                    g2.setColor(isDark(colors.get(c)) ? Color.WHITE : Color.BLACK);
+                    g2.drawString(label, lx - tw / 2, ly + fm.getAscent() / 2 - 2);
+
+                    startAngle -= extent;
+                }
+            }
+            g2.dispose();
+        }
+
+        private int net(GoldCategory c) {
+            return totalIn.getOrDefault(c, 0) - totalOut.getOrDefault(c, 0);
+        }
+
+        private static boolean isDark(Color c) {
+            final double luminance = (0.299 * c.getRed() + 0.587 * c.getGreen()
+                + 0.114 * c.getBlue()) / 255.0;
+            return luminance < 0.5;
+        }
     }
 
     /**
