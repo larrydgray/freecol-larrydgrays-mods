@@ -656,12 +656,12 @@ isn't listed here.)
   at a colony first. Related to Field Resupply above, but broader -
   this is about deliberately equipping a passenger mid-transport, not
   just auto-rearming one that already lost its gear in combat.
-- **Eat the horses** - when a colony is about to starve, prompt the
-  player: convert horses to food to avoid losing a colonist? Player
-  picks how many to convert (not all-or-nothing). Counts horses from
-  both the warehouse AND any dragoons currently stationed at that
-  settlement - dismounting one to feed the colony if needed, not just
-  loose horse-goods in storage.
+- **Eat the horses** - ties into the existing End-Turn Starvation
+  Warning: if a colony would actually lose a colonist this turn AND
+  horses are available there (warehouse stock, or a dragoon currently
+  stationed at that settlement - dismountable to feed it), offer to
+  convert horses to food instead of just "End Turn Anyway"/"Cancel".
+  Player picks how many to convert, not all-or-nothing.
 - **Colopedia/help screens updated** to actually mention what these
   mods change, instead of only describing stock FreeCol.
 
