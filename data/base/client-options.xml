@@ -448,6 +448,11 @@
              independently switchable. -->
         <booleanOption id="model.option.showBuildQueueAddAllNoTools"
                        defaultValue="true"/>
+        <!-- LarryDGray's Mods: "Setting 1" Custom House export preset
+             button in the Warehouse dialog. Its own dedicated toggle,
+             specific to that one dialog. -->
+        <booleanOption id="model.option.showWarehouseSetting1Button"
+                       defaultValue="true"/>
         <!-- LarryDGray's Mods: "Emergency War Effort" button in the
              Build Queue dialog - moves Artillery to the front of
              every colony's queue that can currently build one. -->

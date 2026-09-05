@@ -21,9 +21,11 @@ package net.sf.freecol.client.gui.dialog;
 
 import java.awt.Color;
 import java.awt.Component;
+import java.util.Set;
 import java.util.logging.Logger;
 
 import javax.swing.ImageIcon;
+import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -33,12 +35,15 @@ import javax.swing.JSpinner;
 import javax.swing.SpinnerNumberModel;
 
 import net.miginfocom.swing.MigLayout;
+import net.sf.freecol.client.ClientOptions;
 import net.sf.freecol.client.FreeColClient;
 import net.sf.freecol.client.gui.label.GoodsLabel;
 import net.sf.freecol.client.gui.panel.MigPanel;
 import net.sf.freecol.client.gui.panel.Utility;
 import net.sf.freecol.common.i18n.Messages;
 import net.sf.freecol.common.model.Ability;
+import net.sf.freecol.common.model.Building;
+import net.sf.freecol.common.model.BuildingType;
 import net.sf.freecol.common.model.Colony;
 import net.sf.freecol.common.model.ExportData;
 import net.sf.freecol.common.model.Goods;
@@ -54,6 +59,26 @@ import net.sf.freecol.common.option.GameOptions;
 public final class WarehouseDialog extends FreeColConfirmDialog {
 
     private static final Logger logger = Logger.getLogger(WarehouseDialog.class.getName());
+
+    /**
+     * LarryDGray's Mods: goods types the "Setting 1" Custom House
+     * preset button drives all the way down to an export level of 0
+     * (luxury/manufactured goods with no domestic use once made).
+     */
+    private static final Set<String> SETTING1_ZERO_EXPORT_GOODS = Set.of(
+        "model.goods.rum", "model.goods.cigars", "model.goods.cloth",
+        "model.goods.coats", "model.goods.silver");
+
+    /**
+     * LarryDGray's Mods: goods types the "Setting 1" preset keeps
+     * buffered at (warehouse capacity - 50) instead - raw materials
+     * still needed for domestic manufacturing, plus Horses/Muskets/
+     * Tools still needed to equip units.
+     */
+    private static final Set<String> SETTING1_BUFFERED_EXPORT_GOODS = Set.of(
+        "model.goods.sugar", "model.goods.cotton", "model.goods.furs",
+        "model.goods.tobacco", "model.goods.lumber", "model.goods.ore",
+        "model.goods.horses", "model.goods.muskets", "model.goods.tools");
 
     private JPanel warehousePanel;
 
@@ -85,9 +110,25 @@ public final class WarehouseDialog extends FreeColConfirmDialog {
         scrollPane.setBorder(null);
 
         JPanel panel = new MigPanel(new MigLayout("fill, wrap 1", "", ""));
-        panel.add(Utility.localizedHeader(Messages.nameKey("warehouseDialog"),
+        panel.add(Utility.localizedHeader(warehouseHeaderKey(colony),
                                           Utility.FONTSPEC_TITLE),
                   "align center");
+
+        // LarryDGray's Mods: one-click Custom House export preset,
+        // only meaningful (and only enabled) once the colony can
+        // actually export at all. Own dedicated toggle, per
+        // feedback_freecol_mods_must_be_switchable.
+        if (freeColClient.getClientOptions()
+                .getBoolean(ClientOptions.SHOW_WAREHOUSE_SETTING1_BUTTON)) {
+            JButton setting1Button = new JButton(
+                Messages.message("warehouseDialog.setting1"));
+            Utility.localizeToolTip(setting1Button,
+                "warehouseDialog.setting1.shortDescription");
+            setting1Button.setEnabled(colony.hasAbility(Ability.EXPORT));
+            setting1Button.addActionListener(ae -> applySetting1());
+            panel.add(setting1Button, "align center");
+        }
+
         panel.add(scrollPane, "grow");
         panel.setSize(panel.getPreferredSize());
 
@@ -96,6 +137,58 @@ public final class WarehouseDialog extends FreeColConfirmDialog {
         initializeConfirmDialog(frame, true, panel, icon, "ok", "cancel");
     }
 
+    /**
+     * Get the message key for this dialog's header, reflecting the
+     * colony's actual warehouse-chain building tier (Depot/Warehouse/
+     * Warehouse Expansion) rather than a single generic "Warehouse"
+     * label regardless of what is actually built.
+     *
+     * @param colony The {@code Colony} whose warehouse is being shown.
+     * @return The header message key to use.
+     */
+    private static String warehouseHeaderKey(Colony colony) {
+        Specification spec = colony.getSpecification();
+        BuildingType depotType = spec.getBuildingType("model.building.depot");
+        Building building = (depotType == null) ? null
+            : colony.getBuilding(depotType);
+        if (building == null) return Messages.nameKey("warehouseDialog");
+        switch (building.getType().getId()) {
+        case "model.building.depot":
+            return Messages.nameKey("warehouseDialog.depot");
+        case "model.building.warehouseExpansion":
+            return Messages.nameKey("warehouseDialog.expanded");
+        default: // model.building.warehouse -- the plain default label
+            return Messages.nameKey("warehouseDialog");
+        }
+    }
+
+
+    /**
+     * LarryDGray's Mods: apply the "Setting 1" Custom House export
+     * preset to every goods panel currently shown - check Export and
+     * set an export level for every goods type except Food and Trade
+     * Goods, which are left untouched. Only changes the on-screen
+     * spinner/checkbox state; the usual OK/Cancel + saveSettings()
+     * flow still decides whether any of it is actually kept.
+     */
+    private void applySetting1() {
+        for (Component c : warehousePanel.getComponents()) {
+            if (!(c instanceof WarehouseGoodsPanel)) continue;
+            WarehouseGoodsPanel goodsPanel = (WarehouseGoodsPanel)c;
+            String id = goodsPanel.goodsType.getId();
+            int level;
+            if (SETTING1_ZERO_EXPORT_GOODS.contains(id)) {
+                level = 0;
+            } else if (SETTING1_BUFFERED_EXPORT_GOODS.contains(id)) {
+                level = Math.max(0,
+                    goodsPanel.colony.getWarehouseCapacity() - 50);
+            } else {
+                continue; // Food, Trade Goods -- left untouched
+            }
+            goodsPanel.export.setSelected(true);
+            goodsPanel.exportLevel.setValue(level);
+        }
+    }
 
     /**
      * {@inheritDoc}

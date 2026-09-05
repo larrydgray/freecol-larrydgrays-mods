@@ -313,6 +313,12 @@ public class ClientOptions extends OptionGroup {
     public static final String SHOW_BUILD_QUEUE_ADD_ALL_NO_TOOLS
         = "model.option.showBuildQueueAddAllNoTools";
 
+    /** LarryDGray's Mods: "Setting 1" Custom House export preset
+     *  button in the Warehouse dialog - its own dedicated toggle,
+     *  specific to that one dialog. */
+    public static final String SHOW_WAREHOUSE_SETTING1_BUTTON
+        = "model.option.showWarehouseSetting1Button";
+
     /** LarryDGray's Mods: "Emergency War Effort" button in the Build
      *  Queue dialog - moves Artillery to the front of every colony's
      *  queue that can currently build one. */

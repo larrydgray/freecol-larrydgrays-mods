@@ -667,6 +667,111 @@ isn't listed here.)
   without a colony's warehouse as the go-between. As far as checked,
   today's cargo-transfer UI only shows two carriers' holds side by
   side inside a colony's own port view, not out on the open map.
+- **Mission reopens native training** - today, once a non-capital
+  village teaches one colonist it permanently sets its skill to null
+  (`InGameController.learnFromIndianSettlement()`, confirmed only the
+  map generator/editor ever set it back), for good - even if you
+  establish a missionary there afterward. The existing
+  `ENHANCED_MISSIONARIES` option only keeps a village open if the
+  missionary was already in place *before* the first lesson. This
+  would let establishing a mission at an already-exhausted village
+  reopen its training slot, not just prevent it from closing in the
+  first place. Larry's reaction on learning how the current rule
+  works: "I'm not sure I like this mechanic, but I kind of see the
+  need for it in a way" - not a request to remove the anti-farming
+  limit, just to give a missionary more value after the fact.
+- **Capital offers a choice of any skill the tribe teaches** - today
+  every `IndianSettlement`, capital included, is assigned exactly one
+  `learnableSkill` at map generation (`SimpleMapGenerator.java`) and
+  only ever offers that single skill. But a whole tribe (its several
+  villages plus capital) typically knows multiple different skills
+  between them - Larry's question: "can't more than one skill be
+  trained within the native tribe? so the capital might offer choice
+  of any that that tribe trains." Would need the capital to look up
+  every skill known by any settlement belonging to the same
+  `Player`/nation and let the visiting unit pick, rather than teaching
+  its own single assigned skill. Related to the "Mission reopens
+  native training" entry above - both are about the capital's teaching
+  role being more generous than a regular village's.
+- **Cargo cannon grants Artillery Support Bonus from a non-gunboat** -
+  today's Artillery Support Bonus (`SimpleCombatModel.java:295`) only
+  checks `attackerUnit.getTile().getUnits()` - units whose *location*
+  is the tile directly - so an Artillery unit loaded as cargo inside a
+  ship's hold is invisible to the check (its location is the ship, not
+  the tile) even though the ship itself is sitting right there. A
+  combat-capable ship (Frigate/Privateer/Man-o-War) already grants the
+  bonus just by being present, cargo or not; this would extend the
+  same bonus to a non-combat ship (Merchantman, Caravel, Galleon)
+  carrying at least one Artillery unit as cargo, so a transported
+  cannon still gives supporting fire to marines attacking from that
+  tile even before it's unloaded.
+- **[PRIORITY] Return a disconnected/quit player's nation to AI
+  control** - today a human can join an in-progress game and take over
+  an AI-controlled nation cleanly (`LoginMessage.java:373`, `if
+  (present.isAI()) serverGame.changeAI(present, false)`), but there is
+  no reverse path: confirmed `changeAI(player, true)` is never called
+  anywhere on disconnect *or* on a clean, deliberate Quit. Even the
+  polite case is a known, acknowledged gap in upstream FreeCol itself -
+  `LogoutMessage.java:133`'s server handler for a non-admin
+  multiplayer player quitting literally reads:
+  ```
+  case MAIN_TITLE: case NEW_GAME: case QUIT:
+      if (freeColServer.getSinglePlayer() || serverPlayer.isAdmin()) {
+          freeColServer.endGame();
+      } else {
+          endTurn = true;
+          // FIXME: turn multiplayer withdrawing player into an AI?
+      }
+  ```
+  So whether someone loses connection or deliberately chooses Quit,
+  the result is identical: their nation goes vacant (joinable again
+  per the `VacantPlayersMessage` check above) but nobody - human or
+  AI - actually plays it until someone logs back in under that name.
+  At minimum, give the host a manual control ("switch this player back
+  to AI") reusing the existing `ServerGame.changeAI()` call the login
+  path already has; automatic hand-back after a disconnect/idle
+  timeout would be the fuller fix, but isn't required to close the
+  immediate gap. Larry's framing: "at least the host needs to be able
+  to change it from human back to AI" - flagged as a priority fix
+  (2026-09-04), ahead of the rest of this list.
+- **Playable Native tribe** (visionary - a huge addition, not scoped) -
+  let a human player actually control a native nation instead of a
+  European one, taking the seat `NativeAIPlayer` currently occupies for
+  that tribe (same shape as taking over any AI seat today, see the
+  vacant-player mechanism above, just for an Indian player instead of
+  a European one). The big lift isn't the player-control plumbing -
+  it's that essentially none of the existing UI applies: there's no
+  `IndianSettlement` equivalent of `ColonyPanel`'s worker-assignment
+  grid, no build queue (native settlements don't construct buildings
+  the way colonies do), and today a settlement's production, unit
+  equipping, trading behavior, and mission assignment (raid/defend/
+  gift/tribute/secure-settlements) are entirely `NativeAIPlayer`-
+  decided with no player-facing controls at all. Would need dedicated
+  new village management panels/dialogs built from scratch - not a
+  reskin of the colony screens - covering at minimum: assigning braves
+  to settlement work, choosing what to trade/gift/demand and from
+  whom, and deciding raid/defend targets in place of the AI's mission
+  logic. The tribe-wide tension/alarm model this would surface is
+  already fully implemented under the hood - this would be a
+  UI-and-player-agency project built on top of existing data, not a
+  new simulation. The biggest single addition on this list, well
+  beyond Temporary Allied Native War Parties above.
+- **Multiple saveable Warehouse export presets** - grow the single
+  "Setting 1" Custom House button (built 2026-09-04, see feature list
+  above) into roughly 5 preset slots, each with its own small "save
+  current layout into this slot" button next to it - so a player can
+  build their own custom export configurations, not just the one
+  built-in preset. Larry's own framing: "maybe a persistent game wide
+  save button" too, i.e. presets should survive across saves/sessions,
+  not just exist for the current dialog open. The real design
+  question is where that persistence actually lives - "Setting 1"
+  today only fills in checkboxes/spinners in memory for the current
+  dialog (nothing is saved anywhere until OK is pressed and
+  `ExportData` is written per-colony as normal), so custom presets
+  would need genuinely new storage: either per-colony (saved in the
+  game file, so they travel with that colony) or a game-wide/client-
+  level store (so the same 5 presets are available for every colony
+  you manage). Worth deciding which before building.
 - **Colopedia/help screens updated** to actually mention what these
   mods change, instead of only describing stock FreeCol.
 
