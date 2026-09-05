@@ -662,6 +662,11 @@ isn't listed here.)
   stationed at that settlement - dismountable to feed it), offer to
   convert horses to food instead of just "End Turn Anyway"/"Cancel".
   Player picks how many to convert, not all-or-nothing.
+- **Ship-to-wagon transfer from shore** - move cargo directly between a
+  ship at a coastal tile and a wagon train on the adjacent land tile,
+  without a colony's warehouse as the go-between. As far as checked,
+  today's cargo-transfer UI only shows two carriers' holds side by
+  side inside a colony's own port view, not out on the open map.
 - **Colopedia/help screens updated** to actually mention what these
   mods change, instead of only describing stock FreeCol.
 
