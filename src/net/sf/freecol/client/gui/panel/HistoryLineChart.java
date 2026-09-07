@@ -29,6 +29,7 @@ import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.GeneralPath;
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -69,6 +70,10 @@ public class HistoryLineChart extends JPanel {
         public final int[] turns;
         public final double[] values;
         public final boolean dashed;
+        /** LarryDGray's Mods: optional goods icon shown in the legend
+         *  next to this series' color swatch, instead of just a bare
+         *  color-coded name. Null for series with no natural icon. */
+        public final BufferedImage icon;
 
         public Series(String label, Color color, int[] turns, double[] values) {
             this(label, color, turns, values, false);
@@ -76,11 +81,17 @@ public class HistoryLineChart extends JPanel {
 
         public Series(String label, Color color, int[] turns, double[] values,
                       boolean dashed) {
+            this(label, color, turns, values, dashed, null);
+        }
+
+        public Series(String label, Color color, int[] turns, double[] values,
+                      boolean dashed, BufferedImage icon) {
             this.label = label;
             this.color = color;
             this.turns = turns;
             this.values = values;
             this.dashed = dashed;
+            this.icon = icon;
         }
     }
 
@@ -312,9 +323,16 @@ public class HistoryLineChart extends JPanel {
             g2d.setStroke(secondary.contains(s) ? dashedStroke : solidStroke);
             g2d.setColor(s.color);
             g2d.drawLine(x, lineY, x + swatch, lineY);
+            int textX = x + swatch + (int)(4 * this.scale);
+            if (s.icon != null) {
+                int iconSize = fm.getHeight();
+                g2d.drawImage(s.icon, textX,
+                    legendY + (fm.getHeight() - iconSize) / 2,
+                    iconSize, iconSize, null);
+                textX += iconSize + (int)(4 * this.scale);
+            }
             g2d.setColor(Color.BLACK);
-            g2d.drawString(s.label, x + swatch + (int)(4 * this.scale),
-                           legendY + fm.getAscent());
+            g2d.drawString(s.label, textX, legendY + fm.getAscent());
             col++;
             if (col >= 2) {
                 col = 0;

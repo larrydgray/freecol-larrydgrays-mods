@@ -58,6 +58,8 @@ public class TradeHistorySample extends FreeColObject {
     private Map<String, Integer> goodsIncomeBeforeTaxes;
     private Map<String, Integer> goodsIncomeAfterTaxes;
     private Map<String, Integer> goodsUnitsInCargo;
+    private Map<String, Integer> goodsBuyPrice;
+    private Map<String, Integer> goodsSellPrice;
 
 
     /**
@@ -103,6 +105,14 @@ public class TradeHistorySample extends FreeColObject {
         Map<String, Integer> unitsSold = new HashMap<>();
         Map<String, Integer> incomeBeforeTaxes = new HashMap<>();
         Map<String, Integer> incomeAfterTaxes = new HashMap<>();
+        // LarryDGray's Mods: current Europe market price, buy and
+        // sell, per goods type - a live snapshot (goes up and down
+        // with market activity) rather than a cumulative total, same
+        // shape as goodsUnitsInCargo above. No market at all (e.g. a
+        // REF player) leaves these at 0 for every goods type.
+        Map<String, Integer> buyPrice = new HashMap<>();
+        Map<String, Integer> sellPrice = new HashMap<>();
+        Market market = player.getMarket();
         for (GoodsType gt : player.getSpecification().getStorableGoodsTypeList()) {
             onHand.put(gt.getId(),
                 CollectionUtils.sum(colonies, c -> c.getGoodsCount(gt)));
@@ -115,8 +125,22 @@ public class TradeHistorySample extends FreeColObject {
             production.put(gt.getId(), (gt.isFoodType())
                 ? CollectionUtils.sum(colonies, Colony::getFoodProduction)
                 : CollectionUtils.sum(colonies, c -> c.getTotalProductionOf(gt)));
-            netProduction.put(gt.getId(),
-                CollectionUtils.sum(colonies, c -> c.getNetProductionOf(gt)));
+            // LarryDGray's Mods: population growth is implemented as a
+            // BuildQueue (like a Wagon Train build) that consumes a
+            // lump sum of food (~200) the turn a colonist is actually
+            // born - ProductionCache folds that one-time cost directly
+            // into getNetProductionOf(food), producing a large,
+            // correct-but-misleading negative spike on an otherwise
+            // steady line. getFoodConsumption() is documented as only
+            // "the food needed to keep all units alive" (ongoing
+            // upkeep), excluding that lump - so
+            // getFoodProduction() - getFoodConsumption() gives the
+            // true surplus/deficit rate, same special-casing already
+            // used for the plain Production metric above.
+            netProduction.put(gt.getId(), (gt.isFoodType())
+                ? CollectionUtils.sum(colonies,
+                    c -> c.getFoodProduction() - c.getFoodConsumption())
+                : CollectionUtils.sum(colonies, c -> c.getNetProductionOf(gt)));
             // LarryDGray's Mods: cumulative empire-wide totals since
             // the game started, not per-turn deltas - plotted over
             // time, the slope shows how fast trade is happening
@@ -128,6 +152,10 @@ public class TradeHistorySample extends FreeColObject {
             unitsSold.put(gt.getId(), player.getUnitsSold(gt));
             incomeBeforeTaxes.put(gt.getId(), player.getIncomeBeforeTaxes(gt));
             incomeAfterTaxes.put(gt.getId(), player.getIncomeAfterTaxes(gt));
+            buyPrice.put(gt.getId(),
+                (market == null) ? 0 : market.getCostToBuy(gt));
+            sellPrice.put(gt.getId(),
+                (market == null) ? 0 : market.getPaidForSale(gt));
         }
         this.goodsOnHand = onHand;
         this.goodsProduction = production;
@@ -137,6 +165,8 @@ public class TradeHistorySample extends FreeColObject {
         this.goodsUnitsSold = unitsSold;
         this.goodsIncomeBeforeTaxes = incomeBeforeTaxes;
         this.goodsIncomeAfterTaxes = incomeAfterTaxes;
+        this.goodsBuyPrice = buyPrice;
+        this.goodsSellPrice = sellPrice;
     }
 
     /**
@@ -188,6 +218,14 @@ public class TradeHistorySample extends FreeColObject {
 
     public final Map<String, Integer> getGoodsUnitsInCargo() {
         return this.goodsUnitsInCargo;
+    }
+
+    public final Map<String, Integer> getGoodsBuyPrice() {
+        return this.goodsBuyPrice;
+    }
+
+    public final Map<String, Integer> getGoodsSellPrice() {
+        return this.goodsSellPrice;
     }
 
     /**
@@ -242,6 +280,8 @@ public class TradeHistorySample extends FreeColObject {
     private static final String GOODS_INCOME_BEFORE_TAXES_TAG = "goodsIncomeBeforeTaxes";
     private static final String GOODS_INCOME_AFTER_TAXES_TAG = "goodsIncomeAfterTaxes";
     private static final String GOODS_UNITS_IN_CARGO_TAG = "goodsUnitsInCargo";
+    private static final String GOODS_BUY_PRICE_TAG = "goodsBuyPrice";
+    private static final String GOODS_SELL_PRICE_TAG = "goodsSellPrice";
     private static final String TURN_TAG = "turn";
 
 
@@ -262,6 +302,8 @@ public class TradeHistorySample extends FreeColObject {
         xw.writeAttribute(GOODS_INCOME_BEFORE_TAXES_TAG, encode(this.goodsIncomeBeforeTaxes));
         xw.writeAttribute(GOODS_INCOME_AFTER_TAXES_TAG, encode(this.goodsIncomeAfterTaxes));
         xw.writeAttribute(GOODS_UNITS_IN_CARGO_TAG, encode(this.goodsUnitsInCargo));
+        xw.writeAttribute(GOODS_BUY_PRICE_TAG, encode(this.goodsBuyPrice));
+        xw.writeAttribute(GOODS_SELL_PRICE_TAG, encode(this.goodsSellPrice));
     }
 
     /**
@@ -281,6 +323,8 @@ public class TradeHistorySample extends FreeColObject {
         this.goodsIncomeBeforeTaxes = decode(xr.getAttribute(GOODS_INCOME_BEFORE_TAXES_TAG, (String)null));
         this.goodsIncomeAfterTaxes = decode(xr.getAttribute(GOODS_INCOME_AFTER_TAXES_TAG, (String)null));
         this.goodsUnitsInCargo = decode(xr.getAttribute(GOODS_UNITS_IN_CARGO_TAG, (String)null));
+        this.goodsBuyPrice = decode(xr.getAttribute(GOODS_BUY_PRICE_TAG, (String)null));
+        this.goodsSellPrice = decode(xr.getAttribute(GOODS_SELL_PRICE_TAG, (String)null));
     }
 
     /**

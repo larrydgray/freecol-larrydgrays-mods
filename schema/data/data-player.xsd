@@ -183,6 +183,8 @@
             <xs:attribute name="goodsIncomeBeforeTaxes" type="xs:string" use="optional"/>
             <xs:attribute name="goodsIncomeAfterTaxes" type="xs:string" use="optional"/>
             <xs:attribute name="goodsUnitsInCargo" type="xs:string" use="optional"/>
+            <xs:attribute name="goodsBuyPrice" type="xs:string" use="optional"/>
+            <xs:attribute name="goodsSellPrice" type="xs:string" use="optional"/>
           </xs:complexType>
         </xs:element>
 

@@ -480,6 +480,32 @@ preferences.
   the new Trade History report - fixed by using FreeCol's own existing
   `getFoodProduction()` helper (originally written for a different
   caller) for the food case specifically.
+- **A settlement's own tile could end up shown as unclaimed even while
+  the settlement was still there**, drawing a spurious "Display
+  Borders" ring tightly around an otherwise fully-integrated colony
+  (confirmed across many colonies, every nation, in a real save - some
+  colonies affected, others not, with no visible pattern until the
+  underlying save data was checked directly). Two separate root causes
+  found, both leaving a settlement's own tile "orphaned" - still
+  hosting a real, functioning colony, but reading as unclaimed to
+  every neighboring tile's own border check (and showing the wrong
+  nation's name on it):
+  - Something could null out a tile's owner without first clearing its
+    settlement reference. Fixed: `Tile.changeOwnership()` now refuses
+    to null a tile's owner while a live settlement still occupies it,
+    matching the order the game's own settlement-removal code already
+    uses (clear the settlement first, then the owner).
+  - **The bigger one**: capturing a colony (or any settlement changing
+    hands at all) never updated the settlement's own center tile's
+    owner in the first place - only the surrounding worked tiles got
+    reassigned, so a freshly-captured colony would keep showing its
+    *previous* owner's name and get a spurious border ring immediately,
+    every single time, with no reload needed to see it. Fixed in
+    `Settlement.changeOwner()`.
+  Both cases self-heal automatically: the existing save-load integrity
+  check now detects and repairs any tile left in that inconsistent
+  state, so previously-affected saves and colonies fix themselves the
+  moment they're loaded.
 
 ## Wish List
 
@@ -772,6 +798,143 @@ isn't listed here.)
   game file, so they travel with that colony) or a game-wide/client-
   level store (so the same 5 presets are available for every colony
   you manage). Worth deciding which before building.
+- **Improved Road tier, unlocked by era** - a second, better road built
+  on top of the existing one (era threshold configurable - 1700, 1750,
+  or 1800, player's choice), giving extra movement speed beyond
+  today's flat Road bonus, loosely modeled on real turnpikes/macadam
+  roads which historically only started appearing in that timeframe.
+  Larry's own open questions, not yet decided:
+  - **Where can it be built** - restricted to routes between higher-
+    tier forts/populated settlements only, open to build anywhere, or
+    only counts once a *complete* connected path exists all the way
+    between two settlements (no partial-credit bonus mid-construction)?
+  - **Build cost** - long per-tile work time, so it's meaningfully
+    slower than a plain Road and rewards throwing multiple pioneers at
+    it to finish faster (the existing turn-cost-stacking mechanic
+    already supports this - see the "Mine tile improvement" wishlist
+    entry above, which leans on the same big-`add-work-turns`
+    approach).
+  Real technical gap found while scoping this: unlike buildings
+  (Schoolhouse&rarr;College&rarr;University, Warehouse&rarr;Expansion,
+  etc.), FreeCol's `<tile-improvement-type>` schema has no
+  `upgrades-from`/tier concept at all - Road, Plow, and Clear are each
+  standalone, unrelated improvement types. A tiered "Road upgrades to
+  Improved Road" mechanic would need genuinely new tile-improvement
+  infrastructure, not just a new spec.xml entry copying an existing
+  pattern.
+- **Colony label stack should flip above the tile near the bottom of
+  the map** - today `MapViewer.displaySettlementLabels()` always
+  stacks the colony name, Colony Stat Toolbar line, building badges,
+  and overflow icons growing straight *downward* from the tile
+  (`nextY` only ever increases, never flips). For a colony on/near the
+  bottom row of the visible map, that stack runs off-screen under the
+  bottom control panel - and turning off the base game's own tile-text
+  display to work around it also hides the mod-added rows (stat
+  toolbar, badges, overflow icons), since they're drawn as part of the
+  same fixed downward stack, not independently positioned. Larry's own
+  framing captures the real difficulty: naively flipping a bottom-row
+  colony's stack to render *above* the tile instead risks colliding
+  with a different colony's own label sitting in the row just above
+  it (Qosqo/Urcon in his screenshot are close enough vertically that
+  this would matter) - so this needs genuine bounds/collision-aware
+  placement (detect the viewport's visible bottom edge, flip only
+  when needed, and check for a nearby colony's own label before
+  committing to "above"), not just an unconditional flip.
+- **"Land Area" (tiles owned) statistics for the Nation Comparison
+  report, covering native tribes too** - today's 8 statistics
+  (Settlements, Units, Military, Naval, Gold, Sons of Liberty,
+  Founding Fathers, Tax) don't include anything for territory size,
+  and Settlements (a plain colony count) doesn't distinguish a nation
+  with a few huge colonies from one with many tiny outposts. Larry's
+  fuller scope: track, per nation *and* per native tribe, (1) tiles
+  currently owned, (2) total ownable land tiles on the map (the
+  denominator - excludes water/impassable), and (3) total land+sea
+  tile count (overall map size) - the latter two as fixed reference
+  numbers, not per-turn history - then derive a **% of map owned**
+  comparison from them. New game option to gate it (a fresh
+  computation every relevant turn has some cost).
+  **Two design options for how honest this is, not yet decided**:
+  (a) omniscient - the true, full-map number for every nation, same
+  for every viewer, like the rest of this report already is (Gold/
+  Military/Naval/SoL/Founding Fathers are already fully omniscient
+  today, so this wouldn't be a new category of "cheat," just one more
+  axis on an already all-knowing report) - Larry's own flag: "sometimes
+  mystery is part of the game," so this should probably default *off*
+  even if built, unlike most other toggles; or (b) **fog-of-war
+  respecting** - only count what the *viewing* player has actually
+  explored, spied on, or learned diplomatically about each other
+  nation's territory, which is a real, buildable alternative since
+  `Player.hasExplored(Tile)` already tracks per-player exploration -
+  but this makes the report asymmetric (every nation would see
+  different numbers about the same world, based on their own
+  exploration history), unlike every other stat in this report today,
+  which is one shared truth for all viewers.
+  Two real gaps confirmed while scoping this:
+  - No existing running count of owned tiles anywhere on `Player` -
+    would need a fresh per-sample calculation (map scan counting
+    tiles where `Tile.getOwner() == player`) threaded through the same
+    `NationSummary` &rarr; `NationHistorySample` &rarr;
+    `NationHistory.NationSample` pipeline Settlements already uses,
+    plus a new entry in `ReportNationComparisonPanel`'s `Stat` enum.
+  - The whole report is hardcoded to European nations only
+    (`ReportNationComparisonPanel.java:168`,
+    `getLiveEuropeanPlayerList()`) - including native tribes means
+    opening up that player list, not just adding a column.
+- **Ship-to-ship boarding, piracy-style, with capture** (visionary - a
+  huge addition, not scoped) - instead of two ships just trading
+  combat stats, let the units riding as passengers on each ship fight
+  each other directly, with the losing side's ship captured intact
+  (crew, remaining cargo, and all) rather than just damaged/sunk.
+  Larry's own framing: "boarded units attacking boarded units ship to
+  ship. And even taking over another player's ship." A real gap to
+  build on top of, not reuse: today's naval combat has no "capture the
+  ship" outcome at all - a losing ship is damaged (sent to drydock) or
+  destroyed, ownership never changes hands, and combat resolution only
+  ever compares the two ships' own stats, never reaches into either
+  one's passenger list. This would need a new combat-resolution path
+  that resolves passenger-vs-passenger fighting *inside* a naval
+  encounter, plus a genuinely new outcome (transfer of ship ownership)
+  that doesn't exist anywhere in the combat model today. The biggest
+  lift on this list alongside Playable Native Tribe and Temporary
+  Allied Native War Parties above.
+- **Give Alliance real behavior, not just a label** (visionary - a huge
+  addition, not scoped) - confirmed `Stance.ALLIANCE` currently does
+  nothing server-side beyond feeding the tension-transition math in
+  `Stance.java`; there's no shared vision, no mutual defense, no
+  special privileges of any kind once two nations ally. Larry's
+  proposed scope for what an alliance should actually unlock -
+  and his own refinement: rather than bundling all of this in
+  automatically the instant an alliance forms, each item below could
+  instead be its own separate negotiation point, offered/accepted
+  as extra terms *after* the base alliance is already in place - an
+  a-la-carte second round of negotiation, not an all-or-nothing
+  package deal - and each granted point could be individually
+  revoked later without having to end the alliance itself:
+  - **Shared vision** between allied nations.
+  - **Shared full nation info** - an ally can see whatever detailed
+    reports/stats about your nation's state that would otherwise be
+    private (economy, military, colonies, etc.), not just the map.
+  - **Allied units can enter each other's cities**, e.g. to help
+    garrison/defend one.
+  - **Cargo handling inside an allied city is asymmetric**: dropping
+    goods off into an ally's warehouse is easy (no different from
+    unloading at your own port), but *taking* goods from an ally's
+    warehouse would need some kind of negotiated permission rather
+    than being free-for-all.
+  - **Ending the alliance must evict guest units cleanly** - any units
+    sitting inside the (former) ally's city need to be moved out to
+    the nearest available tile. Larry's own flagged edge case: what
+    happens if every adjacent tile is blocked/occupied when the
+    alliance ends - needs a real fallback, not just "assume there's
+    always room."
+  - **Human allies should be able to transport each other's units** on
+    their own ships/wagons, not just occupy cities.
+  - **AI allies would need their own logic to make use of any of
+    this** - Larry's own caveat: an AI ally wouldn't inherently know
+    what to usefully do with a human ally's units or an open city, so
+    this may need to be scoped as human-human-alliance-only (or built
+    knowing the AI side simply won't exercise it) rather than assuming
+    AI allies get equal benefit for free.
 - **Colopedia/help screens updated** to actually mention what these
   mods change, instead of only describing stock FreeCol.
 

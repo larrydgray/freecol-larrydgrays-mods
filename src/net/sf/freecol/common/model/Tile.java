@@ -1580,6 +1580,20 @@ public final class Tile extends UnitLocation implements Named, Ownable {
      * Change the tile ownership.  Also change the owning settlement
      * as the two are commonly related.
      *
+     * A tile currently occupied by a live settlement must never be
+     * left ownerless while that settlement remains - doing so
+     * desyncs the tile from every neighbour's view of it (the
+     * neighbours still correctly show the settlement's owner, but
+     * this tile reads as unclaimed), which shows up as a spurious
+     * territorial border ring drawn tightly around an otherwise
+     * fully-integrated settlement. The legitimate way to release a
+     * settlement's own tile is to clear the settlement first (see
+     * {@code Settlement#exciseSettlement()}, which calls
+     * {@code setSettlement(null)} before nulling ownership) - any
+     * other caller trying to null the owner out from under a still-
+     * present settlement is refused here instead of corrupting the
+     * tile.
+     *
      * -til: Changes appearance.
      *
      * @param player The {@code Player} to own the tile.
@@ -1587,6 +1601,11 @@ public final class Tile extends UnitLocation implements Named, Ownable {
      *     {@code Tile}.
      */
     public void changeOwnership(Player player, Settlement settlement) {
+        if (player == null && settlement == null && this.settlement != null) {
+            logger.warning("Refusing to clear ownership of " + this
+                + " while it still hosts " + this.settlement);
+            return;
+        }
         setOwner(player);//-til
         changeOwningSettlement(settlement);//-til
     }
@@ -2505,6 +2524,24 @@ public final class Tile extends UnitLocation implements Named, Ownable {
         Settlement settlement = getSettlement();
         if (settlement != null) {
             result = result.combine(settlement.checkIntegrity(fix, lb));
+            // LarryDGray's Mods: a tile hosting a live settlement must
+            // always be owned by that settlement's owner - repair any
+            // tile that lost its owner (e.g. from an earlier bug that
+            // could null it out from under a still-present
+            // settlement, see Tile.changeOwnership()), which otherwise
+            // shows up as a spurious territorial border ring drawn
+            // around an already fully-integrated settlement.
+            if (owner != settlement.getOwner()) {
+                lb.add("\n  Tile ", getId(), " hosts ", settlement.getId(),
+                    " but is owned by ", owner, " not ",
+                    settlement.getOwner());
+                if (fix) {
+                    changeOwnership(settlement.getOwner(), settlement);
+                    result = result.fix();
+                } else {
+                    result = result.fail();
+                }
+            }
         }
         if (tileItemContainer != null) {
             result = result.combine(tileItemContainer.checkIntegrity(fix, lb));

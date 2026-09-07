@@ -177,9 +177,14 @@ public final class ReportNationComparisonPanel extends ReportPanel {
                     turns[i] = s.turn;
                     values[i] = stat.value(s);
                 }
+                // LarryDGray's Mods: pair each line with its nation's
+                // own coat-of-arms icon in the legend, not just the
+                // name and color swatch - a flag/coat of arms alone
+                // can be hard to tell apart, so the name stays too.
                 series.add(new Series(
                     Messages.message(player.getNationLabel()),
-                    player.getNation().getColor(), turns, values));
+                    player.getNation().getColor(), turns, values, false,
+                    getImageLibrary().getSmallerNationImage(player.getNation())));
             }
         }
         this.chart.setSeries(series);

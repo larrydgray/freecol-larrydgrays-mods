@@ -21,6 +21,7 @@ package net.sf.freecol.client.gui.panel.report;
 
 import java.awt.Color;
 import java.awt.event.ActionEvent;
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -75,14 +76,28 @@ public final class ReportColonyGrowthPanel extends ReportPanel {
          *  the current-value bar chart. */
         final boolean barOnly;
         final ToIntFunction<ColonyGrowthHistory.Sample> extractor;
+        /** LarryDGray's Mods: an icon shown alongside this line's
+         *  label/bar - the matching unit or goods type's own image
+         *  where one exists, or a representative stand-in for an
+         *  aggregate line (e.g. a Veteran Soldier for "Total Armed
+         *  Land Units"). Null falls back to plain text, same as
+         *  before this was added. */
+        final BufferedImage icon;
 
         SeriesSpec(String label, Color color, boolean dashed, boolean barOnly,
                   ToIntFunction<ColonyGrowthHistory.Sample> extractor) {
+            this(label, color, dashed, barOnly, extractor, null);
+        }
+
+        SeriesSpec(String label, Color color, boolean dashed, boolean barOnly,
+                  ToIntFunction<ColonyGrowthHistory.Sample> extractor,
+                  BufferedImage icon) {
             this.label = label;
             this.color = color;
             this.dashed = dashed;
             this.barOnly = barOnly;
             this.extractor = extractor;
+            this.icon = icon;
         }
     }
 
@@ -104,8 +119,13 @@ public final class ReportColonyGrowthPanel extends ReportPanel {
         }
 
         StatEntry(String label, ToIntFunction<ColonyGrowthHistory.Sample> extractor) {
+            this(label, extractor, null);
+        }
+
+        StatEntry(String label, ToIntFunction<ColonyGrowthHistory.Sample> extractor,
+                 BufferedImage icon) {
             this(label, List.of(new SeriesSpec(label, PALETTE[0], false, false,
-                extractor)), false);
+                extractor, icon)), false);
         }
 
         @Override
@@ -144,17 +164,32 @@ public final class ReportColonyGrowthPanel extends ReportPanel {
             + player.getId() + " with " + this.history.size()
             + " samples in the client-side cache");
 
+        // LarryDGray's Mods: a representative icon per single-line
+        // stat, just for visual flavor - not a precise semantic match
+        // in every case (there's no dedicated "Rebel" unit icon to
+        // point to, for instance), just a recognizable stand-in.
+        List<Colony> anyColonies = player.getColonyList();
+        BufferedImage cityIcon = anyColonies.isEmpty() ? null
+            : getImageLibrary().getSmallSettlementImage(anyColonies.get(0));
         List<StatEntry> stats = new ArrayList<>(List.of(
             new StatEntry(Messages.message("report.colonyGrowth.population"),
-                s -> s.population),
+                s -> s.population,
+                getImageLibrary().getSmallerUnitTypeImage(
+                    getSpecification().getUnitType("model.unit.freeColonist"))),
             new StatEntry(Messages.message("report.colonyGrowth.citizens"),
-                s -> s.citizens),
+                s -> s.citizens,
+                getImageLibrary().getSmallerUnitTypeImage(
+                    getSpecification().getUnitType("model.unit.indenturedServant"))),
             new StatEntry(Messages.message("report.colonyGrowth.settlements"),
-                s -> s.numberOfSettlements),
+                s -> s.numberOfSettlements, cityIcon),
             new StatEntry(Messages.message("report.colonyGrowth.sonsOfLiberty"),
-                s -> s.sonsOfLiberty),
+                s -> s.sonsOfLiberty,
+                getImageLibrary().getSmallerUnitTypeImage(
+                    getSpecification().getUnitType("model.unit.elderStatesman"))),
             new StatEntry(Messages.message("report.colonyGrowth.liberty"),
-                s -> s.liberty)));
+                s -> s.liberty,
+                getImageLibrary().getSmallerGoodsTypeImage(
+                    getSpecification().getGoodsType("model.goods.bells")))));
 
         // LarryDGray's Mods: which military unit types (and wagon
         // trains) to offer isn't known ahead of time - collect every
@@ -185,7 +220,7 @@ public final class ReportColonyGrowthPanel extends ReportPanel {
                     || ColonyGrowthHistory.SEASONED_SCOUT_ID.equals(id);
                 specs.add(new SeriesSpec(e.getKey(),
                     PALETTE[colorIndex++ % PALETTE.length], false, barOnly,
-                    s -> s.unitCounts.getOrDefault(id, 0)));
+                    s -> s.unitCounts.getOrDefault(id, 0), iconFor(id)));
             }
             // LarryDGray's Mods: muskets/horses in storage overlaid
             // as dashed secondary-axis lines, since a warehouse can
@@ -196,7 +231,8 @@ public final class ReportColonyGrowthPanel extends ReportPanel {
                 final String id = gt.getId();
                 specs.add(new SeriesSpec(Messages.getName(gt),
                     PALETTE[colorIndex++ % PALETTE.length], true, false,
-                    s -> s.goodsCounts.getOrDefault(id, 0)));
+                    s -> s.goodsCounts.getOrDefault(id, 0),
+                    getImageLibrary().getSmallerGoodsTypeImage(gt)));
             }
             stats.add(new StatEntry(
                 Messages.message("report.colonyGrowth.landMilitary"), specs, true));
@@ -208,7 +244,7 @@ public final class ReportColonyGrowthPanel extends ReportPanel {
                 final String id = e.getValue();
                 specs.add(new SeriesSpec(e.getKey(),
                     PALETTE[colorIndex++ % PALETTE.length], false, false,
-                    s -> s.unitCounts.getOrDefault(id, 0)));
+                    s -> s.unitCounts.getOrDefault(id, 0), iconFor(id)));
             }
             stats.add(new StatEntry(
                 Messages.message("report.colonyGrowth.shipsAndWagons"), specs, true));
@@ -226,6 +262,11 @@ public final class ReportColonyGrowthPanel extends ReportPanel {
         // Ships & Wagons chart above; Total Naval Units sums every
         // naval category (gunships and cargo ships alike, excluding
         // wagon trains).
+        // LarryDGray's Mods: these three are aggregates with no single
+        // real unit behind them, so each gets a representative
+        // stand-in icon instead of an exact match: Veteran Soldier for
+        // "any armed land unit," Privateer for "any gunship," Caravel
+        // for "any naval unit at all."
         List<SeriesSpec> armedSpecs = new ArrayList<>(List.of(
             new SeriesSpec(Messages.message("report.colonyGrowth.totalArmedLand"),
                 PALETTE[0], false, false,
@@ -234,13 +275,19 @@ public final class ReportColonyGrowthPanel extends ReportPanel {
                         SOLDIER_ROLE_ID + ColonyGrowthHistory.PROFESSIONAL_SUFFIX, 0)
                     + s.unitCounts.getOrDefault(DRAGOON_ROLE_ID, 0)
                     + s.unitCounts.getOrDefault(
-                        DRAGOON_ROLE_ID + ColonyGrowthHistory.PROFESSIONAL_SUFFIX, 0)),
+                        DRAGOON_ROLE_ID + ColonyGrowthHistory.PROFESSIONAL_SUFFIX, 0),
+                getImageLibrary().getSmallerUnitTypeImage(
+                    getSpecification().getUnitType("model.unit.veteranSoldier"))),
             new SeriesSpec(Messages.message("report.colonyGrowth.totalGunships"),
                 PALETTE[1], false, false,
-                s -> sumGunships(s, navalLabelToId.values())),
+                s -> sumGunships(s, navalLabelToId.values()),
+                getImageLibrary().getSmallerUnitTypeImage(
+                    getSpecification().getUnitType("model.unit.privateer"))),
             new SeriesSpec(Messages.message("report.colonyGrowth.totalNavalUnits"),
                 PALETTE[2], false, false,
-                s -> sumAllNaval(s, navalLabelToId.values()))));
+                s -> sumAllNaval(s, navalLabelToId.values()),
+                getImageLibrary().getSmallerUnitTypeImage(
+                    getSpecification().getUnitType("model.unit.caravel")))));
         stats.add(new StatEntry(
             Messages.message("report.colonyGrowth.totalArmedLand"), armedSpecs, false));
 
@@ -373,6 +420,31 @@ public final class ReportColonyGrowthPanel extends ReportPanel {
     }
 
     /**
+     * LarryDGray's Mods: find an icon for a unit-count category id -
+     * the category's own unit type image where the id names one
+     * directly (Artillery, Seasoned Scout, every ship, Wagon Train),
+     * or the associated role's expert unit's image where it names a
+     * role instead (Soldier/Dragoon, professional or not, and the
+     * Scout role - all resolve to a real, recognizable unit image
+     * this way, e.g. Veteran Soldier for either Soldier or Dragoon).
+     *
+     * @param categoryId The category id to find an icon for.
+     * @return The icon, or null if nothing suitable was found.
+     */
+    private BufferedImage iconFor(String categoryId) {
+        String baseId = baseCategoryId(categoryId);
+        FreeColSpecObjectType fcot = getSpecification().getType(baseId);
+        if (fcot instanceof UnitType) {
+            return getImageLibrary().getSmallerUnitTypeImage((UnitType)fcot);
+        } else if (fcot instanceof Role) {
+            UnitType expert = ((Role)fcot).getExpertUnit();
+            return (expert == null) ? null
+                : getImageLibrary().getSmallerUnitTypeImage(expert);
+        }
+        return null;
+    }
+
+    /**
      * Resolve a display label for a military/wagon category id, e.g.
      * "Dragoon" for the plain role id, or "Professional Dragoon" for
      * its professional-variant id.
@@ -437,7 +509,7 @@ public final class ReportColonyGrowthPanel extends ReportPanel {
                         values[i] = spec.extractor.applyAsInt(this.history.get(i));
                     }
                     series.add(new Series(spec.label, spec.color, turns, values,
-                                          spec.dashed));
+                                          spec.dashed, spec.icon));
                 }
                 if (!spec.dashed && latest != null) {
                     bars.add(new CurrentValueBarChart.Bar(spec.label, spec.color,

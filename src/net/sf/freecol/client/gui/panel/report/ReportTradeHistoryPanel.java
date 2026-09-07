@@ -21,6 +21,7 @@ package net.sf.freecol.client.gui.panel.report;
 
 import java.awt.Color;
 import java.awt.event.ActionEvent;
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
@@ -52,7 +53,8 @@ import net.sf.freecol.common.model.Specification;
  * selector picks which of several per-goods values is currently
  * shown for every line at once - showing more than one metric at
  * once was rejected as too cluttered with this many goods types on
- * one chart.
+ * one chart. Each line is paired with that goods type's own icon in
+ * the legend, not just a bare color swatch.
  */
 public final class ReportTradeHistoryPanel extends ReportPanel {
 
@@ -79,11 +81,24 @@ public final class ReportTradeHistoryPanel extends ReportPanel {
 
         final String label;
         final Function<TradeHistory.Sample, java.util.Map<String, Integer>> valuesOf;
+        /** LarryDGray's Mods: true for metrics where the current
+         *  (latest-turn) value is worth showing right in the legend -
+         *  Buy/Sell Price specifically, since "what does Sugar cost
+         *  right now" is more useful to read directly than to trace
+         *  off the end of a line. */
+        final boolean showCurrentValue;
 
         MetricEntry(String label,
                    Function<TradeHistory.Sample, java.util.Map<String, Integer>> valuesOf) {
+            this(label, valuesOf, false);
+        }
+
+        MetricEntry(String label,
+                   Function<TradeHistory.Sample, java.util.Map<String, Integer>> valuesOf,
+                   boolean showCurrentValue) {
             this.label = label;
             this.valuesOf = valuesOf;
+            this.showCurrentValue = showCurrentValue;
         }
 
         @Override
@@ -168,7 +183,11 @@ public final class ReportTradeHistoryPanel extends ReportPanel {
             new MetricEntry(Messages.message("report.tradeHistory.incomeAfterTaxes"),
                 s -> s.goodsIncomeAfterTaxes),
             new MetricEntry(Messages.message("report.tradeHistory.unitsInCargo"),
-                s -> s.goodsUnitsInCargo));
+                s -> s.goodsUnitsInCargo),
+            new MetricEntry(Messages.message("report.tradeHistory.buyPrice"),
+                s -> s.goodsBuyPrice, true),
+            new MetricEntry(Messages.message("report.tradeHistory.sellPrice"),
+                s -> s.goodsSellPrice, true));
         this.metricSelector = new JComboBox<>(metrics.toArray(new MetricEntry[0]));
         this.metricSelector.setSelectedIndex(2); // Net Production, matches
                                                   // the Trade Advisor default
@@ -208,25 +227,8 @@ public final class ReportTradeHistoryPanel extends ReportPanel {
     private void updateChart() {
         GoodsGroup group = (GoodsGroup)this.groupSelector.getSelectedItem();
         MetricEntry metric = (MetricEntry)this.metricSelector.getSelectedItem();
-        List<Series> series = new ArrayList<>();
-        if (group != null && metric != null) {
-            final int n = this.history.size();
-            int[] turns = new int[n];
-            for (int i = 0; i < n; i++) turns[i] = this.history.get(i).turn;
-
-            int colorIndex = 0;
-            for (GoodsType gt : group.goods) {
-                final String id = gt.getId();
-                double[] values = new double[n];
-                for (int i = 0; i < n; i++) {
-                    values[i] = metric.valuesOf.apply(this.history.get(i))
-                        .getOrDefault(id, 0);
-                }
-                series.add(new Series(Messages.getName(gt),
-                    PALETTE[colorIndex++ % PALETTE.length], turns, values, false));
-            }
-        }
-        this.chart.setSeries(series);
+        this.chart.setSeries((group == null) ? new ArrayList<>()
+            : buildSeries(group.goods, metric));
 
         reportPanel.removeAll();
         JPanel selectors = new MigPanel(new MigLayout("insets 0, gap 10 0",
@@ -239,5 +241,41 @@ public final class ReportTradeHistoryPanel extends ReportPanel {
         reportPanel.add(this.chart, "grow, push");
         reportPanel.revalidate();
         reportPanel.repaint();
+    }
+
+    /**
+     * Build the plotted series for one goods group under the
+     * currently selected metric, one colored line per goods type,
+     * each paired with that good's own icon in the legend.
+     *
+     * @param goods The goods types to plot.
+     * @param metric The currently selected metric, or null.
+     * @return The list of {@code Series} to plot.
+     */
+    private List<Series> buildSeries(List<GoodsType> goods, MetricEntry metric) {
+        List<Series> series = new ArrayList<>();
+        if (metric == null) return series;
+        final int n = this.history.size();
+        int[] turns = new int[n];
+        for (int i = 0; i < n; i++) turns[i] = this.history.get(i).turn;
+
+        int colorIndex = 0;
+        for (GoodsType gt : goods) {
+            final String id = gt.getId();
+            double[] values = new double[n];
+            for (int i = 0; i < n; i++) {
+                values[i] = metric.valuesOf.apply(this.history.get(i))
+                    .getOrDefault(id, 0);
+            }
+            BufferedImage icon = getImageLibrary().getSmallerGoodsTypeImage(gt);
+            String label = Messages.getName(gt);
+            if (metric.showCurrentValue && n > 0) {
+                label += " (" + Math.round(values[n - 1]) + ")";
+            }
+            series.add(new Series(label,
+                PALETTE[colorIndex++ % PALETTE.length], turns, values, false,
+                icon));
+        }
+        return series;
     }
 }

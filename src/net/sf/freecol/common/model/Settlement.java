@@ -338,6 +338,17 @@ public abstract class Settlement extends GoodsLocation
 
         getGame().checkOwners(this, oldOwner);
 
+        // LarryDGray's Mods: getOwnedTiles() deliberately excludes this
+        // settlement's own center tile (tracked separately via
+        // Tile.setSettlement()) - without this, the center tile's
+        // Tile.owner is never updated on capture, leaving it silently
+        // desynced from Settlement.owner (still reporting the old
+        // nation) even though every surrounding worked tile updates
+        // correctly. That desync is what produced the spurious
+        // "Display Borders" ring drawn around an already-integrated,
+        // just-captured settlement.
+        getTile().changeOwnership(newOwner, this);//-til
+
         for (Tile t : getOwnedTiles()) {
             t.changeOwnership(newOwner, this);//-til
         }
