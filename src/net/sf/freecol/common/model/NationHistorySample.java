@@ -48,6 +48,7 @@ public class NationHistorySample extends FreeColObject {
     private int soL;
     private int foundingFathers;
     private int tax;
+    private int score;
 
 
     /**
@@ -76,6 +77,7 @@ public class NationHistorySample extends FreeColObject {
         this.soL = ns.getSoL();
         this.foundingFathers = ns.getFoundingFathers();
         this.tax = ns.getTax();
+        this.score = ns.getScore();
     }
 
     /**
@@ -129,6 +131,10 @@ public class NationHistorySample extends FreeColObject {
         return this.tax;
     }
 
+    public final int getScore() {
+        return this.score;
+    }
+
 
     // Serialization
 
@@ -142,6 +148,7 @@ public class NationHistorySample extends FreeColObject {
     private static final String SOL_TAG = "SoL";
     private static final String TAX_TAG = "tax";
     private static final String TURN_TAG = "turn";
+    private static final String SCORE_TAG = "score";
 
 
     /**
@@ -161,6 +168,7 @@ public class NationHistorySample extends FreeColObject {
         xw.writeAttribute(SOL_TAG, this.soL);
         xw.writeAttribute(FOUNDING_FATHERS_TAG, this.foundingFathers);
         xw.writeAttribute(TAX_TAG, this.tax);
+        xw.writeAttribute(SCORE_TAG, this.score);
     }
 
     /**
@@ -180,6 +188,7 @@ public class NationHistorySample extends FreeColObject {
         this.soL = xr.getAttribute(SOL_TAG, 0);
         this.foundingFathers = xr.getAttribute(FOUNDING_FATHERS_TAG, 0);
         this.tax = xr.getAttribute(TAX_TAG, 0);
+        this.score = xr.getAttribute(SCORE_TAG, 0);
     }
 
     /**

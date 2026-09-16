@@ -263,6 +263,15 @@ public class Player extends FreeColGameObject implements Nameable {
     /** The number of liberty bells produced towards the intervention force. */
     protected int interventionBells;
 
+    /**
+     * LarryDGray's Mods: cumulative units and gross market value (at
+     * time of capture, before taxes) of goods captured via combat
+     * loot - piracy - by goods type id, since the game started. Not a
+     * market transaction, so not tracked by {@link Market} itself.
+     */
+    protected java.util.Map<String, Integer> pirateLootUnits = new HashMap<>();
+    protected java.util.Map<String, Integer> pirateLootValue = new HashMap<>();
+
     /** The current tax rate for this player. */
     protected int tax = 0;
 
@@ -1922,6 +1931,49 @@ public class Player extends FreeColGameObject implements Nameable {
     public int getUnitsSold(GoodsType goodsType) {
         final Market market = getMarket();
         return (market == null) ? 0 : market.getUnitsSold(goodsType);
+    }
+
+    /**
+     * LarryDGray's Mods: get the cumulative units of a type of goods
+     * captured via combat loot (piracy), since the game started - not
+     * a market transaction, so tracked here rather than in
+     * {@link Market}.
+     *
+     * @param goodsType The {@code GoodsType} to query.
+     * @return The total units looted.
+     */
+    public int getPirateLootUnits(GoodsType goodsType) {
+        Integer v = this.pirateLootUnits.get(goodsType.getId());
+        return (v == null) ? 0 : v;
+    }
+
+    /**
+     * LarryDGray's Mods: get the cumulative gross market value (at
+     * the time of capture, before taxes) of a type of goods captured
+     * via combat loot (piracy), since the game started.
+     *
+     * @param goodsType The {@code GoodsType} to query.
+     * @return The total gross value looted.
+     */
+    public int getPirateLootValue(GoodsType goodsType) {
+        Integer v = this.pirateLootValue.get(goodsType.getId());
+        return (v == null) ? 0 : v;
+    }
+
+    /**
+     * LarryDGray's Mods: record goods captured via combat loot
+     * (piracy) for the Trade History report - call once per looted
+     * {@code Goods} at the point of capture, so the recorded value
+     * reflects the market price at that moment, not later.
+     *
+     * @param goodsType The {@code GoodsType} looted.
+     * @param units The amount looted.
+     * @param grossValue The gross market sale value of that amount,
+     *     before taxes, at the time of capture.
+     */
+    public void addPirateLoot(GoodsType goodsType, int units, int grossValue) {
+        this.pirateLootUnits.merge(goodsType.getId(), units, Integer::sum);
+        this.pirateLootValue.merge(goodsType.getId(), grossValue, Integer::sum);
     }
 
     /**
@@ -4573,6 +4625,8 @@ public class Player extends FreeColGameObject implements Nameable {
     private static final String NEW_LAND_NAME_TAG = "newLandName";
     private static final String OFFERED_FATHERS_TAG = "offeredFathers";
     private static final String OLD_SOL_TAG = "oldSoL";
+    private static final String PIRATE_LOOT_UNITS_TAG = "pirateLootUnits";
+    private static final String PIRATE_LOOT_VALUE_TAG = "pirateLootValue";
     private static final String PLAYER_TAG = "player";
     private static final String PLAYER_TYPE_TAG = "playerType";
     private static final String READY_TAG = "ready";
@@ -4581,6 +4635,37 @@ public class Player extends FreeColGameObject implements Nameable {
     private static final String TAX_TAG = "tax";
     private static final String TENSION_TAG = "tension";
     private static final String USERNAME_TAG = "username";
+
+    /**
+     * LarryDGray's Mods: encode/decode a goods-id-to-count map as a
+     * single delimited string, since a variable set of keys does not
+     * fit neatly into fixed XML attributes - same shape as
+     * {@link TradeHistorySample}'s own private encode/decode.
+     */
+    private static String encodeGoodsCountMap(java.util.Map<String, Integer> map) {
+        StringBuilder sb = new StringBuilder(64);
+        for (java.util.Map.Entry<String, Integer> e : map.entrySet()) {
+            if (sb.length() > 0) sb.append(';');
+            sb.append(e.getKey()).append(':').append(e.getValue());
+        }
+        return sb.toString();
+    }
+
+    private static java.util.Map<String, Integer> decodeGoodsCountMap(String s) {
+        java.util.Map<String, Integer> map = new HashMap<>();
+        if (s == null || s.isEmpty()) return map;
+        for (String entry : s.split(";")) {
+            int i = entry.lastIndexOf(':');
+            if (i < 0) continue;
+            try {
+                map.put(entry.substring(0, i),
+                    Integer.parseInt(entry.substring(i + 1)));
+            } catch (NumberFormatException nfe) {
+                // Ignore a malformed entry rather than fail the whole load.
+            }
+        }
+        return map;
+    }
 
 
     /**
@@ -4633,6 +4718,12 @@ public class Player extends FreeColGameObject implements Nameable {
             xw.writeAttribute(OLD_SOL_TAG, oldSoL);
 
             xw.writeAttribute(SCORE_TAG, score);
+
+            xw.writeAttribute(PIRATE_LOOT_UNITS_TAG,
+                encodeGoodsCountMap(this.pirateLootUnits));
+
+            xw.writeAttribute(PIRATE_LOOT_VALUE_TAG,
+                encodeGoodsCountMap(this.pirateLootValue));
 
             if (entryTile != null) {
                 xw.writeAttribute(ENTRY_LOCATION_TAG, entryTile);
@@ -4816,6 +4907,12 @@ public class Player extends FreeColGameObject implements Nameable {
         oldSoL = xr.getAttribute(OLD_SOL_TAG, 0);
 
         score = xr.getAttribute(SCORE_TAG, 0);
+
+        this.pirateLootUnits = decodeGoodsCountMap(
+            xr.getAttribute(PIRATE_LOOT_UNITS_TAG, (String)null));
+
+        this.pirateLootValue = decodeGoodsCountMap(
+            xr.getAttribute(PIRATE_LOOT_VALUE_TAG, (String)null));
 
         ready = xr.getAttribute(READY_TAG, false);
 

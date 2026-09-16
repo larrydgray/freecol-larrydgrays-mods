@@ -2888,6 +2888,15 @@ public final class InGameController extends Controller {
                     return serverPlayer.clientError("Loot failed: " + g);
                 }
                 winner.add(g);
+                // LarryDGray's Mods: record for the Trade History
+                // report's Piracy Units/Piracy Value metrics - gross
+                // market value at the moment of capture, before
+                // taxes, since a REF/marketless player has no market
+                // to read a value from later.
+                Market market = serverPlayer.getMarket();
+                int grossValue = (market == null) ? 0
+                    : market.getSalePrice(g.getType(), g.getAmount());
+                serverPlayer.addPirateLoot(g.getType(), g.getAmount(), grossValue);
             }
 
             // Others can see cargo capacity change.
@@ -3648,10 +3657,20 @@ public final class InGameController extends Controller {
             if (is.hasAnyScouted()) {
                 // Do nothing if already spoken to.
                 result = "nothing";
-            } else if (scoutSkill != null && sUnit.getType() != scoutSkill
+            } else if (scoutSkill != null && !sUnit.isNaval()
+                && sUnit.getType() != scoutSkill
                 && ((skill != null && skill.hasAbility(Ability.EXPERT_SCOUT))
                     || rnd == 0)) {
                 // If the scout can be taught to be an expert it will be.
+                // LarryDGray's Mods: bug fix - this vanilla promotion
+                // path assumes sUnit is always a land Scout, and calls
+                // changeType() unconditionally - naval scouting (see
+                // canSpeakWithChief() above) lets a ship reach this
+                // method too, and changeType() would then convert the
+                // ship itself into a Seasoned Scout (a land unit
+                // type), leaving it stranded and unable to move at
+                // all. Ships fall through to the tales/gold outcome
+                // below instead, same as before naval scouting existed.
                 sUnit.changeType(scoutSkill);//-vis(serverPlayer)
                 serverPlayer.invalidateCanSeeTiles();//+vis(serverPlayer)
                 result = "expert";
@@ -4076,12 +4095,18 @@ public final class InGameController extends Controller {
                                    role);//-vis: safe, Europe
         unit.setName(serverPlayer.getNameForUnit(type, random));
         // LarryDGray's Mods: distinct from GoldCategory.RECRUITMENT -
-        // this is paying for a SPECIFIC expert unit type directly,
-        // not recruiting whichever colonist is currently in the
-        // immigration pool. Larry's Gold Journal totals table
-        // surfaced these as one indistinguishable lump; split for
-        // clarity.
-        serverPlayer.modifyGold(-price, GoldCategory.TRAINING);
+        // this is paying for a SPECIFIC unit type directly, not
+        // recruiting whichever colonist is currently in the
+        // immigration pool. Further split by isPerson(): buying a
+        // ship or artillery piece this way was originally lumped in
+        // under TRAINING too, which read as plainly wrong on the Gold
+        // Journal ("I've bought a lot of cannons and ships, surely
+        // that's not paid training") - TRAINING is now reserved for
+        // an actual person/expert colonist bought this way, with
+        // ships and artillery split into their own category.
+        serverPlayer.modifyGold(-price, (type.isPerson())
+            ? GoldCategory.TRAINING
+            : GoldCategory.SHIP_ARTILLERY_PURCHASE);
         ((ServerEurope)europe).increasePrice(type, price);
 
         // Only visible in Europe
@@ -4129,6 +4154,24 @@ public final class InGameController extends Controller {
             GoodsLocation.moveGoods(carrier, goodsType, amount, null);
             logger.finest(carrier + " dumped " + amount
                 + " " + goodsType.getSuffix() + " to " + carrier.getLocation());
+            // LarryDGray's Mods: bug fix - this branch previously gave
+            // the player no feedback at all. If a carrier was no
+            // longer at a settlement by the time an unload request
+            // was actually processed (e.g. it had already started
+            // moving away again after a drag-and-drop transfer was
+            // initiated while it was still in port - confirmed live,
+            // goods vanished from a wagon with nothing showing up in
+            // the destination warehouse), the goods were silently
+            // dumped on whatever tile the carrier ended up on instead
+            // - not destroyed, but with no indication anything
+            // happened at all, easily read as the goods vanishing
+            // outright. Now always tells the player.
+            cs.addMessage(serverPlayer,
+                new ModelMessage(ModelMessage.MessageType.WARNING,
+                                 "model.unit.goodsDumped", carrier)
+                    .addAmount("%amount%", amount)
+                    .addNamed("%goods%", goodsType)
+                    .addStringTemplate("%unit%", carrier.getLabel()));
             cs.add(See.perhaps(), (FreeColGameObject)carrier.getLocation());
             // Others might see a capacity change.
             getGame().sendToOthers(serverPlayer, cs);

@@ -2206,18 +2206,31 @@ public final class Tile extends UnitLocation implements Named, Ownable {
 
         // LarryDGray's Mods: a naval attacker bombarding a coastal
         // settlement may target a docked ship or an armed land unit;
-        // artillery bombarding any settlement (if enabled) may only
-        // target an armed land unit, never a docked ship (a cannon
-        // does not fight a ship the way another ship would -- that is
-        // the separate, existing Fort/Fortress auto-bombard-ships
-        // mechanic) -- and neither ever targets an unarmed colonist,
-        // as bombarding an undefended settlement is not yet
-        // supported.  The attacking client is deliberately not shown
-        // what is actually present here, so this determination can
-        // only be made server-side, at the point of resolving the
-        // attack.
+        // artillery bombarding a COLONY (if enabled) may only target
+        // an armed land unit, never a docked ship (a cannon does not
+        // fight a ship the way another ship would -- that is the
+        // separate, existing Fort/Fortress auto-bombard-ships
+        // mechanic) -- and never targets an unarmed colonist, as
+        // bombarding an undefended colony hits the town itself
+        // instead (see AttackMessage.java).  A native settlement was
+        // never given that same "hit the town instead" fallback, so
+        // restricting artillery's targets there too left an unarmed
+        // village simply unattackable -- worse than before this
+        // option existed, when a cannon could just fight whatever
+        // brave was present like any other attacker.  Per Larry's
+        // own call: against a native settlement, artillery should act
+        // exactly like a soldier or dragoon -- no restriction at all
+        // -- and let the settlement's existing destroyed-when-the-
+        // last-defender-dies handling (with its usual gold/treasure
+        // chance) take it from there, same as it always has.  The
+        // attacking client is deliberately not shown what is actually
+        // present here, so this determination can only be made
+        // server-side, at the point of resolving the attack.
         final boolean navalAttacker = attacker != null && attacker.isNaval();
+        final boolean nativeTarget = hasSettlement()
+            && settlement instanceof IndianSettlement;
         final boolean bombardment = isLand() && attacker != null
+            && !nativeTarget
             && (navalAttacker
                 || (attacker.hasAbility(Ability.BOMBARD)
                     // LarryDGray's Mods: a continued save from before

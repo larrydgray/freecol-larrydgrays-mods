@@ -61,6 +61,7 @@ public class NationHistory {
         public final int soL;
         public final int foundingFathers;
         public final int tax;
+        public final int score;
 
         NationSample(int turn, NationSummary ns) {
             this.turn = turn;
@@ -72,6 +73,7 @@ public class NationHistory {
             this.soL = ns.getSoL();
             this.foundingFathers = ns.getFoundingFathers();
             this.tax = ns.getTax();
+            this.score = ns.getScore();
         }
 
         /**
@@ -90,6 +92,7 @@ public class NationHistory {
             this.soL = persisted.getSoL();
             this.foundingFathers = persisted.getFoundingFathers();
             this.tax = persisted.getTax();
+            this.score = persisted.getScore();
         }
     }
 

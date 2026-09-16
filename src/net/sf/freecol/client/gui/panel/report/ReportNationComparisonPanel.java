@@ -52,6 +52,11 @@ public final class ReportNationComparisonPanel extends ReportPanel {
      * out of a recorded {@link NationHistory.NationSample}.
      */
     private enum Stat {
+        SCORE("report.nationComparison.score") {
+            @Override int value(NationHistory.NationSample s) {
+                return s.score;
+            }
+        },
         SETTLEMENTS("report.nationComparison.settlements") {
             @Override int value(NationHistory.NationSample s) {
                 return s.numberOfSettlements;
@@ -123,8 +128,8 @@ public final class ReportNationComparisonPanel extends ReportPanel {
         // gate NationSummary itself applies to those three fields -
         // only meaningful once Jan de Witt is in Congress.
         List<Stat> stats = new ArrayList<>(List.of(
-            Stat.SETTLEMENTS, Stat.UNITS, Stat.MILITARY, Stat.NAVAL,
-            Stat.GOLD));
+            Stat.SCORE, Stat.SETTLEMENTS, Stat.UNITS, Stat.MILITARY,
+            Stat.NAVAL, Stat.GOLD));
         if (getMyPlayer().hasAbility(
                 Ability.BETTER_FOREIGN_AFFAIRS_REPORT)) {
             stats.add(Stat.SOL);

@@ -45,6 +45,7 @@ public enum GoldCategory {
     LAND_CLAIM,
     RECRUITMENT,
     TRAINING,
+    SHIP_ARTILLERY_PURCHASE,
     DIPLOMACY,
     DISASTER,
     ARREARS,
@@ -86,6 +87,7 @@ public enum GoldCategory {
             case LAND_CLAIM: return "LND";
             case RECRUITMENT: return "REC";
             case TRAINING: return "TRN";
+            case SHIP_ARTILLERY_PURCHASE: return "S&A";
             case DIPLOMACY: return "DIP";
             case DISASTER: return "DIS";
             case ARREARS: return "ARR";

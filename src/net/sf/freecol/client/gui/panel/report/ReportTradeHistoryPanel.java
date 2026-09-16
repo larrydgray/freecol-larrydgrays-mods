@@ -187,7 +187,11 @@ public final class ReportTradeHistoryPanel extends ReportPanel {
             new MetricEntry(Messages.message("report.tradeHistory.buyPrice"),
                 s -> s.goodsBuyPrice, true),
             new MetricEntry(Messages.message("report.tradeHistory.sellPrice"),
-                s -> s.goodsSellPrice, true));
+                s -> s.goodsSellPrice, true),
+            new MetricEntry(Messages.message("report.tradeHistory.piracyUnits"),
+                s -> s.goodsPiracyUnits),
+            new MetricEntry(Messages.message("report.tradeHistory.piracyValue"),
+                s -> s.goodsPiracyValue));
         this.metricSelector = new JComboBox<>(metrics.toArray(new MetricEntry[0]));
         this.metricSelector.setSelectedIndex(2); // Net Production, matches
                                                   // the Trade Advisor default

@@ -253,9 +253,16 @@ Fathers, and tax rate.
 ### Trade History Report *(client option, default on)*
 New Reports menu entry for empire-wide goods trends: pick Basic Goods
 or Refined Goods, then a metric (On Hand, Production, Net Production,
-Sales, Units Bought, Units Sold, Income Before/After Taxes, or Units In
-Cargo), and see every good in that group plotted together over the
-whole game's turn history.
+Sales, Units Bought, Units Sold, Income Before/After Taxes, Units In
+Cargo, current Europe Buy/Sell Price, or Piracy Units/Piracy Value),
+and see every good in that group plotted together over the whole
+game's turn history, each line paired with that good's own icon in the
+legend. Piracy Units/Piracy Value track goods actually captured via
+combat loot (privateering/piracy against enemy cargo ships) as a
+running total since the game started, separate from ordinary
+production/trade/gifts - Piracy Value is each capture's gross Europe
+market value at the moment it was taken, before taxes, not a live
+re-priced total.
 
 ### Gold Journal Report *(always on, display-only)*
 New Reports menu entry, a real per-turn ledger rather than a chart:
@@ -354,7 +361,15 @@ chief simply refuses to speak, and the ship sails away safely with
 nothing to show for it. A ship carrying goods (or with Empty Traders
 on) also gets a **Trade** option alongside Speak/Tribute/Attack, so
 turning Naval Scouting on doesn't cost a cargo ship its ability to
-trade with natives.
+trade with natives. **Bug fixed 2026-09-07**: speaking to a chief has a
+small vanilla chance of promoting the visiting unit to a Seasoned
+Scout outright - that promotion code assumed the visitor was always a
+land Scout and called `changeType()` unconditionally, so a ship could
+get promoted too, converting the ship itself into a Seasoned Scout (a
+land unit type) and leaving it stranded, unable to move at all. Fixed
+by excluding naval units from that promotion path entirely - a ship
+now always falls through to the tales/gold outcome instead, exactly
+as if Naval Scouting had never touched that branch.
 
 ### Artillery Bombardment *(game option, default on)*
 Extends Naval Bombardment's logic to artillery: with the
@@ -506,6 +521,25 @@ preferences.
   check now detects and repairs any tile left in that inconsistent
   state, so previously-affected saves and colonies fix themselves the
   moment they're loaded.
+- **A population-1 colony could starve to death with zero warning** -
+  root-caused live: Larry lost a freshly-founded colony (Charlesfort)
+  with no starvation message on any turn report at all. A colony's
+  stored food starts at 0, so a single-colonist colony whose colonist
+  isn't on a food tile is already food-negative from turn one. The
+  existing "famine feared in N turns" warning only ever runs while
+  food is still non-negative that turn - so a colony that's negative
+  on its very first eligible turn skips that warning path completely
+  and, since `getUnitCount() == 1`, went straight to
+  `ServerColony.csNewTurn()`'s "Its dead, Jim" branch and was destroyed
+  outright in the same turn, with no message the player could have
+  acted on. Fixed by giving the last colonist one warned turn of grace
+  first: a new `model.colony.lastColonistStarving` message fires
+  instead of destroying the colony the first time this happens, and
+  only if it's *still* negative the following turn does the colony
+  actually get lost - giving the player at least one real chance to
+  reassign the colonist to food. Resets automatically once food
+  recovers, so a colony that dips negative, gets warned, and is fixed
+  in time keeps a clean slate for any future scare.
 
 ## Wish List
 
@@ -514,6 +548,20 @@ commitments, just a record so they don't get lost. (AI Difficulty
 Levels is its own much larger, separately-tracked design effort and
 isn't listed here.)
 
+- **Goods production tooltip: append current Europe revenue after
+  taxes** - the colony production sidebar's per-good tooltip (e.g.
+  hovering the beaver icon showing "168 Furs") should add the current
+  after-tax Europe sell value for that amount at the end of the text.
+  That tooltip is set in `AbstractGoodsLabel.java:68`
+  (`setToolTipText(Messages.getName(abstractGoods))`), which is a
+  shared base class used by goods labels across many panels (colony
+  production sidebar, warehouse, cargo hold, Europe market) - scoping
+  this to just the production-sidebar tooltip Larry actually pointed
+  at, vs. every goods label everywhere, is an open question to settle
+  before building it. Value would need the current market sell price
+  (`Market.getPaidForSale(GoodsType)`, same call already used for
+  Trade History's Sell Price metric) times the shown amount, minus the
+  player's current tax rate.
 - **Missionary auto-upgrade** - once a mission is established, if a
   better missionary (e.g. an actual expert Missionary) becomes
   available, swap them into the mission automatically; the displaced
@@ -935,6 +983,155 @@ isn't listed here.)
     this may need to be scoped as human-human-alliance-only (or built
     knowing the AI side simply won't exercise it) rather than assuming
     AI allies get equal benefit for free.
+- **Pre-game team selection - permanent allies for the whole game**
+  (visionary, related to Give Alliance real behavior above but a
+  separate mechanic) - let players choose teams *before* the game
+  starts, rather than only being able to negotiate an alliance once
+  play is already underway. A team formed this way would last the
+  entire game (not revocable the way an in-game negotiated alliance
+  is), effectively turning a multi-nation game into a team-vs-team
+  contest. Once in place, teammates would get the same in-game
+  alliance diplomacy already scoped above - shared vision, entering
+  each other's cities, loading/unloading units, and whatever other
+  shared privileges get built for ordinary alliances - just granted
+  automatically from turn one instead of negotiated later, and locked
+  in for the game's duration instead of endable.
+- **Teach the AI Larry's own overflow-management habit** - not a
+  player-facing feature, but genuine AI behavior: when an AI-controlled
+  colony is about to waste production it has no immediate way to sell,
+  have it try the same three-tier strategy Larry already does by hand:
+  (1) sell immediately if a Custom House or a Europe-bound ship can
+  take it right now, (2) failing that, move the raw material to a
+  nearby sister colony that can actually *refine* it (sugar to one
+  with a Rum Distillery, cotton to a Weaver's House, etc.) if one is
+  reachable, (3) failing that too, just park it temporarily in a
+  nearby non-competing colony's warehouse (one not already stockpiling
+  the same good itself) as pure holding storage until it can move on.
+  This is squarely AI-decision work, not a UI toggle - the natural
+  home is `AIColony`'s own per-turn logic (`updateExportGoods()`
+  already computes what's overproducing and needs shipping; this
+  would need a new priority step alongside it, reusing the existing
+  `WishRealizationMission`/goods-wish machinery for tier 2, and the
+  already-built Warehouse Overflow to Carrier mod's spirit - just
+  redirected to a colony's warehouse instead of only an idle carrier -
+  for tier 3). Also relevant to the AI Difficulty Levels design effort
+  (tracked separately) as a concrete example of a smarter-AI behavior
+  tier, not just an economic-cheat difficulty knob.
+- **Colony Waste Report** - a dedicated report showing which colonies
+  are actually wasting goods to warehouse overflow, how much, and of
+  what, over time - not just the map's small "!" badge (Colony
+  Building Badges) that only ever shows a bare yes/no for the current
+  turn. Real gap confirmed: `Colony.wastedGoods` (built for that map
+  badge) is only ever a boolean, reset and recomputed fresh each turn
+  in `ServerColony.csNewTurnWarnings()`'s existing per-goods warehouse
+  loop - it doesn't record which goods type(s) or how much was lost,
+  and nothing persists a running history of it across turns. A real
+  report would need genuinely new tracking (a per-colony, per-goods
+  wasted-amount sample each turn, not just a flag), but the display
+  side is an easy fit for the exact `HistoryLineChart`/report pattern
+  already built out repeatedly this session for Trade History, Colony
+  Growth, and Nation Comparison. Would pair naturally with the
+  AI-strategy overflow-management idea above - the report would be a
+  good way to see whether that AI behavior is actually working.
+- **Player-set task notes on units and settlements** - a free-text
+  note the human player can attach to their own unit or colony (e.g.
+  "heading to found a colony here," "waiting for reinforcement,"
+  "don't touch, reserved for X") as a personal reminder, shown when
+  that unit/settlement is hovered or selected. Confirmed the real hook
+  point: FreeCol doesn't use ordinary Swing hover tooltips for map
+  units/tiles at all - the bottom-left `InfoPanel` (`update(Unit)`/
+  `update(Tile)`) is what actually displays hover/selection info, so
+  a note would show there, not in a classic tooltip popup. Also needs
+  a small graphical indicator on the map itself (an icon/marker,
+  similar in spirit to the existing Colony Building Badges) so a
+  player can tell at a glance which units/settlements have a note
+  set, without hovering each one individually to check. Requires a
+  new persisted free-text field on both `Unit` and `Settlement` (or
+  `Colony` specifically), plus a way to actually set/edit it - likely
+  a right-click menu entry, similar to how other per-unit actions are
+  already exposed.
+- **Piracy Loss tracking** (Trade History) - the mirror of the new
+  Piracy Units/Piracy Value metrics, but for goods the player *loses*
+  to enemy privateering rather than captures. Deliberately not built
+  now - Larry's own observation is that piracy losses against the
+  current AI have been very rare in practice, so the stat would sit
+  near-zero most games; worth revisiting once either the AI mods make
+  enemy privateering genuinely more aggressive, or for human-vs-human
+  games where it could matter a lot more. Technically doable but a bit
+  more plumbing than the winner side: the loser's player needs to be
+  captured at the moment `LootSession` is created
+  (`server/model/LootSession.java`), since by the time
+  `InGameController.lootCargo()` actually runs, the loser's unit may
+  already be sunk and its owner no longer resolvable from the loot
+  request itself.
+- **Actually enforce "the very last year of the game" - a hard end
+  year, with continuation allowed** - `model.option.lastYear`
+  (`data/rules/classic/specification.xml:4831`, default **1850**,
+  literally commented "The very last year of the game") already
+  exists in the ruleset, and `GameOptions.LAST_YEAR` already exists as
+  a Java constant for it - but confirmed via a full search of
+  `server/` and `common/model/` that **nothing anywhere actually reads
+  this option**. It's a real, defined, seemingly-finished vanilla
+  FreeCol feature that was apparently never wired up to end the game -
+  not a gap introduced by any of Larry's own mods. Contrast with
+  `model.option.lastColonialYear` (default 1800), which *is* fully
+  enforced today - you genuinely cannot declare independence after it
+  (`model.limit.independence.year` in the same event definition).
+  Larry's design rationale for wanting this real: a hard deadline
+  creates actual pressure to work toward goals faster, which a softer
+  "are you sure you want to keep playing" prompt wouldn't - so this
+  should be a genuine, forced game-over once the year is reached, not
+  just a warning. His one explicit addition: **continuing to play past
+  that point should still be offered as a choice** at the moment the
+  game would otherwise end, rather than making it an absolute, un-
+  overridable stop - closer to "the campaign is officially over, see
+  your final score" with an option to keep going anyway than to a hard
+  wall, with anything played after that point being pure free play -
+  no more win/loss stakes.
+  **Real prerequisite Larry flagged himself, not yet decided**: this
+  needs an actual win/loss condition to *judge* at that year, which
+  doesn't exist yet either - 1850 would be the moment the game decides
+  whether this playthrough was a win or a loss, not just a stopping
+  point. FreeCol already has a real win condition (declare and win
+  independence against the REF) and a real loss condition (elimination
+  via `checkForDeath()`), but neither fits every game - most playthroughs
+  reaching 1850 will have done neither, including Larry's own current
+  game. What "win" or "lose" even means for a game that reaches the
+  end year without declaring independence is an open design question
+  to settle before building this, not something to guess at. Larry's
+  own candidate metrics, not yet narrowed down: Score (already tracked,
+  and now has its own Nation Comparison graph, see above), colony size,
+  land area owned (ties into the Land Area/% of map owned wishlist
+  idea above), population, number of settlements, and wealth (gold) -
+  could be one of these, some weighted combination, or a threshold
+  rather than a pure "biggest wins" comparison.
+  **A second, bigger dependency Larry caught himself**: comparing the
+  human against the AI on any of these metrics is only meaningful if
+  the AI is actually *trying* to maximize that same thing. Confirmed
+  across this session's own deep dive into the AI (the Mission system,
+  MilitaryCoordinator, ColonyPlan's build/worker scoring) - none of it
+  has any notion of "grow as large/wealthy/populous as possible to
+  beat the human by a deadline." The AI just tries to run its own
+  colonies reasonably and defend itself; it isn't competing toward any
+  end-game metric at all. Without that, a human would win almost any
+  such comparison by default, regardless of how well they actually
+  played - not a real contest. This is directly the same gap the AI
+  Difficulty Levels design effort (tracked separately) is already
+  trying to close (real skill tiers and goals, not just economic
+  cheats) - this end-year win condition probably shouldn't be built
+  before that effort gives the AI something genuine to be measured
+  against. One live data point from Larry's own current game, worth
+  keeping in mind when this gets designed: Score is the metric where
+  the AI is genuinely tough to beat (suggesting it already reflects
+  real AI capability fairly well, even without an explicit "maximize
+  score" goal behind it), while Number of Settlements is one he came
+  close to beating the AI on outright - different metrics may already
+  sit at very different points on the "is this a real contest"
+  spectrum even before any AI-goals work happens.
+  Otherwise likely the smallest-lift item on this list, since the
+  option, its default value, and its Java constant already exist -
+  most of the remaining work is the turn-processing hookup and the
+  continue-anyway prompt, not inventing new ruleset plumbing.
 - **Colopedia/help screens updated** to actually mention what these
   mods change, instead of only describing stock FreeCol.
 

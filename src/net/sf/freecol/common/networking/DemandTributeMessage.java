@@ -101,7 +101,18 @@ public class DemandTributeMessage extends AttributeMessage {
             return serverPlayer.clientError(e.getMessage());
         }
         if (unit.isArmed()
-            || unit.hasAbility(Ability.DEMAND_TRIBUTE)) {
+            || unit.hasAbility(Ability.DEMAND_TRIBUTE)
+            // LarryDGray's Mods: a ship offered "Demand Tribute" via
+            // Naval Scouting's speak-with-chief dialog was always
+            // rejected here regardless of type - isArmed() checks
+            // Ability.ARMED, a role-based ability only land units
+            // (soldiers/dragoons) ever have, so no ship could ever
+            // pass it. canSpeakWithChief() is the exact same gate
+            // that made the dialog offer this option in the first
+            // place (land scouts via SPEAK_WITH_CHIEF, ships via the
+            // Naval Scouting option), so anything allowed to see the
+            // choice is now also allowed to actually carry it out.
+            || unit.canSpeakWithChief()) {
             ; // ok
         } else {
             return serverPlayer.clientError("Unit is neither armed"

@@ -810,8 +810,9 @@ public final class InGameController extends FreeColClientHolder {
 
         // Try to purchase.
         int oldAmount = carrier.getGoodsContainer().getGoodsCount(type);
-        if (askServer().loadGoods(loc, type, amount, carrier)
-            && carrier.getGoodsContainer().getGoodsCount(type) != oldAmount) {
+        boolean serverOk = askServer().loadGoods(loc, type, amount, carrier);
+        int newAmount = carrier.getGoodsContainer().getGoodsCount(type);
+        if (serverOk && newAmount != oldAmount) {
             // LarryDGray's Mods: loading goods out of a colony's
             // warehouse can clear its waste/full warning badges (the
             // map caches settlement labels per tile and only redraws
@@ -822,6 +823,20 @@ public final class InGameController extends FreeColClientHolder {
             if (loc instanceof Colony) getGUI().refreshTile(((Colony)loc).getTile());
             return true;
         }
+        // LarryDGray's Mods: diagnostic logging for a rare, not-yet-
+        // reproduced live report of goods vanishing (removed from a
+        // carrier, never appearing at the destination) during a
+        // drag-and-drop transfer while the carrier was also moving -
+        // catches whether the server actually rejected the transfer,
+        // and where the carrier was at the moment it did, next time
+        // this happens.
+        logger.warning("LarryDGray's Mods: askLoadGoods failed or no-op - "
+            + "carrier=" + carrier.getId()
+            + " location=" + carrier.getLocation()
+            + " moves=" + carrier.getMovesLeft() + "/" + carrier.getInitialMovesLeft()
+            + " type=" + type.getId() + " requested=" + amount
+            + " oldAmount=" + oldAmount + " newAmount=" + newAmount
+            + " serverOk=" + serverOk);
         return false;
     }
 
@@ -877,8 +892,9 @@ public final class InGameController extends FreeColClientHolder {
         final Player player = getMyPlayer();
 
         int oldAmount = carrier.getGoodsContainer().getGoodsCount(type);
-        if (askServer().unloadGoods(type, amount, carrier)
-            && carrier.getGoodsContainer().getGoodsCount(type) != oldAmount) {
+        boolean serverOk = askServer().unloadGoods(type, amount, carrier);
+        int newAmount = carrier.getGoodsContainer().getGoodsCount(type);
+        if (serverOk && newAmount != oldAmount) {
             // LarryDGray's Mods: unloading goods into a colony's
             // warehouse can set its full-warehouse badge - same
             // stale-map-label issue as askLoadGoods above, mirrored
@@ -886,6 +902,19 @@ public final class InGameController extends FreeColClientHolder {
             getGUI().refreshTile(carrier.getTile());
             return true;
         }
+        // LarryDGray's Mods: diagnostic logging - see the matching
+        // note in askLoadGoods above. This is the direction Larry hit
+        // live (wagon into a colony warehouse): if goods vanished
+        // (removed from the wagon, never appeared in the warehouse),
+        // this will show whether the server actually rejected the
+        // request and what location/moves the carrier had at the time.
+        logger.warning("LarryDGray's Mods: askUnloadGoods failed or no-op - "
+            + "carrier=" + carrier.getId()
+            + " location=" + carrier.getLocation()
+            + " moves=" + carrier.getMovesLeft() + "/" + carrier.getInitialMovesLeft()
+            + " type=" + type.getId() + " requested=" + amount
+            + " oldAmount=" + oldAmount + " newAmount=" + newAmount
+            + " serverOk=" + serverOk);
         return false;
     }
 

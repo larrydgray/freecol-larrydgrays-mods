@@ -62,6 +62,8 @@ public class TradeHistory {
         public final Map<String, Integer> goodsUnitsInCargo;
         public final Map<String, Integer> goodsBuyPrice;
         public final Map<String, Integer> goodsSellPrice;
+        public final Map<String, Integer> goodsPiracyUnits;
+        public final Map<String, Integer> goodsPiracyValue;
 
         Sample(TradeHistorySample ths) {
             this.turn = ths.getTurn();
@@ -76,6 +78,8 @@ public class TradeHistory {
             this.goodsUnitsInCargo = ths.getGoodsUnitsInCargo();
             this.goodsBuyPrice = ths.getGoodsBuyPrice();
             this.goodsSellPrice = ths.getGoodsSellPrice();
+            this.goodsPiracyUnits = ths.getGoodsPiracyUnits();
+            this.goodsPiracyValue = ths.getGoodsPiracyValue();
         }
     }
 

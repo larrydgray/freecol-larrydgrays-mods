@@ -59,6 +59,9 @@ public class NationSummary extends FreeColObject {
     /** The tax rate of this (European) player. */
     private int tax;
 
+    /** LarryDGray's Mods: this (European) player's overall score. */
+    private int score;
+
 
     /**
      * Trivial constructor allowing creation by Game.newInstance().
@@ -86,6 +89,7 @@ public class NationSummary extends FreeColObject {
             militaryStrength = player.calculateStrength(false);
             navalStrength = player.calculateStrength(true);
             gold = player.getGold();
+            score = player.getScore();
             if (player == requester || requester
                 .hasAbility(Ability.BETTER_FOREIGN_AFFAIRS_REPORT)) {
                 soL = player.getSoL();
@@ -96,7 +100,7 @@ public class NationSummary extends FreeColObject {
             }
         } else {
             numberOfUnits = militaryStrength = navalStrength = gold = soL
-                = foundingFathers = tax = -1;
+                = foundingFathers = tax = score = -1;
         }
     }
 
@@ -138,6 +142,10 @@ public class NationSummary extends FreeColObject {
         return tax;
     }
 
+    public int getScore() {
+        return score;
+    }
+
 
     // Overide FreeColObject
 
@@ -157,6 +165,7 @@ public class NationSummary extends FreeColObject {
         this.soL = o.getSoL();
         this.foundingFathers = o.getFoundingFathers();
         this.tax = o.getTax();
+        this.score = o.getScore();
         return true;
     }
 
@@ -172,6 +181,7 @@ public class NationSummary extends FreeColObject {
     private static final String SOL_TAG = "SoL";
     private static final String STANCE_TAG = "stance";
     private static final String TAX_TAG = "tax";
+    private static final String SCORE_TAG = "score";
 
 
     /**
@@ -192,6 +202,8 @@ public class NationSummary extends FreeColObject {
         xw.writeAttribute(STANCE_TAG, stance);
 
         xw.writeAttribute(GOLD_TAG, gold);
+
+        xw.writeAttribute(SCORE_TAG, score);
 
         if (soL >= 0) {
             xw.writeAttribute(SOL_TAG, soL);
@@ -224,6 +236,8 @@ public class NationSummary extends FreeColObject {
         navalStrength = xr.getAttribute(NAVAL_STRENGTH_TAG, -1);
 
         gold = xr.getAttribute(GOLD_TAG, -1);
+
+        score = xr.getAttribute(SCORE_TAG, -1);
 
         soL = xr.getAttribute(SOL_TAG, -1);
 

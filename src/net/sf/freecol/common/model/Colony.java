@@ -150,6 +150,23 @@ public class Colony extends Settlement implements TradeLocation {
     protected boolean wastedGoods = false;
 
     /**
+     * LarryDGray's Mods: bug fix - whether this colony's last
+     * remaining colonist was already warned about starvation on a
+     * previous turn. Without this, a population-1 colony that starts
+     * out already food-negative (e.g. a freshly founded colony whose
+     * sole colonist isn't on a food tile - stored food starts at
+     * zero) could be destroyed outright the very first time food went
+     * negative, with the normal "famine feared in N turns" warning
+     * never getting a chance to fire (that warning only runs when
+     * food is still non-negative that turn). Set true the first time
+     * the last colonist's food goes negative (a warning is shown
+     * instead of destroying the colony that turn), reset false as
+     * soon as food recovers to non-negative. See
+     * ServerColony.csNewTurn().
+     */
+    protected boolean lastColonistStarving = false;
+
+    /**
      * LarryDGray's Mods: which goods type (if any) this colony's
      * workers are automatically reassigned to maximize each turn.
      * See ServerColony.csApplyManager().
@@ -420,6 +437,26 @@ public class Colony extends Settlement implements TradeLocation {
      */
     public void setWastedGoods(boolean wastedGoods) {
         this.wastedGoods = wastedGoods;
+    }
+
+    /**
+     * LarryDGray's Mods: was this colony's last remaining colonist
+     * already warned about starvation on a previous turn?
+     *
+     * @return True if already warned.
+     */
+    public boolean isLastColonistStarving() {
+        return this.lastColonistStarving;
+    }
+
+    /**
+     * LarryDGray's Mods: set whether this colony's last remaining
+     * colonist has been warned about starvation.
+     *
+     * @param lastColonistStarving The new state.
+     */
+    public void setLastColonistStarving(boolean lastColonistStarving) {
+        this.lastColonistStarving = lastColonistStarving;
     }
 
     /**
@@ -3160,6 +3197,7 @@ public class Colony extends Settlement implements TradeLocation {
     private static final String TORIES_TAG = "tories";
     private static final String UNIT_COUNT_TAG = "unitCount";
     private static final String WASTED_GOODS_TAG = "wastedGoods";
+    private static final String LAST_COLONIST_STARVING_TAG = "lastColonistStarving";
     private static final String MANAGER_TAG = "manager";
 
 
@@ -3203,6 +3241,8 @@ public class Colony extends Settlement implements TradeLocation {
             xw.writeAttribute(PRODUCTION_BONUS_TAG, productionBonus);
 
             xw.writeAttribute(WASTED_GOODS_TAG, wastedGoods);
+
+            xw.writeAttribute(LAST_COLONIST_STARVING_TAG, lastColonistStarving);
 
         } else {
             int uc = getApparentUnitCount();
@@ -3287,6 +3327,8 @@ public class Colony extends Settlement implements TradeLocation {
         productionBonus = xr.getAttribute(PRODUCTION_BONUS_TAG, 0);
 
         wastedGoods = xr.getAttribute(WASTED_GOODS_TAG, false);
+
+        lastColonistStarving = xr.getAttribute(LAST_COLONIST_STARVING_TAG, false);
 
         managerGoal = xr.getAttribute(MANAGER_TAG, ManagerGoal.class, ManagerGoal.UNMANAGED);
 

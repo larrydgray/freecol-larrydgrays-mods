@@ -1354,6 +1354,25 @@ public class ServerColony extends Colony implements TurnTaker {
                                              this)
                                 .addName("%colony%", getName())
                                 .addStringTemplate("%unit%", victimLabel));
+                    } else if (!isLastColonistStarving()) {
+                        // LarryDGray's Mods: bug fix - a population-1
+                        // colony that's already food-negative the
+                        // very first time (stored food starts at 0,
+                        // so a freshly founded colony whose sole
+                        // colonist isn't on a food tile qualifies
+                        // immediately) would otherwise be destroyed
+                        // outright with no warning at all - the
+                        // famineFeared warning below never runs here
+                        // since it requires food to still be
+                        // non-negative that turn. Give one warned
+                        // turn of grace instead of insta-killing it.
+                        setLastColonistStarving(true);
+                        cs.addMessage(owner,
+                            new ModelMessage(MessageType.WARNING,
+                                             "model.colony.lastColonistStarving",
+                                             this)
+                                .addName("%colony%", getName()));
+                        lb.add(" last colonist starvation warning, ");
                     } else { // Its dead, Jim.
                         cs.addMessage(owner,
                             new ModelMessage(MessageType.UNIT_LOST,
@@ -1363,16 +1382,22 @@ public class ServerColony extends Colony implements TurnTaker {
                         owner.csDisposeSettlement(this, cs);
                         return;
                     }
-                } else if (net < 0) {
-                    int turns = stored / -net;
-                    if (turns <= Colony.FAMINE_TURNS && !newUnitBorn) {
-                        cs.addMessage(owner,
-                            new ModelMessage(MessageType.WARNING,
-                                "model.colony.famineFeared", this)
-                            .addName("%colony%", getName())
-                            .addAmount("%number%", turns));
-                        lb.add(" famine in ", turns,
-                            " food=", stored, " production=", net);
+                } else {
+                    // LarryDGray's Mods: food recovered - reset the
+                    // grace-turn flag so a future starvation scare
+                    // gets its own fresh warning turn.
+                    if (isLastColonistStarving()) setLastColonistStarving(false);
+                    if (net < 0) {
+                        int turns = stored / -net;
+                        if (turns <= Colony.FAMINE_TURNS && !newUnitBorn) {
+                            cs.addMessage(owner,
+                                new ModelMessage(MessageType.WARNING,
+                                    "model.colony.famineFeared", this)
+                                .addName("%colony%", getName())
+                                .addAmount("%number%", turns));
+                            lb.add(" famine in ", turns,
+                                " food=", stored, " production=", net);
+                        }
                     }
                 }
             }

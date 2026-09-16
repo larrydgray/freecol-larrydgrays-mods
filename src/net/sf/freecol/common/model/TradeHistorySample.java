@@ -60,6 +60,8 @@ public class TradeHistorySample extends FreeColObject {
     private Map<String, Integer> goodsUnitsInCargo;
     private Map<String, Integer> goodsBuyPrice;
     private Map<String, Integer> goodsSellPrice;
+    private Map<String, Integer> goodsPiracyUnits;
+    private Map<String, Integer> goodsPiracyValue;
 
 
     /**
@@ -112,6 +114,14 @@ public class TradeHistorySample extends FreeColObject {
         // REF player) leaves these at 0 for every goods type.
         Map<String, Integer> buyPrice = new HashMap<>();
         Map<String, Integer> sellPrice = new HashMap<>();
+        // LarryDGray's Mods: cumulative units and gross market value
+        // (at time of capture, before taxes) of goods captured via
+        // combat loot - piracy - since the game started, same
+        // cumulative-total shape as Sales/Units Bought/Units Sold
+        // above. Backed by Player's own running totals (not Market's,
+        // since a loot transfer is not a market transaction).
+        Map<String, Integer> piracyUnits = new HashMap<>();
+        Map<String, Integer> piracyValue = new HashMap<>();
         Market market = player.getMarket();
         for (GoodsType gt : player.getSpecification().getStorableGoodsTypeList()) {
             onHand.put(gt.getId(),
@@ -156,6 +166,8 @@ public class TradeHistorySample extends FreeColObject {
                 (market == null) ? 0 : market.getCostToBuy(gt));
             sellPrice.put(gt.getId(),
                 (market == null) ? 0 : market.getPaidForSale(gt));
+            piracyUnits.put(gt.getId(), player.getPirateLootUnits(gt));
+            piracyValue.put(gt.getId(), player.getPirateLootValue(gt));
         }
         this.goodsOnHand = onHand;
         this.goodsProduction = production;
@@ -167,6 +179,8 @@ public class TradeHistorySample extends FreeColObject {
         this.goodsIncomeAfterTaxes = incomeAfterTaxes;
         this.goodsBuyPrice = buyPrice;
         this.goodsSellPrice = sellPrice;
+        this.goodsPiracyUnits = piracyUnits;
+        this.goodsPiracyValue = piracyValue;
     }
 
     /**
@@ -228,6 +242,14 @@ public class TradeHistorySample extends FreeColObject {
         return this.goodsSellPrice;
     }
 
+    public final Map<String, Integer> getGoodsPiracyUnits() {
+        return this.goodsPiracyUnits;
+    }
+
+    public final Map<String, Integer> getGoodsPiracyValue() {
+        return this.goodsPiracyValue;
+    }
+
     /**
      * Encode an id-to-count map as a single string, since a variable
      * set of keys does not fit neatly into fixed XML attributes.
@@ -282,6 +304,8 @@ public class TradeHistorySample extends FreeColObject {
     private static final String GOODS_UNITS_IN_CARGO_TAG = "goodsUnitsInCargo";
     private static final String GOODS_BUY_PRICE_TAG = "goodsBuyPrice";
     private static final String GOODS_SELL_PRICE_TAG = "goodsSellPrice";
+    private static final String GOODS_PIRACY_UNITS_TAG = "goodsPiracyUnits";
+    private static final String GOODS_PIRACY_VALUE_TAG = "goodsPiracyValue";
     private static final String TURN_TAG = "turn";
 
 
@@ -304,6 +328,8 @@ public class TradeHistorySample extends FreeColObject {
         xw.writeAttribute(GOODS_UNITS_IN_CARGO_TAG, encode(this.goodsUnitsInCargo));
         xw.writeAttribute(GOODS_BUY_PRICE_TAG, encode(this.goodsBuyPrice));
         xw.writeAttribute(GOODS_SELL_PRICE_TAG, encode(this.goodsSellPrice));
+        xw.writeAttribute(GOODS_PIRACY_UNITS_TAG, encode(this.goodsPiracyUnits));
+        xw.writeAttribute(GOODS_PIRACY_VALUE_TAG, encode(this.goodsPiracyValue));
     }
 
     /**
@@ -325,6 +351,8 @@ public class TradeHistorySample extends FreeColObject {
         this.goodsUnitsInCargo = decode(xr.getAttribute(GOODS_UNITS_IN_CARGO_TAG, (String)null));
         this.goodsBuyPrice = decode(xr.getAttribute(GOODS_BUY_PRICE_TAG, (String)null));
         this.goodsSellPrice = decode(xr.getAttribute(GOODS_SELL_PRICE_TAG, (String)null));
+        this.goodsPiracyUnits = decode(xr.getAttribute(GOODS_PIRACY_UNITS_TAG, (String)null));
+        this.goodsPiracyValue = decode(xr.getAttribute(GOODS_PIRACY_VALUE_TAG, (String)null));
     }
 
     /**
